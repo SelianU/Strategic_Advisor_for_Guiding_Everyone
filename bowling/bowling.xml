@@ -1,0 +1,157 @@
+<mujoco model="bowling">
+
+    <!-- ================================================================
+         DAPG assets: compiler, defaults, textures, meshes, hand contacts
+         ================================================================ -->
+    <include file="DAPG_assets.xml"/>
+
+    <worldbody>
+
+        <!-- ============================================================
+             카메라 (Cameras)  ← DAPG 예약 이름(view_1~5, top, fixed) 충돌 방지
+             ============================================================ -->
+        <!-- 뒤쪽에서 전체 레인을 바라보는 메인 카메라 -->
+        <camera name="bowl_back"  pos="0 -1.6 1.3"  xyaxes="1 0 0 0 0.6 0.8"/>
+        <!-- 위에서 내려다 보는 부감 카메라 -->
+        <camera name="bowl_top"   pos="0  1.5 4.5"  xyaxes="1 0 0 0 1 0"/>
+        <!-- 측면 카메라 -->
+        <camera name="bowl_side"  pos="3.5 1.5 1.0" xyaxes="0 1 0 -0.3 0 0.95"/>
+        <!-- 핀 쪽에서 공이 굴러오는 걸 바라보는 카메라 -->
+        <camera name="bowl_pins"  pos="0  5.0 1.0"  xyaxes="-1 0 0 0 -0.8 0.6"/>
+
+        <!-- ============================================================
+             투구 팔 (Throw Arm)
+             Y축 슬라이드 관절 → 볼링 스윙 동작 구현
+             throw_arm 위치: 레인 뒤쪽, 낮은 높이에서 시작
+               wrist 상대 위치 (+0 +0 +0.396) 적용 시 월드 좌표:
+               wrist  ≈ (0,  -0.2,  0.046)
+               palm   ≈ (0,  -0.2,  0.080)   [+0 0 0.034]
+               S_grasp ≈ (0.007, -0.25, 0.150) [+.007 -.05 .07]
+             ============================================================ -->
+        <body name="throw_arm" pos="0 -0.2 -0.35">
+            <!-- 볼링 스윙: Y축 방향으로 팔이 앞으로 밀려나감 -->
+            <joint name="arm_slide" type="slide" axis="0 1 0"
+                   range="-0.05 1.0" damping="2.0" armature="0.01"/>
+            <!-- 전완 시각 형상 (충돌 없음) -->
+            <geom name="arm_geom" type="capsule"
+                  fromto="0 0 0.05 0 0 0.34"
+                  size="0.025" rgba="0.75 0.55 0.40 1"
+                  contype="0" conaffinity="0"/>
+            <!-- DAPG Adroit 손 모델 (손목 + 손가락 + 엄지) -->
+            <include file="DAPG_Adroit.xml"/>
+        </body>
+
+        <!-- ============================================================
+             볼링 레인 (Lane)
+             Y축 방향으로 긺. 레인 중심 (0, 1, 0)
+             ============================================================ -->
+        <!-- 메인 레인 바닥 -->
+        <geom name="lane" type="plane" pos="0 1 0" size="1.55 3.6 0.1"
+              rgba="0.87 0.72 0.53 1" friction="0.12 0.005 0.0001"/>
+        <!-- 왼쪽 가터 벽 -->
+        <geom name="gutter_left"  type="box" pos="-1.60 1.0 0.05"
+              size="0.05 3.6 0.05" rgba="0.60 0.45 0.30 1"/>
+        <!-- 오른쪽 가터 벽 -->
+        <geom name="gutter_right" type="box" pos=" 1.60 1.0 0.05"
+              size="0.05 3.6 0.05" rgba="0.60 0.45 0.30 1"/>
+        <!-- 핀 뒤쪽 벽 -->
+        <geom name="back_wall" type="box" pos="0 4.70 0.20"
+              size="1.60 0.05 0.20" rgba="0.60 0.45 0.30 1"/>
+
+        <!-- ============================================================
+             볼링공 (Bowling Ball)
+             - 반지름 0.11 m, 질량 3.5 kg
+             - S_grasp 위치에 초기 배치 (손으로 잡은 상태)
+             - equality weld 로 팜에 고정, reset_model 에서 재활성화
+             ============================================================ -->
+        <body name="bowling_ball" pos="0.007 -0.25 0.15">
+            <joint name="ball_freejoint" type="free" limited="false"/>
+            <geom name="ball_geom" type="sphere" size="0.11" mass="3.5"
+                  rgba="0.08 0.08 0.78 1"
+                  friction="0.35 0.01 0.001" condim="4"/>
+            <!-- 손가락 구멍 마킹 (시각적 site) -->
+            <site name="hole_thumb" pos=" 0.040  0.000 -0.060" size="0.018" rgba="0.25 0.25 0.25 1"/>
+            <site name="hole_mf"    pos="-0.020  0.000  0.075" size="0.015" rgba="0.25 0.25 0.25 1"/>
+            <site name="hole_rf"    pos=" 0.020  0.000  0.075" size="0.015" rgba="0.25 0.25 0.25 1"/>
+        </body>
+
+        <!-- ============================================================
+             볼링 핀 4개 (마름모 대형)
+               핀 높이: capsule fromto -0.17 ~ +0.17 → 총 0.34 m
+               핀 중심 z = 바닥(0) + 반길이(0.17) = 0.17 → body z = 0.19 (약간 여유)
+                        
+                  ●  ← pin_4 (0.00, 3.20)   [뒤]
+                ●   ●  ← pin_2(-0.16,3.00), pin_3(+0.16,3.00)   [중]
+                  ●  ← pin_1 (0.00, 2.80)   [앞/리드핀]
+                
+             ============================================================ -->
+        <body name="pin_1" pos=" 0.00 2.80 0.19">
+            <joint name="pin1_joint" type="free" limited="false"/>
+            <geom name="pin1_geom" type="capsule" fromto="0 0 -0.17 0 0 0.17"
+                  size="0.045" mass="1.5" rgba="1 1 1 1" friction="0.5 0.01 0.001"/>
+        </body>
+
+        <body name="pin_2" pos="-0.16 3.00 0.19">
+            <joint name="pin2_joint" type="free" limited="false"/>
+            <geom name="pin2_geom" type="capsule" fromto="0 0 -0.17 0 0 0.17"
+                  size="0.045" mass="1.5" rgba="1 1 1 1" friction="0.5 0.01 0.001"/>
+        </body>
+
+        <body name="pin_3" pos=" 0.16 3.00 0.19">
+            <joint name="pin3_joint" type="free" limited="false"/>
+            <geom name="pin3_geom" type="capsule" fromto="0 0 -0.17 0 0 0.17"
+                  size="0.045" mass="1.5" rgba="1 1 1 1" friction="0.5 0.01 0.001"/>
+        </body>
+
+        <body name="pin_4" pos=" 0.00 3.20 0.19">
+            <joint name="pin4_joint" type="free" limited="false"/>
+            <geom name="pin4_geom" type="capsule" fromto="0 0 -0.17 0 0 0.17"
+                  size="0.045" mass="1.5" rgba="1 1 1 1" friction="0.5 0.01 0.001"/>
+        </body>
+
+    </worldbody>
+
+    <!-- ================================================================
+         볼-손 그립 등가 구속조건 (Ball-Hand Grip Equality Weld)
+         body1=palm 의 프레임 기준으로 body2=bowling_ball 의 위치/방향을 고정
+         relpose: [tx ty tz qw qx qy qz]
+           tx, ty, tz = S_grasp site 위치 ≈ (0.007, -0.05, 0.07)
+         rl_env.py 에서 model.eq_active[0] = 0 으로 해제
+         ================================================================ -->
+    <equality>
+        <weld name="ball_grip" body1="palm" body2="bowling_ball"
+              relpose="0.007 -0.05 0.07  1 0 0 0"
+              solimp="0.95 0.99 0.001" solref="0.02 1"/>
+    </equality>
+
+    <!-- ================================================================
+         접촉 쌍 정의 (Contact Pairs)
+         기본적으로 MuJoCo 는 모든 geom 간 충돌을 계산하지만,
+         condim/friction 을 명시적으로 지정해 볼-핀, 핀-핀 충돌을 개선
+         ================================================================ -->
+    <contact>
+        <!-- 볼 ↔ 핀 -->
+        <pair geom1="ball_geom" geom2="pin1_geom" condim="3" friction="0.4 0.4 0.005 0.0001 0.0001"/>
+        <pair geom1="ball_geom" geom2="pin2_geom" condim="3" friction="0.4 0.4 0.005 0.0001 0.0001"/>
+        <pair geom1="ball_geom" geom2="pin3_geom" condim="3" friction="0.4 0.4 0.005 0.0001 0.0001"/>
+        <pair geom1="ball_geom" geom2="pin4_geom" condim="3" friction="0.4 0.4 0.005 0.0001 0.0001"/>
+        <!-- 핀 ↔ 핀 (쓰러지면서 서로 부딪힘) -->
+        <pair geom1="pin1_geom" geom2="pin2_geom" condim="3"/>
+        <pair geom1="pin1_geom" geom2="pin3_geom" condim="3"/>
+        <pair geom1="pin2_geom" geom2="pin4_geom" condim="3"/>
+        <pair geom1="pin3_geom" geom2="pin4_geom" condim="3"/>
+        <pair geom1="pin2_geom" geom2="pin3_geom" condim="3"/>
+    </contact>
+
+    <!-- ================================================================
+         액추에이터 (Actuators)
+         손 관절 24개 (A_WRJ1 ~ A_THJ0) 는 DAPG_assets.xml 에 이미 정의됨.
+         볼링 전용으로 새로 추가된 arm_slide 관절만 여기서 정의.
+         ================================================================ -->
+    <actuator>
+        <!-- 볼링 스윙: Y축 방향으로 팔 전체를 앞으로 밀어냄 -->
+        <motor name="A_arm_slide" joint="arm_slide"
+               gear="80" ctrllimited="true" ctrlrange="-1 1"/>
+    </actuator>
+
+</mujoco>
