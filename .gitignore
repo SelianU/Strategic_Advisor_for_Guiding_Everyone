@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+
+# 가상환경
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# 환경 변수
+.env
+.env.local
+.env.*.local
+
+# 모델 체크포인트 (용량이 크므로 Git LFS 사용 권장)
+checkpoints*/
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.pkl
+*.pickle
+
+# 단, AlphaZero Gomoku의 정책 모델은 추적 가능 (용량 확인 후 선택)
+# !AlphaZero_Gomoku/best_policy_8_8_5.model
+
+# 로그
+*.log
+logs/
+runs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# Zone.Identifier (Windows에서 생성되는 파일)
+*.Identifier
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# mypy
+.mypy_cache/
+
+# 에피소드 데이터 (용량이 클 수 있음)
+si_episode_*.pkl
+episode_data/

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>SPACE INVADERS — AI ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<style>
+  :root {
+    --bg:#050508; --green:#39ff14; --yellow:#ffe600;
+    --red:#ff3366; --cyan:#00f5ff; --dim:#0d1117; --dim2:#111820; --text:#c8d8e8; --sub:#566;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;min-height:100vh;}
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      linear-gradient(rgba(57,255,20,.04) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(57,255,20,.04) 1px,transparent 1px);
+    background-size:40px 40px;
+  }
+  .layout{position:relative;z-index:1;display:flex;gap:20px;padding:20px;min-height:100vh;}
+
+  /* 왼쪽 */
+  .left{width:190px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;}
+  .back-btn{
+    font-family:'Press Start 2P',monospace;font-size:.5rem;
+    color:var(--green);border:1px solid var(--green);background:transparent;
+    padding:8px 10px;cursor:pointer;text-decoration:none;display:inline-block;
+    transition:background .2s,color .2s;
+  }
+  .back-btn:hover{background:var(--green);color:#000;}
+  .panel{background:var(--dim);border:1px solid rgba(57,255,20,.25);padding:14px;}
+  .panel-title{font-family:'Press Start 2P',monospace;font-size:.5rem;color:var(--green);margin-bottom:10px;}
+  .stat-row{display:flex;justify-content:space-between;font-size:.72rem;margin:5px 0;}
+  .stat-val{color:var(--green);}
+  .controls-list{font-size:.72rem;line-height:2;color:#788;}
+  .key{background:#1a1a2e;padding:1px 5px;border:1px solid #344;}
+  .start-btn{
+    width:100%;font-family:'Press Start 2P',monospace;font-size:.55rem;
+    background:var(--green);color:#000;border:none;padding:12px;
+    cursor:pointer;letter-spacing:1px;transition:box-shadow .2s;
+  }
+  .start-btn:hover{box-shadow:0 0 20px var(--green);}
+  .start-btn:disabled{opacity:.35;cursor:not-allowed;}
+
+  /* 중앙 */
+  .center{flex:1;display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .game-title{font-family:'Press Start 2P',monospace;font-size:.75rem;color:var(--green);text-shadow:0 0 10px var(--green);letter-spacing:3px;}
+  canvas{border:2px solid var(--green);box-shadow:0 0 30px rgba(57,255,20,.3);max-width:100%;max-height:70vh;}
+  .status-bar{font-size:.7rem;color:var(--sub);letter-spacing:2px;}
+
+  /* 오른쪽 분석 */
+  .right{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:95vh;}
+
+  .analysis-panel{background:var(--dim);border:1px solid rgba(57,255,20,.2);padding:14px;display:none;flex-direction:column;gap:10px;}
+  .analysis-panel.visible{display:flex;}
+
+  /* 기본 통계 */
+  .grade-box{text-align:center;padding:14px;background:rgba(57,255,20,.06);border:1px solid rgba(57,255,20,.2);}
+  .grade-label{font-size:.6rem;color:var(--sub);margin-bottom:6px;}
+  .grade-value{font-family:'Press Start 2P',monospace;font-size:.9rem;color:var(--green);text-shadow:0 0 10px var(--green);}
+
+  .bar-row{margin:4px 0;}
+  .bar-label{font-size:.65rem;color:var(--sub);margin-bottom:2px;display:flex;justify-content:space-between;}
+  .bar-track{height:5px;background:#1a1a2e;border-radius:3px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:3px;transition:width 1s ease;}
+  .bar-g{background:var(--green);box-shadow:0 0 5px var(--green);}
+  .bar-y{background:var(--yellow);box-shadow:0 0 5px var(--yellow);}
+  .bar-r{background:var(--red);box-shadow:0 0 5px var(--red);}
+
+  .advice-box{background:rgba(0,0,0,.3);border-left:3px solid var(--green);padding:8px 10px;font-size:.7rem;line-height:1.7;}
+
+  /* D3QN 분석 */
+  .d3qn-panel{background:var(--dim);border:1px solid rgba(0,245,255,.25);padding:14px;display:none;flex-direction:column;gap:10px;}
+  .d3qn-panel.visible{display:flex;}
+  .d3qn-title{font-family:'Press Start 2P',monospace;font-size:.5rem;color:var(--cyan);margin-bottom:6px;}
+
+  .progress-bar{height:4px;background:#1a1a2e;border-radius:2px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--cyan);box-shadow:0 0 5px var(--cyan);transition:width .3s ease;width:0%;}
+  .progress-text{font-size:.65rem;color:var(--sub);}
+
+  .agree-box{text-align:center;padding:10px;background:rgba(0,245,255,.05);border:1px solid rgba(0,245,255,.15);}
+  .agree-val{font-family:'Press Start 2P',monospace;font-size:1rem;color:var(--cyan);}
+  .agree-label{font-size:.6rem;color:var(--sub);margin-top:4px;}
+
+  .worst-box{background:rgba(255,51,102,.06);border:1px solid rgba(255,51,102,.25);padding:10px;font-size:.7rem;line-height:1.8;}
+  .worst-box strong{color:var(--red);}
+
+  /* 행동 분포 */
+  .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.65rem;}
+  .action-item{background:rgba(255,255,255,.03);border:1px solid #1a1a2e;padding:5px 7px;}
+  .action-name{color:var(--sub);}
+  .action-count{color:var(--cyan);font-size:.75rem;}
+
+  /* 최악 10개 */
+  .worst-table{width:100%;font-size:.63rem;border-collapse:collapse;}
+  .worst-table th{color:var(--sub);font-weight:normal;text-align:left;padding:3px 2px;border-bottom:1px solid #1a1a2e;}
+  .worst-table td{padding:4px 2px;border-bottom:1px solid #0d1117;}
+  .loss-high{color:var(--red);}
+  .loss-mid{color:var(--yellow);}
+  .loss-low{color:var(--green);}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- 왼쪽 -->
+  <div class="left">
+    <a href="/" class="back-btn">◀ MENU</a>
+    <div class="panel">
+      <div class="panel-title">STATS</div>
+      <div class="stat-row"><span>SCORE</span><span class="stat-val" id="score">0</span></div>
+      <div class="stat-row"><span>STEPS</span><span class="stat-val" id="steps">0</span></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">CONTROLS</div>
+      <div class="controls-list">
+        <span class="key">←</span> 왼쪽<br>
+        <span class="key">→</span> 오른쪽<br>
+        <span class="key">SPACE</span> 발사<br>
+        <span class="key">C</span> 발사(대안)
+      </div>
+    </div>
+    <button class="start-btn" id="startBtn">GAME START</button>
+  </div>
+
+  <!-- 게임 화면 -->
+  <div class="center">
+    <div class="game-title">👾 SPACE INVADERS</div>
+    <canvas id="gameCanvas" width="800" height="1050"></canvas>
+    <div class="status-bar" id="status">PRESS START TO PLAY</div>
+  </div>
+
+  <!-- 오른쪽 분석 -->
+  <div class="right">
+
+    <!-- 기본 통계 -->
+    <div class="analysis-panel" id="basicPanel">
+      <div class="panel-title" style="color:var(--green)">플레이 분석</div>
+      <div class="grade-box">
+        <div class="grade-label">플레이 스타일</div>
+        <div class="grade-value" id="playStyle">—</div>
+      </div>
+      <div>
+        <div class="bar-row">
+          <div class="bar-label"><span>왼쪽</span><span id="leftPct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill bar-g" id="leftBar" style="width:0%"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label"><span>오른쪽</span><span id="rightPct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill bar-y" id="rightBar" style="width:0%"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label"><span>발사</span><span id="firePct">0%</span></div>
+          <div class="bar-track"><div class="bar-fill bar-r" id="fireBar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="stat-row"><span>총 점수</span><span class="stat-val" id="finalScore">—</span></div>
+      <div class="stat-row"><span>이동 편향</span><span class="stat-val" id="moveBias">—</span></div>
+      <div class="advice-box" id="advice">—</div>
+    </div>
+
+    <!-- D3QN 분석 진행 -->
+    <div class="d3qn-panel" id="d3qnProgress">
+      <div class="d3qn-title">D3QN 분석 중...</div>
+      <div class="progress-text" id="progressText">준비 중...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <!-- D3QN 결과 -->
+    <div class="d3qn-panel" id="d3qnResult">
+      <div class="d3qn-title">D3QN Q-VALUE 분석</div>
+
+      <div class="agree-box">
+        <div class="agree-val" id="agreeRate">—</div>
+        <div class="agree-label">AI와 행동 일치율</div>
+      </div>
+
+      <div class="stat-row">
+        <span>평균 Q 손실</span>
+        <span class="stat-val" id="avgLoss">—</span>
+      </div>
+
+      <div class="worst-box" id="worstBox">분석 완료 후 표시됩니다.</div>
+
+      <!-- 행동 분포 비교 -->
+      <div style="font-size:.65rem;color:var(--sub);margin-top:4px;">내 행동 분포</div>
+      <div class="action-grid" id="playerActionGrid"></div>
+      <div style="font-size:.65rem;color:var(--sub);margin-top:4px;">AI 권장 행동 분포</div>
+      <div class="action-grid" id="aiActionGrid"></div>
+
+      <!-- 최악 착수 10개 -->
+      <div style="font-family:'Press Start 2P',monospace;font-size:.45rem;color:var(--red);margin-top:6px;">⚠ 최악 행동 TOP 10</div>
+      <table class="worst-table">
+        <thead><tr><th>스텝</th><th>내 행동</th><th>최선</th><th>손실</th></tr></thead>
+        <tbody id="worstTableBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const socket = io({ transports: ['websocket'] });
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+
+let gameActive = false, totalSteps = 0;
+const keys = { left:false, right:false, fire:false };
+let currentAction = 0;
+
+function updateAction() {
+  if      (keys.fire && keys.right) currentAction = 4;
+  else if (keys.fire && keys.left)  currentAction = 5;
+  else if (keys.fire)               currentAction = 1;
+  else if (keys.right)              currentAction = 2;
+  else if (keys.left)               currentAction = 3;
+  else                              currentAction = 0;
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  gameActive = true; totalSteps = 0;
+  document.getElementById('score').textContent = '0';
+  document.getElementById('steps').textContent = '0';
+  document.getElementById('basicPanel').classList.remove('visible');
+  document.getElementById('d3qnProgress').classList.remove('visible');
+  document.getElementById('d3qnResult').classList.remove('visible');
+  document.getElementById('status').textContent = 'PLAYING...';
+  document.getElementById('startBtn').disabled = true;
+  currentAction = 1;
+  socket.emit('si_start');
+});
+
+socket.on('si_frame', (data) => {
+  if (!gameActive) return;
+  const img = new Image();
+  img.src = 'data:image/jpeg;base64,' + data.image;
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    totalSteps++;
+    document.getElementById('steps').textContent = totalSteps;
+    setTimeout(() => {
+      if (gameActive) {
+        socket.emit('si_action', { action: currentAction });
+        if (currentAction === 1 && !keys.fire) currentAction = 0;
+      }
+    }, 1000 / 60);
+  };
+});
+
+socket.on('si_over', (report) => {
+  gameActive = false;
+  document.getElementById('status').textContent = 'GAME OVER';
+  document.getElementById('startBtn').disabled = false;
+
+  const p = document.getElementById('basicPanel');
+  p.classList.add('visible');
+  document.getElementById('playStyle').textContent  = report.play_style || '—';
+  document.getElementById('finalScore').textContent = report.total_reward;
+  document.getElementById('moveBias').textContent   = report.move_bias;
+  document.getElementById('advice').textContent     = report.ai_feedback;
+
+  const lp = parseFloat(report.left_ratio);
+  const rp = parseFloat(report.right_ratio);
+  const fp = parseFloat(report.fire_ratio);
+  document.getElementById('leftPct').textContent  = report.left_ratio;
+  document.getElementById('rightPct').textContent = report.right_ratio;
+  document.getElementById('firePct').textContent  = report.fire_ratio;
+  setTimeout(() => {
+    document.getElementById('leftBar').style.width  = lp + '%';
+    document.getElementById('rightBar').style.width = rp + '%';
+    document.getElementById('fireBar').style.width  = fp + '%';
+  }, 100);
+
+  if (report.has_d3qn) {
+    document.getElementById('d3qnProgress').classList.add('visible');
+  }
+});
+
+// D3QN 진행
+socket.on('si_analysis_start', (data) => {
+  document.getElementById('progressText').textContent = `0 / ${data.total} 스텝 분석 중...`;
+  document.getElementById('progressFill').style.width = '0%';
+});
+
+socket.on('si_analysis_progress', (data) => {
+  document.getElementById('progressFill').style.width = data.pct + '%';
+  document.getElementById('progressText').textContent = `${data.current} / ${data.total} 분석 중...`;
+});
+
+socket.on('si_analysis_done', (data) => {
+  document.getElementById('d3qnProgress').classList.remove('visible');
+  const r = document.getElementById('d3qnResult');
+  r.classList.add('visible');
+
+  document.getElementById('agreeRate').textContent = data.agree_rate + '%';
+  document.getElementById('avgLoss').textContent   = data.avg_loss.toFixed(3);
+
+  // 최악 착수 요약
+  const w = data.worst;
+  if (w) {
+    document.getElementById('worstBox').innerHTML =
+      `<strong>스텝 ${w.step}</strong> — 행동: <strong>${w.action_name}</strong><br>` +
+      `내 Q: <strong>${w.player_q}</strong> | 최선 Q: <strong style="color:var(--green)">${w.best_q}</strong><br>` +
+      `최선 행동: <strong style="color:var(--cyan)">${w.best_action_name}</strong> | 손실: <strong style="color:var(--red)">${w.loss.toFixed(3)}</strong>`;
+  }
+
+  // 행동 분포
+  function makeGrid(counts, el) {
+    el.innerHTML = '';
+    Object.entries(counts).sort((a,b) => b[1]-a[1]).forEach(([name, cnt]) => {
+      el.innerHTML += `<div class="action-item"><div class="action-name">${name}</div><div class="action-count">${cnt}</div></div>`;
+    });
+  }
+  makeGrid(data.player_actions, document.getElementById('playerActionGrid'));
+  makeGrid(data.ai_actions,     document.getElementById('aiActionGrid'));
+
+  // 최악 10개 표
+  const tbody = document.getElementById('worstTableBody');
+  tbody.innerHTML = '';
+  data.worst_10.forEach(a => {
+    const cls = a.loss > 0.3 ? 'loss-high' : (a.loss > 0.1 ? 'loss-mid' : 'loss-low');
+    tbody.innerHTML +=
+      `<tr>
+        <td>${a.step}</td>
+        <td>${a.action_name}</td>
+        <td style="color:var(--cyan)">${a.best_action_name}</td>
+        <td class="${cls}">${a.loss.toFixed(3)}</td>
+      </tr>`;
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft')       keys.left  = true;
+  if (e.key === 'ArrowRight')      keys.right = true;
+  if (e.key === ' ' || e.key==='c') keys.fire = true;
+  updateAction();
+  if (e.key === ' ') e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft')       keys.left  = false;
+  if (e.key === 'ArrowRight')      keys.right = false;
+  if (e.key === ' ' || e.key==='c') keys.fire = false;
+  updateAction();
+});
+</script>
+</body>
+</html>

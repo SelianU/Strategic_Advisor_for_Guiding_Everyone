@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050508;
+    --grid: #0d1117;
+    --cyan: #00f5ff;
+    --green: #39ff14;
+    --magenta: #ff00aa;
+    --yellow: #ffe600;
+    --dim: #1a1a2e;
+    --text: #c8d8e8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* 배경 그리드 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* 스캔라인 */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,.15) 2px,
+      rgba(0,0,0,.15) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .container {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+    gap: 60px;
+  }
+
+  /* 헤더 */
+  .header {
+    text-align: center;
+  }
+
+  .header h1 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(2rem, 6vw, 4rem);
+    color: var(--cyan);
+    text-shadow:
+      0 0 10px var(--cyan),
+      0 0 30px var(--cyan),
+      0 0 60px rgba(0,245,255,.4);
+    letter-spacing: 4px;
+    animation: flicker 4s infinite;
+  }
+
+  .header .sub {
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: var(--magenta);
+    text-shadow: 0 0 8px var(--magenta);
+    letter-spacing: 3px;
+    animation: blink 1.2s step-end infinite;
+  }
+
+  @keyframes flicker {
+    0%,95%,100% { opacity: 1; }
+    96% { opacity: .7; }
+    97% { opacity: 1; }
+    98% { opacity: .6; }
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* 게임 카드 */
+  .games {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 32px;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  .game-card {
+    position: relative;
+    background: var(--dim);
+    border: 2px solid;
+    padding: 40px 32px;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    transition: transform .2s, box-shadow .2s;
+    overflow: hidden;
+  }
+
+  .game-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+
+  .game-card:hover {
+    transform: translateY(-6px);
+  }
+
+  .game-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Space Invaders 카드 */
+  .card-invaders {
+    border-color: var(--green);
+    box-shadow: 0 0 20px rgba(57,255,20,.2), inset 0 0 40px rgba(57,255,20,.03);
+  }
+  .card-invaders::before {
+    background: radial-gradient(ellipse at top, rgba(57,255,20,.1), transparent 70%);
+  }
+  .card-invaders:hover {
+    box-shadow: 0 0 40px rgba(57,255,20,.5), inset 0 0 40px rgba(57,255,20,.08);
+  }
+  .card-invaders .card-icon { color: var(--green); text-shadow: 0 0 16px var(--green); }
+  .card-invaders .card-title { color: var(--green); }
+  .card-invaders .card-btn { background: var(--green); color: #000; }
+  .card-invaders .card-btn:hover { box-shadow: 0 0 20px var(--green); }
+
+  /* Gomoku 카드 */
+  .card-gomoku {
+    border-color: var(--cyan);
+    box-shadow: 0 0 20px rgba(0,245,255,.2), inset 0 0 40px rgba(0,245,255,.03);
+  }
+  .card-gomoku::before {
+    background: radial-gradient(ellipse at top, rgba(0,245,255,.1), transparent 70%);
+  }
+  .card-gomoku:hover {
+    box-shadow: 0 0 40px rgba(0,245,255,.5), inset 0 0 40px rgba(0,245,255,.08);
+  }
+  .card-gomoku .card-icon { color: var(--cyan); text-shadow: 0 0 16px var(--cyan); }
+  .card-gomoku .card-title { color: var(--cyan); }
+  .card-gomoku .card-btn { background: var(--cyan); color: #000; }
+  .card-gomoku .card-btn:hover { box-shadow: 0 0 20px var(--cyan); }
+
+  .card-icon {
+    font-size: 3.5rem;
+    display: block;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+  }
+
+  .card-desc {
+    font-size: 0.78rem;
+    color: #788;
+    line-height: 1.7;
+    margin-bottom: 28px;
+  }
+
+  .card-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+    margin: 3px;
+    opacity: .7;
+  }
+  .card-invaders .card-tag { color: var(--green); }
+  .card-gomoku .card-tag  { color: var(--cyan); }
+
+  .card-btn {
+    display: inline-block;
+    margin-top: 24px;
+    padding: 12px 28px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    border: none;
+    cursor: pointer;
+    transition: box-shadow .2s, transform .1s;
+  }
+  .card-btn:hover { transform: scale(1.05); }
+
+  /* 하단 */
+  .footer {
+    font-size: 0.65rem;
+    color: #344;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>AI ARCADE</h1>
+    <p class="sub">▶ SELECT YOUR GAME ◀</p>
+  </div>
+
+  <div class="games">
+    <!-- Space Invaders -->
+    <a href="/space-invaders" class="game-card card-invaders">
+      <span class="card-icon">👾</span>
+      <div class="card-title">SPACE<br>INVADERS</div>
+      <p class="card-desc">
+        외계인을 처치하고 지구를 구하세요.<br>
+        플레이 후 AI가 당신의 전략을 분석합니다.
+      </p>
+      <div>
+        <span class="card-tag">ACTION</span>
+        <span class="card-tag">ATARI</span>
+        <span class="card-tag">AI 분석</span>
+      </div>
+      <br>
+      <span class="card-btn">PLAY NOW</span>
+    </a>
+
+    <!-- Gomoku -->
+    <a href="/gomoku" class="game-card card-gomoku">
+      <span class="card-icon">⚫</span>
+      <div class="card-title">GOMOKU<br>VS AI</div>
+      <p class="card-desc">
+        AlphaZero AI와 오목 대결.<br>
+        게임 후 각 착수의 Q-value를 분석합니다.
+      </p>
+      <div>
+        <span class="card-tag">STRATEGY</span>
+        <span class="card-tag">AlphaZero</span>
+        <span class="card-tag">Q-VALUE</span>
+      </div>
+      <br>
+      <span class="card-btn">PLAY NOW</span>
+    </a>
+  </div>
+
+  <div class="footer">
+    POWERED BY REINFORCEMENT LEARNING &nbsp;·&nbsp; AI FEEDBACK SYSTEM
+  </div>
+</div>
+</body>
+</html>
