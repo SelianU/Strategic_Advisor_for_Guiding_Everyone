@@ -24,7 +24,6 @@ ENV/
 .env.*.local
 
 # 모델 체크포인트 (용량이 크므로 Git LFS 사용 권장)
-checkpoints*/
 *.pt
 *.ckpt
 *.h5
