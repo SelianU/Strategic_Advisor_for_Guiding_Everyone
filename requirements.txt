@@ -1,0 +1,16 @@
+# Web Server
+flask
+flask-socketio
+eventlet
+
+# Atari / RL Environment
+gymnasium[atari]
+ale-py
+
+# Deep Learning
+torch
+torchvision
+
+# Image Processing
+opencv-python
+numpy
