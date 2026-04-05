@@ -10,11 +10,13 @@
 ### 👾 Space Invaders
 - Atari Space Invaders를 직접 플레이
 - **D3QN (Dueling Double DQN)** 모델이 플레이어의 모든 행동을 분석
-- 게임 종료 후 Q-value 손실, 행동 일치율, 최악의 선택 TOP 10 등 상세 피드백 제공
+- 게임 종료 후 Q-value 손실, 행동 일치율, 최악의 선택 TOP 5 등 상세 피드백 제공
+- Top-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
 
 ### ⚫ Gomoku vs AI
 - **AlphaZero** 기반 AI와 8×8 오목 대결
 - 게임 종료 후 각 착수의 Q-value와 최선 착수를 비교 분석
+- Top-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
 
 ---
 
@@ -35,13 +37,13 @@ git submodule update --init --recursive
 
 ### 2. 의존성 설치
 
-Python 3.9+ 권장
+Python 3.11 권장
 
 ```bash
 pip install flask flask-socketio eventlet
 pip install gymnasium[atari] ale-py
 pip install torch torchvision
-pip install opencv-python numpy
+pip install opencv-python numpy requests
 ```
 
 ### 3. D3QN 모델 준비
@@ -66,7 +68,18 @@ mkdir checkpoints_v3_logs
 python app.py
 ```
 
-브라우저에서 `http://localhost:5000` 접속
+브라우저에서 `http://localhost:5001` 접속
+
+### 6. OpenRouter 연동 (선택)
+
+외부 LLM 코칭 피드백을 사용하려면 환경 변수를 설정하세요.
+
+```bash
+export OPENROUTER_API_KEY='YOUR_KEY'
+export OPENROUTER_MODEL='meta-llama/llama-3.3-70b-instruct:free'
+```
+
+> 설정하지 않아도 앱은 실행되며, 이 경우 로컬 데이터 기반 코칭 피드백을 사용합니다.
 
 ---
 
@@ -92,9 +105,11 @@ python app.py
 | 플레이 스타일 분류 | ✅ | — |
 | 행동 분포 통계 | ✅ | — |
 | Q-value 분석 | ✅ (D3QN) | ✅ (AlphaZero) |
-| 최악의 선택 TOP 10 | ✅ | ✅ |
+| 최악의 선택 TOP 5 | ✅ | ✅ |
 | AI 권장 행동 비교 | ✅ | ✅ |
-| 실시간 진행률 표시 | ✅ | ✅ |
+| Human vs Agent 비교 리플레이 | ✅ | ✅ |
+| LLM / 로컬 코칭 피드백 | ✅ | ✅ |
+| 세션 저장 / 불러오기 | ✅ | ✅ |
 
 ---
 

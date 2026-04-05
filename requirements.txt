@@ -11,9 +11,12 @@ ale-py
 torch
 torchvision
 
-# Image Processing
+# Image Processing / Arrays
 opencv-python
 numpy
+
+# Optional but recommended for OpenRouter HTTP calls
+requests
 
 # Bowling
 mujoco-py>=2.1.2.14

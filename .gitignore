@@ -73,3 +73,6 @@ coverage.xml
 # 에피소드 데이터 (용량이 클 수 있음)
 si_episode_*.pkl
 episode_data/
+
+# 저장 세션은 기본적으로 추적하지 않음
+saved_sessions/

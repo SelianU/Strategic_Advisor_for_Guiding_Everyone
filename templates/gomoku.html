@@ -22,10 +22,10 @@
     background-size:40px 40px;
   }
 
-  .layout { position:relative; z-index:1; display:flex; gap:20px; padding:20px; min-height:100vh; }
+  .layout { position:relative; z-index:1; display:flex; gap:16px; padding:16px; min-height:100vh; align-items:flex-start; }
 
   /* 왼쪽 */
-  .left { width:190px; flex-shrink:0; display:flex; flex-direction:column; gap:14px; }
+  .left { width:176px; flex-shrink:0; display:flex; flex-direction:column; gap:14px; }
 
   .back-btn {
     font-family:'Press Start 2P',monospace; font-size:.5rem;
@@ -53,6 +53,24 @@
   }
   .start-btn:hover { box-shadow:0 0 20px var(--cyan); }
   .start-btn:disabled { opacity:.35; cursor:not-allowed; }
+  .llm-status { background:var(--dim); border:1px solid rgba(0,245,255,.18); padding:12px; }
+  .llm-status-row { display:flex; align-items:center; gap:8px; font-size:.72rem; color:var(--text); }
+  .llm-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .llm-dot.on { background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+  .llm-dot.off { background:var(--red); box-shadow:0 0 8px var(--red); }
+  .llm-sub { font-size:.62rem; color:var(--sub); margin-top:8px; line-height:1.5; word-break:break-all; }
+  .session-panel { background:var(--dim); border:1px solid rgba(255,230,0,.18); padding:12px; }
+  .session-input,.session-select {
+    width:100%; background:#0b1118; border:1px solid #1f2b33; color:var(--text);
+    padding:8px 10px; font-family:'Share Tech Mono',monospace; font-size:.68rem; margin-top:8px;
+  }
+  .session-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .session-btn {
+    flex:1; min-width:68px; background:transparent; border:1px solid rgba(255,230,0,.28); color:var(--yellow);
+    padding:8px 10px; font-size:.66rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
+  }
+  .session-btn:hover { background:rgba(255,230,0,.08); }
+  .session-status { margin-top:8px; font-size:.66rem; line-height:1.5; color:var(--sub); white-space:pre-wrap; }
 
   .msg-box {
     background:rgba(0,245,255,.05); border:1px solid rgba(0,245,255,.2);
@@ -60,8 +78,10 @@
     min-height:50px;
   }
 
-  /* 중앙 — 보드 */
-  .center { flex:1; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .main-shell { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; }
+  .top-row { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:14px; align-items:flex-start; }
+  .center { min-width:0; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .side-column { display:flex; flex-direction:column; gap:14px; align-self:flex-start; width:400px; }
 
   .game-title {
     font-family:'Press Start 2P',monospace; font-size:.75rem;
@@ -76,6 +96,7 @@
     display:inline-block;
     padding:10px;
   }
+  .board-wrap.hidden { display:none; }
 
   #gomokuBoard {
     display:grid;
@@ -116,12 +137,66 @@
   .show-qval .cell .qval { display:block; }
 
   .status-bar { font-size:.7rem; color:var(--sub); letter-spacing:2px; }
+  .postgame-panel { display:none; width:100%; background:rgba(13,17,23,.92); border:1px solid rgba(255,230,0,.25); padding:14px; gap:12px; }
+  .postgame-panel.visible { display:flex; flex-direction:column; }
+  .postgame-title { font-family:'Press Start 2P',monospace; font-size:.55rem; color:var(--yellow); }
+  .candidate-bar { display:flex; flex-direction:column; gap:8px; padding-bottom:2px; }
+  .candidate-pill { width:100%; background:#0b1118; border:1px solid rgba(255,230,0,.18); color:var(--text); padding:10px 12px; cursor:pointer; transition:.18s; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px; }
+  .candidate-pill:hover,.candidate-pill.active { border-color:var(--yellow); box-shadow:0 0 0 1px rgba(255,230,0,.35) inset; background:rgba(255,230,0,.06); }
+  .candidate-pill.state-waiting { opacity:.78; }
+  .candidate-pill.state-generating { border-color:var(--cyan); box-shadow:0 0 0 1px rgba(0,255,255,.35) inset; background:rgba(0,255,255,.04); }
+  .candidate-pill.state-ready { opacity:1; }
+  .candidate-pill.state-error { border-color:var(--red); background:rgba(255,49,98,.06); }
+  .candidate-rank { font-family:'Press Start 2P',monospace; font-size:.45rem; color:var(--yellow); white-space:nowrap; }
+  .candidate-main { display:flex; align-items:center; gap:6px; min-width:0; font-size:.72rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .candidate-step { font-size:.72rem; color:#fff; }
+  .candidate-loss { font-size:.72rem; color:var(--red); }
+  .candidate-state { font-size:.58rem; color:#95a5b6; letter-spacing:.03em; white-space:nowrap; text-align:right; }
+  .candidate-pill.state-generating .candidate-state { color:var(--cyan); }
+  .candidate-pill.state-ready .candidate-state { color:var(--green); }
+  .candidate-pill.state-error .candidate-state { color:var(--red); }
+  .compare-stage { display:none; width:min(100%,780px); background:#06080b; border:1px solid rgba(0,245,255,.25); padding:10px; }
+  .compare-stage.visible { display:block; }
+  .compare-stage img { width:100%; display:block; background:#000; object-fit:contain; min-height:180px; max-height:470px; }
+  .compare-caption { display:flex; justify-content:space-between; margin-top:8px; font-size:.72rem; color:var(--sub); }
+  .center-feedback { display:none; width:100%; background:rgba(13,17,23,.92); border:1px solid rgba(255,230,0,.2); padding:14px; }
+  .center-feedback.visible { display:block; }
+  .center-feedback-source { font-size:.72rem; color:var(--yellow); margin-bottom:10px; }
+  .feedback-loading { display:none; margin-bottom:12px; }
+  .feedback-loading.active { display:block; }
+  .feedback-loading-label { font-size:.68rem; color:var(--sub); margin-bottom:6px; }
+  .feedback-loading-track { height:6px; background:#1a1a2e; border-radius:999px; overflow:hidden; }
+  .feedback-loading-bar { width:35%; height:100%; background:linear-gradient(90deg,var(--cyan),var(--yellow)); box-shadow:0 0 8px rgba(0,245,255,.4); animation:feedback-loading 1.2s ease-in-out infinite; }
+  .center-feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:12px; font-size:.78rem; line-height:1.85; white-space:pre-wrap; }
+  .feedback-tabs { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .feedback-tab {
+    background:#0b1118; border:1px solid rgba(255,230,0,.18); color:var(--sub);
+    padding:10px 8px; font-size:.62rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    min-height:40px; display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .feedback-tab.active { border-color:var(--yellow); color:var(--yellow); background:rgba(255,230,0,.08); }
+  .feedback-summary-box { display:none; background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:12px; }
+  .feedback-summary-box.visible { display:block; }
+  @keyframes feedback-loading {
+    0% { transform:translateX(-120%); }
+    100% { transform:translateX(320%); }
+  }
 
-  /* 오른쪽 — 분석 */
-  .right { width:260px; flex-shrink:0; display:flex; flex-direction:column; gap:14px; overflow-y:auto; max-height:90vh; }
+  /* 하단 분석 */
+  .analysis-zone { display:none; width:min(100%,780px); flex-direction:column; gap:10px; }
+  .analysis-zone.visible { display:flex; }
+  .analysis-content { display:flex; flex-direction:column; gap:12px; }
+  .right { width:100%; display:flex; flex-direction:column; gap:14px; }
+  .right-tabs { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
+  .right-tab {
+    background:#0b1118; border:1px solid rgba(0,245,255,.18); color:var(--sub);
+    padding:10px 8px; font-size:.58rem; line-height:1.35; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    min-height:48px; display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .right-tab.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,245,255,.08); }
 
   .analysis-section { background:var(--dim); border:1px solid rgba(0,245,255,.2); padding:14px; display:none; }
-  .analysis-section.visible { display:block; }
+  .analysis-section.visible.tab-open { display:block; }
 
   .analysis-section .panel-title { margin-bottom:12px; }
 
@@ -159,13 +234,32 @@
   .score-label { font-size:.6rem; color:var(--sub); margin-bottom:6px; }
   .score-value { font-family:'Press Start 2P',monospace; font-size:1.5rem; color:var(--cyan); text-shadow:0 0 12px var(--cyan); }
   .score-grade { font-size:.65rem; color:var(--text); margin-top:6px; }
+  .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .summary-item { background:#0b1118; border:1px solid #1f2b33; padding:8px 10px; }
+  .summary-k { font-size:.62rem; color:var(--sub); margin-bottom:4px; }
+  .summary-v { font-size:.88rem; color:#fff; }
+  .feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:10px; font-size:.72rem; line-height:1.8; white-space:pre-wrap; margin-top:8px; }
+  .summary-top-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:12px; }
+  .qvalue-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .qvalue-card { background:#0b1118; border:1px solid #1f2b33; padding:12px; }
+  .qvalue-card.full { grid-column:1 / -1; }
+  @media (max-width: 1380px){
+    .top-row { grid-template-columns:minmax(0,1fr) 360px; }
+    .side-column { width:360px; }
+  }
+  @media (max-width: 1180px){
+    .layout { flex-direction:column; }
+    .left { width:100%; }
+    .top-row { grid-template-columns:1fr; }
+  }
 </style>
 </head>
-<body>
+<body data-has-llm="{{ 'true' if has_openrouter else 'false' }}">
 <div class="layout">
   <!-- 왼쪽 패널 -->
   <div class="left">
     <a href="/" class="back-btn">◀ MENU</a>
+    <button class="start-btn" id="startBtn">GAME START</button>
 
     <div class="panel">
       <div class="panel-title">PLAYERS</div>
@@ -179,68 +273,314 @@
       <div class="info-row"><span>승리</span><span class="info-val">5목</span></div>
       <div class="info-row"><span>AI</span><span class="info-val">AlphaZero</span></div>
       <div class="info-row"><span>나의 수</span><span class="info-val" id="moveCount">0</span></div>
+      <div class="info-row"><span>세션</span><span class="info-val" id="gomokuSessionLabel">LIVE</span></div>
     </div>
-
-    <button class="start-btn" id="startBtn">GAME START</button>
 
     <div class="msg-box" id="msgBox">게임 시작을 눌러주세요.</div>
-  </div>
-
-  <!-- 보드 -->
-  <div class="center">
-    <div class="game-title">⚫ GOMOKU</div>
-    <div class="board-wrap">
-      <div id="gomokuBoard"></div>
-    </div>
-    <div class="status-bar" id="statusBar">WAITING</div>
-  </div>
-
-  <!-- 분석 패널 -->
-  <div class="right">
-
-    <!-- 분석 진행 -->
-    <div class="analysis-section" id="progressSection">
-      <div class="panel-title">AI 분석 중...</div>
-      <div class="progress-text" id="progressText">준비 중...</div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    </div>
-
-    <!-- 종합 점수 -->
-    <div class="analysis-section" id="scoreSection">
-      <div class="score-display">
-        <div class="score-label">평균 착수 손실</div>
-        <div class="score-value" id="avgLoss">—</div>
-        <div class="score-grade" id="scoreGrade">—</div>
+    <div class="llm-status">
+      <div class="panel-title" style="color:var(--cyan)">LLM STATUS</div>
+      <div class="llm-status-row">
+        <span class="llm-dot {{ 'on' if has_openrouter else 'off' }}"></span>
+        <span>{{ 'API KEY 설정됨' if has_openrouter else 'API KEY 미설정' }}</span>
+      </div>
+      <div class="llm-sub">
+        {% if has_openrouter %}
+        기본 모델: {{ openrouter_model }}<br>예비 모델: {{ openrouter_fallback }}
+        {% else %}
+        OPENROUTER_API_KEY가 없어 현재는 로컬 데이터 기반 코칭 피드백을 사용합니다.
+        {% endif %}
+      </div>
+      <div class="llm-sub" id="gomokuLlmCurrentStatus">
+        현재 선택: {% if has_openrouter %}대기 중{% else %}로컬{% endif %}
       </div>
     </div>
-
-    <!-- 최악 착수 -->
-    <div class="analysis-section" id="worstSection">
-      <div class="panel-title">⚠ 최악의 착수</div>
-      <div class="worst-detail" id="worstDetail">분석 완료 후 표시됩니다.</div>
+    <div class="session-panel">
+      <div class="panel-title" style="color:var(--yellow)">SESSIONS</div>
+      <input class="session-input" id="gomokuSessionTitle" placeholder="기록 이름">
+      <div class="session-actions">
+        <button class="session-btn" id="gomokuSaveBtn">저장</button>
+      </div>
+      <select class="session-select" id="gomokuSessionSelect">
+        <option value="">저장된 기록 선택</option>
+      </select>
+      <div class="session-actions">
+        <button class="session-btn" id="gomokuLoadBtn">불러오기</button>
+        <button class="session-btn" id="gomokuDeleteBtn">삭제</button>
+      </div>
+      <div class="session-status" id="gomokuSessionStatus">저장된 기록을 불러오거나 현재 판을 저장할 수 있습니다.</div>
     </div>
+  </div>
 
-    <!-- 착수별 표 -->
-    <div class="analysis-section" id="tableSection">
-      <div class="panel-title">착수별 Q-VALUE</div>
-      <table class="move-table">
-        <thead>
-          <tr>
-            <th>수</th><th>위치</th><th>Q(실제)</th><th>Q(최선)</th><th>손실</th>
-          </tr>
-        </thead>
-        <tbody id="moveTableBody"></tbody>
-      </table>
+  <div class="main-shell">
+    <div class="top-row">
+      <!-- 보드 -->
+      <div class="center">
+        <div class="game-title">⚫ GOMOKU</div>
+        <div class="board-wrap" id="gomokuBoardWrap">
+          <div id="gomokuBoard"></div>
+        </div>
+        <div class="status-bar" id="statusBar">WAITING</div>
+        <div class="compare-stage" id="gomokuCompareStage">
+          <img id="gomokuCompareImageLarge" alt="gomoku counterfactual">
+          <div class="compare-caption">
+            <span>LEFT: HUMAN</span>
+            <span>RIGHT: AGENT</span>
+          </div>
+        </div>
+        <div class="analysis-zone" id="gomokuAnalysisZone">
+          <div class="analysis-content">
+            <div class="right">
+              <div class="right-tabs" id="gomokuRightTabs">
+                <button type="button" class="right-tab active" data-gomoku-tab="summary">종합 분석</button>
+                <button type="button" class="right-tab" data-gomoku-tab="qvalue">착수별 Q-VALUE</button>
+              </div>
+
+              <div class="analysis-section" id="progressSection">
+                <div class="panel-title">AI 분석 중...</div>
+                <div class="progress-text" id="progressText">준비 중...</div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+              </div>
+
+              <div class="analysis-section" id="scoreSection">
+                <div class="summary-top-grid">
+                  <div class="score-display">
+                    <div class="score-label">평균 착수 손실</div>
+                    <div class="score-value" id="avgLoss">—</div>
+                    <div class="score-grade" id="scoreGrade">—</div>
+                  </div>
+                  <div>
+                    <div class="panel-title">최악의 착수</div>
+                    <div class="worst-detail" id="worstDetail">분석 완료 후 표시됩니다.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="analysis-section" id="tableSection">
+                <div class="qvalue-card full">
+                  <div class="panel-title">착수별 Q-VALUE</div>
+                  <table class="move-table">
+                    <thead>
+                      <tr>
+                        <th>수</th><th>위치</th><th>Q(실제)</th><th>Q(최선)</th><th>손실</th>
+                      </tr>
+                    </thead>
+                    <tbody id="moveTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-column">
+        <div class="postgame-panel" id="gomokuPostgamePanel">
+          <div class="postgame-title">GAME OVER · TOP-K MOMENTS</div>
+          <div class="candidate-bar" id="gomokuCandidateBar"></div>
+        </div>
+        <div class="center-feedback" id="gomokuCenterFeedback">
+          <div id="gomokuFeedbackSourceCenter" class="center-feedback-source"></div>
+          <div class="feedback-tabs">
+            <button type="button" class="feedback-tab active" data-gomoku-feedback-tab="feedback">코칭 피드백</button>
+            <button type="button" class="feedback-tab" data-gomoku-feedback-tab="summary">비교 요약</button>
+          </div>
+          <div class="feedback-loading" id="gomokuFeedbackLoading">
+            <div class="feedback-loading-label">외부 LLM 응답을 기다리는 중입니다...</div>
+            <div class="feedback-loading-track"><div class="feedback-loading-bar"></div></div>
+          </div>
+          <div id="gomokuFeedbackTextCenter" class="center-feedback-box">착수를 고르면 코칭 피드백이 여기에 표시됩니다.</div>
+          <div id="gomokuFeedbackSummaryBox" class="feedback-summary-box">
+            <div class="summary-grid">
+              <div class="summary-item"><div class="summary-k">MOVE</div><div class="summary-v" id="gomokuMoveVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">LOSS</div><div class="summary-v" id="gomokuLossVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">HUMAN MOVE</div><div class="summary-v" id="gomokuHumanMoveVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">AGENT MOVE</div><div class="summary-v" id="gomokuAgentMoveVal">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-
   </div>
 </div>
 
 <script>
 const socket = io({ transports: ['websocket'] });
 const BOARD_W = 8, BOARD_H = 8;
+const HAS_LLM = document.body.dataset.hasLlm === 'true';
 
 let gameActive = false, myMoveCount = 0, boardState = [];
+let gomokuCompareFrames = [];
+let gomokuCompareTimer = null;
+let gomokuCandidates = [];
+const gomokuReplayCache = new Map();
+let gomokuSessionId = 0;
+let gomokuPendingMoveNum = null;
+let gomokuPrecomputeStarted = false;
+const gomokuCandidateStatus = new Map();
+let gomokuSavedSessions = [];
+let gomokuRightTab = 'summary';
+let gomokuFeedbackTab = 'feedback';
+const GOMOKU_STATUS_LABELS = {
+  waiting: '대기 중',
+  generating: '생성 중',
+  ready: '준비됨',
+  error: '실패'
+};
+
+function setGomokuRightTab(tab) {
+  gomokuRightTab = tab;
+  document.querySelectorAll('#gomokuRightTabs .right-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.gomokuTab === tab);
+  });
+  const summaryOpen = tab === 'summary';
+  document.getElementById('scoreSection').classList.toggle('tab-open', summaryOpen);
+  document.getElementById('tableSection').classList.toggle('tab-open', tab === 'qvalue');
+}
+
+function setGomokuFeedbackTab(tab) {
+  gomokuFeedbackTab = tab;
+  document.querySelectorAll('[data-gomoku-feedback-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.gomokuFeedbackTab === tab);
+  });
+  document.getElementById('gomokuFeedbackTextCenter').style.display = tab === 'feedback' ? 'block' : 'none';
+  document.getElementById('gomokuFeedbackSummaryBox').classList.toggle('visible', tab === 'summary');
+}
+
+function getGomokuCandidateByMove(moveNum) {
+  return gomokuCandidates.find(candidate => parseInt(candidate.move_num) === parseInt(moveNum)) || null;
+}
+
+function updateGomokuSummaryFromPayload(moveNum, summary) {
+  const candidate = getGomokuCandidateByMove(moveNum);
+  document.getElementById('gomokuMoveVal').textContent = candidate?.move_num ?? summary?.move_num ?? '—';
+  document.getElementById('gomokuLossVal').textContent =
+    candidate?.loss !== undefined && candidate?.loss !== null
+      ? Number(candidate.loss).toFixed(3)
+      : (summary?.loss ?? '—');
+  document.getElementById('gomokuHumanMoveVal').textContent = summary?.actual_row !== undefined ? `(${summary.actual_row}, ${summary.actual_col})` : '—';
+  document.getElementById('gomokuAgentMoveVal').textContent = summary?.best_row !== undefined ? `(${summary.best_row}, ${summary.best_col})` : '—';
+}
+
+function playGomokuFrames(frames) {
+  clearInterval(gomokuCompareTimer);
+  gomokuCompareFrames = frames || [];
+  if (!gomokuCompareFrames.length) return;
+  let idx = 0;
+  const img = document.getElementById('gomokuCompareImageLarge');
+  document.getElementById('gomokuCompareStage').classList.add('visible');
+  img.src = 'data:image/jpeg;base64,' + gomokuCompareFrames[0];
+  gomokuCompareTimer = setInterval(() => {
+    idx = (idx + 1) % gomokuCompareFrames.length;
+    img.src = 'data:image/jpeg;base64,' + gomokuCompareFrames[idx];
+  }, 1000);
+}
+
+function renderGomokuSessionOptions(sessions) {
+  gomokuSavedSessions = Array.isArray(sessions) ? sessions : [];
+  const select = document.getElementById('gomokuSessionSelect');
+  const previous = select.value;
+  select.innerHTML = '<option value="">저장된 기록 선택</option>';
+  gomokuSavedSessions.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.id;
+    option.textContent = `${item.title} · ${item.saved_at || ''}`;
+    select.appendChild(option);
+  });
+  if (previous && gomokuSavedSessions.some(item => item.id === previous)) {
+    select.value = previous;
+  }
+}
+
+function setGomokuCandidateStatus(moveNum, status) {
+  gomokuCandidateStatus.set(moveNum, status);
+  gomokuCandidates = [...gomokuCandidates];
+  renderGomokuCandidateBar(gomokuCandidates);
+}
+
+function maybePrefetchGomokuCandidates() {
+  if (gomokuPrecomputeStarted || !gomokuCandidates.length) return;
+  const firstMoveNum = parseInt(gomokuCandidates[0].move_num);
+  if (gomokuPendingMoveNum !== firstMoveNum) return;
+  gomokuPrecomputeStarted = true;
+  gomokuCandidates.slice(1).forEach((candidate, idx) => {
+    const moveNum = parseInt(candidate.move_num);
+    const cacheKey = `${gomokuSessionId}:${moveNum}`;
+    if (gomokuReplayCache.has(cacheKey)) {
+      setGomokuCandidateStatus(moveNum, 'ready');
+      return;
+    }
+    setTimeout(() => prefetchGomokuReplay(moveNum), 150 * (idx + 1));
+  });
+}
+
+function prefetchGomokuReplay(moveNum) {
+  if (Number.isNaN(moveNum)) return;
+  const cacheKey = `${gomokuSessionId}:${moveNum}`;
+  if (gomokuReplayCache.has(cacheKey)) return;
+  const currentStatus = gomokuCandidateStatus.get(moveNum);
+  if (currentStatus === 'generating' || currentStatus === 'ready') return;
+  setGomokuCandidateStatus(moveNum, 'generating');
+  socket.emit('gomoku_request_counterfactual', { move_num: moveNum, session_id: gomokuSessionId });
+}
+
+function requestGomokuReplay(moveNum) {
+  if (Number.isNaN(moveNum)) return;
+  gomokuPendingMoveNum = moveNum;
+  const cacheKey = `${gomokuSessionId}:${moveNum}`;
+  if (gomokuReplayCache.has(cacheKey)) {
+    const cached = gomokuReplayCache.get(cacheKey);
+    setGomokuCandidateStatus(moveNum, 'ready');
+    playGomokuFrames(cached.frames || []);
+    const s = cached.summary || {};
+    document.getElementById('gomokuCenterFeedback').classList.add('visible');
+    document.getElementById('gomokuFeedbackLoading').classList.remove('active');
+    document.getElementById('gomokuFeedbackSourceCenter').textContent =
+      cached.feedback_source === 'llm'
+        ? '외부 LLM 코칭 피드백'
+        : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
+    document.getElementById('gomokuLlmCurrentStatus').textContent =
+      `현재 선택: ${cached.feedback_route || (cached.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
+      (cached.feedback_model ? ` (${cached.feedback_model})` : '');
+    document.getElementById('gomokuFeedbackTextCenter').textContent = cached.feedback || '';
+    updateGomokuSummaryFromPayload(moveNum, s);
+    return;
+  }
+  setGomokuCandidateStatus(moveNum, 'generating');
+  clearInterval(gomokuCompareTimer);
+  gomokuCompareFrames = [];
+  document.getElementById('gomokuCompareStage').classList.remove('visible');
+  document.getElementById('gomokuCompareImageLarge').src = '';
+  document.getElementById('gomokuCenterFeedback').classList.add('visible');
+  document.getElementById('gomokuFeedbackSourceCenter').textContent = HAS_LLM ? '비교 리플레이 생성 및 외부 LLM 코칭 요청 중...' : '비교 리플레이 생성 중...';
+  document.getElementById('gomokuFeedbackTextCenter').textContent = HAS_LLM ? '외부 LLM 응답을 기다리는 중입니다. 무료 모델 혼잡 시 로컬 코칭 피드백으로 대체될 수 있습니다.' : '';
+  document.getElementById('gomokuFeedbackLoading').classList.toggle('active', HAS_LLM);
+  document.getElementById('gomokuLlmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 외부 LLM 확인 중' : '현재 선택: 로컬';
+  updateGomokuSummaryFromPayload(moveNum, {});
+  socket.emit('gomoku_request_counterfactual', { move_num: moveNum, session_id: gomokuSessionId });
+}
+
+function renderGomokuCandidateBar(candidates) {
+  const bar = document.getElementById('gomokuCandidateBar');
+  bar.innerHTML = '';
+  candidates.forEach((a, idx) => {
+    const btn = document.createElement('button');
+    const moveNum = parseInt(a.move_num);
+    const status = gomokuCandidateStatus.get(moveNum) || 'waiting';
+    btn.className = 'candidate-pill state-' + status + (gomokuPendingMoveNum === moveNum ? ' active' : '');
+    btn.type = 'button';
+    btn.dataset.moveNum = moveNum;
+    btn.innerHTML =
+      `<span class="candidate-rank">TOP ${idx + 1}</span>` +
+      `<span class="candidate-main"><span class="candidate-step">${a.move_num}수</span><span class="candidate-loss">(LOSS ${a.loss.toFixed(3)})</span></span>` +
+      `<span class="candidate-state">${GOMOKU_STATUS_LABELS[status] || GOMOKU_STATUS_LABELS.waiting}</span>`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#gomokuCandidateBar .candidate-pill').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      requestGomokuReplay(parseInt(btn.dataset.moveNum));
+    });
+    bar.appendChild(btn);
+  });
+}
 
 // ── 보드 초기화 ──────────────────────────────────────────────
 function initBoard() {
@@ -293,13 +633,48 @@ function setMsg(text, color = 'var(--cyan)') {
 // ── 이벤트 핸들러 ────────────────────────────────────────────
 document.getElementById('startBtn').addEventListener('click', () => {
   gameActive = false; myMoveCount = 0;
+  gomokuSessionId += 1;
+  gomokuPendingMoveNum = null;
+  gomokuPrecomputeStarted = false;
+  gomokuCandidateStatus.clear();
   document.getElementById('moveCount').textContent = '0';
+  document.getElementById('gomokuSessionLabel').textContent = 'LIVE';
   document.getElementById('statusBar').textContent = 'WAITING FOR SERVER';
+  document.getElementById('gomokuBoardWrap').classList.remove('hidden');
+  document.getElementById('gomokuPostgamePanel').classList.remove('visible');
+  document.getElementById('gomokuCompareStage').classList.remove('visible');
+  document.getElementById('gomokuCenterFeedback').classList.remove('visible');
+  document.getElementById('gomokuCandidateBar').innerHTML = '';
+  document.getElementById('gomokuFeedbackSourceCenter').textContent = '';
+  document.getElementById('gomokuFeedbackTextCenter').textContent = '착수를 고르면 코칭 피드백이 여기에 표시됩니다.';
+  document.getElementById('gomokuFeedbackLoading').classList.remove('active');
+  gomokuReplayCache.clear();
   hideAnalysis();
   initBoard();
   socket.emit('gomoku_start');
   document.getElementById('startBtn').disabled = true;
 });
+document.getElementById('gomokuSaveBtn').addEventListener('click', () => {
+  const title = document.getElementById('gomokuSessionTitle').value.trim();
+  if (!title) {
+    window.alert('저장할 기록 이름을 입력해주세요.');
+    return;
+  }
+  socket.emit('gomoku_save_session', {
+    title,
+  });
+});
+document.getElementById('gomokuLoadBtn').addEventListener('click', () => {
+  const sessionId = document.getElementById('gomokuSessionSelect').value;
+  if (!sessionId) return;
+  socket.emit('gomoku_load_session', { session_id: sessionId });
+});
+document.getElementById('gomokuDeleteBtn').addEventListener('click', () => {
+  const sessionId = document.getElementById('gomokuSessionSelect').value;
+  if (!sessionId) return;
+  socket.emit('gomoku_delete_session', { session_id: sessionId });
+});
+socket.emit('gomoku_list_sessions');
 
 function onCellClick(e) {
   if (!gameActive) return;
@@ -314,6 +689,9 @@ function onCellClick(e) {
 
 // ── Socket 이벤트 ────────────────────────────────────────────
 socket.on('gomoku_state', (data) => {
+  if (data.session_id !== undefined) {
+    gomokuSessionId = data.session_id;
+  }
   boardState = data.cells;
   renderBoard(data.cells, data.last_move);
   setMsg(data.message);
@@ -343,12 +721,14 @@ socket.on('gomoku_error', (data) => {
 
 // ── 분석 진행 ────────────────────────────────────────────────
 socket.on('gomoku_analysis_start', (data) => {
+  if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
   document.getElementById('progressSection').classList.add('visible');
   document.getElementById('progressText').textContent = `0 / ${data.total} 착수 분석 중...`;
   document.getElementById('progressFill').style.width = '0%';
 });
 
 socket.on('gomoku_analysis_progress', (data) => {
+  if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
   const pct = (data.current / data.total * 100).toFixed(0);
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressText').textContent =
@@ -356,14 +736,16 @@ socket.on('gomoku_analysis_progress', (data) => {
 });
 
 socket.on('gomoku_analysis_done', (data) => {
+  if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
   document.getElementById('progressSection').classList.remove('visible');
   showAnalysis(data);
 });
 
 function hideAnalysis() {
-  ['progressSection','scoreSection','worstSection','tableSection'].forEach(id => {
+  ['progressSection','scoreSection','tableSection'].forEach(id => {
     document.getElementById(id).classList.remove('visible');
   });
+  document.getElementById('gomokuAnalysisZone').classList.remove('visible');
 }
 
 function showAnalysis(data) {
@@ -378,17 +760,18 @@ function showAnalysis(data) {
   document.getElementById('avgLoss').textContent = avgLoss.toFixed(3);
   document.getElementById('avgLoss').style.color = gradeColor;
   document.getElementById('scoreGrade').textContent = grade;
+  document.getElementById('gomokuAnalysisZone').classList.add('visible');
   document.getElementById('scoreSection').classList.add('visible');
 
   // 최악 착수
   if (data.worst) {
     const w = data.worst;
-    document.getElementById('worstDetail').innerHTML =
+    const worstHtml =
       `<strong>${w.move_num}수</strong> → (${w.row}, ${w.col})<br>` +
       `실제 Q: <strong>${w.actual_q ?? 'N/A'}</strong><br>` +
       `최선 Q: <strong style="color:var(--green)">${w.best_q}</strong> → (${w.best_row}, ${w.best_col})<br>` +
       `<span style="color:var(--red)">손실: ${w.loss.toFixed(3)}</span>`;
-    document.getElementById('worstSection').classList.add('visible');
+    document.getElementById('worstDetail').innerHTML = worstHtml;
   }
 
   // 착수별 표
@@ -418,10 +801,125 @@ function showAnalysis(data) {
     tbody.appendChild(tr);
   });
   document.getElementById('tableSection').classList.add('visible');
+
+  gomokuCandidates = data.worst_10 || [];
+  gomokuCandidateStatus.clear();
+  gomokuPrecomputeStarted = false;
+  gomokuPendingMoveNum = gomokuCandidates.length ? parseInt(gomokuCandidates[0].move_num) : null;
+  gomokuCandidates.forEach(candidate => gomokuCandidateStatus.set(parseInt(candidate.move_num), 'waiting'));
+  document.getElementById('gomokuBoardWrap').classList.add('hidden');
+  document.getElementById('gomokuPostgamePanel').classList.add('visible');
+  renderGomokuCandidateBar(gomokuCandidates);
+  setGomokuRightTab(gomokuRightTab);
+  if (gomokuCandidates.length) {
+    requestGomokuReplay(parseInt(gomokuCandidates[0].move_num));
+  }
 }
+
+socket.on('gomoku_counterfactual_ready', (data) => {
+  if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
+  const responseMoveNum = parseInt(data.move_num);
+  gomokuReplayCache.set(`${gomokuSessionId}:${responseMoveNum}`, data);
+  setGomokuCandidateStatus(responseMoveNum, 'ready');
+  if (gomokuPendingMoveNum !== null && responseMoveNum !== gomokuPendingMoveNum) {
+    maybePrefetchGomokuCandidates();
+    return;
+  }
+  playGomokuFrames(data.frames || []);
+  const s = data.summary || {};
+  document.getElementById('gomokuCenterFeedback').classList.add('visible');
+  document.getElementById('gomokuFeedbackLoading').classList.remove('active');
+  document.getElementById('gomokuFeedbackSourceCenter').textContent =
+    data.feedback_source === 'llm'
+      ? '외부 LLM 코칭 피드백'
+      : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
+  document.getElementById('gomokuLlmCurrentStatus').textContent =
+    `현재 선택: ${data.feedback_route || (data.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
+    (data.feedback_model ? ` (${data.feedback_model})` : '');
+  document.getElementById('gomokuFeedbackTextCenter').textContent = data.feedback || '';
+  updateGomokuSummaryFromPayload(responseMoveNum, s);
+  maybePrefetchGomokuCandidates();
+});
+
+socket.on('gomoku_counterfactual_error', (data) => {
+  if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
+  const responseMoveNum = data.move_num !== undefined ? parseInt(data.move_num) : null;
+  if (responseMoveNum !== null && !Number.isNaN(responseMoveNum)) {
+    setGomokuCandidateStatus(responseMoveNum, 'error');
+    if (gomokuPendingMoveNum !== null && responseMoveNum !== gomokuPendingMoveNum) return;
+  }
+  document.getElementById('gomokuCenterFeedback').classList.add('visible');
+  document.getElementById('gomokuFeedbackLoading').classList.remove('active');
+  document.getElementById('gomokuFeedbackSourceCenter').textContent = '비교 리플레이 생성 실패';
+  document.getElementById('gomokuFeedbackTextCenter').textContent = data.message || '오류가 발생했습니다.';
+  document.getElementById('gomokuCompareStage').classList.remove('visible');
+});
+
+socket.on('gomoku_sessions_list', (data) => {
+  renderGomokuSessionOptions(data.sessions || []);
+});
+
+socket.on('gomoku_session_saved', (data) => {
+  document.getElementById('gomokuSessionStatus').textContent = data.message || '저장 결과를 확인해주세요.';
+  if (data.ok) {
+    renderGomokuSessionOptions(data.sessions || []);
+  }
+});
+
+socket.on('gomoku_session_deleted', (data) => {
+  document.getElementById('gomokuSessionStatus').textContent = data.message || '삭제 결과를 확인해주세요.';
+  renderGomokuSessionOptions(data.sessions || []);
+});
+
+socket.on('gomoku_session_loaded', (data) => {
+  if (!data.ok) {
+    document.getElementById('gomokuSessionStatus').textContent = data.message || '기록을 불러오지 못했습니다.';
+    return;
+  }
+  gomokuSessionId = data.session_id;
+  gomokuReplayCache.clear();
+  gomokuCandidateStatus.clear();
+  (data.cached_counterfactuals || []).forEach(item => {
+    const moveNum = parseInt(item.move_num);
+    gomokuReplayCache.set(`${gomokuSessionId}:${moveNum}`, item);
+  });
+  gameActive = false;
+  boardState = data.board?.cells || [];
+  renderBoard(boardState, data.board?.last_move ?? -1);
+  document.getElementById('gomokuBoardWrap').classList.add('hidden');
+  document.getElementById('statusBar').textContent = '';
+  document.getElementById('moveCount').textContent = data.analysis?.total_moves ?? '0';
+  document.getElementById('gomokuSessionLabel').textContent = data.meta?.title || 'LOADED';
+  document.getElementById('startBtn').disabled = false;
+  showAnalysis(data.analysis || {});
+  gomokuCandidates.forEach(candidate => {
+    const moveNum = parseInt(candidate.move_num);
+    gomokuCandidateStatus.set(moveNum, gomokuReplayCache.has(`${gomokuSessionId}:${moveNum}`) ? 'ready' : 'waiting');
+  });
+  gomokuPendingMoveNum = null;
+  gomokuPrecomputeStarted = true;
+  renderGomokuCandidateBar(gomokuCandidates);
+  document.getElementById('gomokuSessionTitle').value = data.meta?.title || '';
+  document.getElementById('gomokuSessionStatus').textContent = `불러온 기록: ${data.meta?.title || '이름 없음'}`;
+  document.getElementById('gomokuCompareStage').classList.remove('visible');
+  document.getElementById('gomokuCompareImageLarge').src = '';
+  document.getElementById('gomokuCenterFeedback').classList.remove('visible');
+  document.getElementById('gomokuFeedbackLoading').classList.remove('active');
+  document.getElementById('gomokuFeedbackSourceCenter').textContent = '';
+  document.getElementById('gomokuFeedbackTextCenter').textContent = '착수를 고르면 코칭 피드백이 여기에 표시됩니다.';
+  setGomokuFeedbackTab('feedback');
+  document.getElementById('gomokuLlmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 대기 중' : '현재 선택: 로컬';
+  updateGomokuSummaryFromPayload(null, {});
+});
 
 // 초기화
 initBoard();
+document.querySelectorAll('#gomokuRightTabs .right-tab').forEach(btn => {
+  btn.addEventListener('click', () => setGomokuRightTab(btn.dataset.gomokuTab));
+});
+document.querySelectorAll('[data-gomoku-feedback-tab]').forEach(btn => {
+  btn.addEventListener('click', () => setGomokuFeedbackTab(btn.dataset.gomokuFeedbackTab));
+});
 </script>
 </body>
 </html>

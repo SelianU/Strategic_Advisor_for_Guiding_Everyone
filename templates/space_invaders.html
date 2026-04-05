@@ -19,10 +19,10 @@
       linear-gradient(90deg,rgba(57,255,20,.04) 1px,transparent 1px);
     background-size:40px 40px;
   }
-  .layout{position:relative;z-index:1;display:flex;gap:20px;padding:20px;min-height:100vh;}
+  .layout{position:relative;z-index:1;display:flex;gap:14px;padding:14px;min-height:100vh;align-items:flex-start;}
 
   /* 왼쪽 */
-  .left{width:190px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;}
+  .left{width:170px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;}
   .back-btn{
     font-family:'Press Start 2P',monospace;font-size:.5rem;
     color:var(--green);border:1px solid var(--green);background:transparent;
@@ -43,18 +43,93 @@
   }
   .start-btn:hover{box-shadow:0 0 20px var(--green);}
   .start-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .llm-status{background:var(--dim);border:1px solid rgba(57,255,20,.22);padding:12px;}
+  .llm-status-row{display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--text);}
+  .llm-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .llm-dot.on{background:var(--green);box-shadow:0 0 8px var(--green);}
+  .llm-dot.off{background:var(--red);box-shadow:0 0 8px var(--red);}
+  .llm-sub{font-size:.62rem;color:var(--sub);margin-top:8px;line-height:1.5;word-break:break-all;}
+  .session-panel{background:var(--dim);border:1px solid rgba(255,230,0,.18);padding:12px;}
+  .session-input,.session-select{
+    width:100%;background:#0b1118;border:1px solid #1f2b33;color:var(--text);
+    padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:.68rem;margin-top:8px;
+  }
+  .session-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .session-btn{
+    flex:1;min-width:68px;background:transparent;border:1px solid rgba(255,230,0,.28);color:var(--yellow);
+    padding:8px 10px;font-size:.66rem;cursor:pointer;font-family:'Share Tech Mono',monospace;
+  }
+  .session-btn:hover{background:rgba(255,230,0,.08);}
+  .session-status{margin-top:8px;font-size:.66rem;line-height:1.5;color:var(--sub);white-space:pre-wrap;}
 
-  /* 중앙 */
-  .center{flex:1;display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .main-shell{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;}
+  .top-row{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:14px;align-items:flex-start;}
+  .center{min-width:0;display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .side-column{display:flex;flex-direction:column;gap:14px;align-self:flex-start;width:430px;}
   .game-title{font-family:'Press Start 2P',monospace;font-size:.75rem;color:var(--green);text-shadow:0 0 10px var(--green);letter-spacing:3px;}
   canvas{border:2px solid var(--green);box-shadow:0 0 30px rgba(57,255,20,.3);max-width:100%;max-height:70vh;}
+  canvas.hidden{display:none;}
   .status-bar{font-size:.7rem;color:var(--sub);letter-spacing:2px;}
+  .postgame-panel{display:none;width:100%;background:rgba(13,17,23,.92);border:1px solid rgba(255,230,0,.25);padding:14px;gap:12px;}
+  .postgame-panel.visible{display:flex;flex-direction:column;}
+  .postgame-title{font-family:'Press Start 2P',monospace;font-size:.55rem;color:var(--yellow);}
+  .candidate-bar{display:flex;flex-direction:column;gap:8px;justify-content:flex-start;padding-bottom:2px;}
+  .candidate-pill{width:100%;background:#0b1118;border:1px solid rgba(255,230,0,.18);color:var(--text);padding:10px 12px;cursor:pointer;transition:.18s;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;}
+  .candidate-pill:hover,.candidate-pill.active{border-color:var(--yellow);box-shadow:0 0 0 1px rgba(255,230,0,.35) inset;background:rgba(255,230,0,.06);}
+  .candidate-pill.state-waiting{opacity:.78;}
+  .candidate-pill.state-generating{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(0,255,255,.35) inset;background:rgba(0,255,255,.04);}
+  .candidate-pill.state-ready{opacity:1;}
+  .candidate-pill.state-error{border-color:var(--red);background:rgba(255,49,98,.06);}
+  .candidate-rank{font-family:'Press Start 2P',monospace;font-size:.45rem;color:var(--yellow);white-space:nowrap;}
+  .candidate-main{display:flex;align-items:center;gap:6px;min-width:0;font-size:.72rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .candidate-step{font-size:.72rem;color:#fff;}
+  .candidate-loss{font-size:.72rem;color:var(--red);}
+  .candidate-state{font-size:.58rem;color:#95a5b6;letter-spacing:.03em;white-space:nowrap;text-align:right;}
+  .candidate-pill.state-generating .candidate-state{color:var(--cyan);}
+  .candidate-pill.state-ready .candidate-state{color:var(--green);}
+  .candidate-pill.state-error .candidate-state{color:var(--red);}
+  .compare-stage{display:none;width:min(100%,700px);background:#06080b;border:1px solid rgba(57,255,20,.25);padding:10px;}
+  .compare-stage.visible{display:block;}
+  .compare-stage img{width:100%;display:block;background:#000;object-fit:contain;min-height:180px;max-height:470px;}
+  .compare-caption{display:flex;justify-content:space-between;margin-top:8px;font-size:.72rem;color:var(--sub);}
+  .center-feedback{display:none;width:100%;background:rgba(13,17,23,.92);border:1px solid rgba(255,230,0,.2);padding:14px;}
+  .center-feedback.visible{display:block;}
+  .center-feedback-source{font-size:.72rem;color:var(--yellow);margin-bottom:10px;}
+  .feedback-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+  .feedback-tab{
+    background:#0b1118;border:1px solid rgba(255,230,0,.18);color:var(--sub);
+    padding:10px 8px;font-size:.62rem;cursor:pointer;font-family:'Share Tech Mono',monospace;
+    min-height:40px;display:flex;align-items:center;justify-content:center;text-align:center;
+  }
+  .feedback-tab.active{border-color:var(--yellow);color:var(--yellow);background:rgba(255,230,0,.08);}
+  .feedback-loading{display:none;margin-bottom:12px;}
+  .feedback-loading.active{display:block;}
+  .feedback-loading-label{font-size:.68rem;color:var(--sub);margin-bottom:6px;}
+  .feedback-loading-track{height:6px;background:#1a1a2e;border-radius:999px;overflow:hidden;}
+  .feedback-loading-bar{width:35%;height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));box-shadow:0 0 8px rgba(0,245,255,.4);animation:feedback-loading 1.2s ease-in-out infinite;}
+  .center-feedback-box{background:rgba(255,255,255,.03);border-left:3px solid var(--yellow);padding:12px;font-size:.78rem;line-height:1.85;white-space:pre-wrap;}
+  .feedback-summary-box{display:none;background:rgba(255,255,255,.03);border-left:3px solid var(--yellow);padding:12px;}
+  .feedback-summary-box.visible{display:block;}
+  @keyframes feedback-loading{
+    0%{transform:translateX(-120%);}
+    100%{transform:translateX(320%);}
+  }
 
-  /* 오른쪽 분석 */
-  .right{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:95vh;}
+  /* 하단 분석 */
+  .analysis-zone{display:none;width:min(100%,700px);flex-direction:column;gap:10px;}
+  .analysis-zone.visible{display:flex;}
+  .analysis-content{display:flex;flex-direction:column;gap:12px;}
+  .right{width:100%;display:flex;flex-direction:column;gap:12px;}
+  .right-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .right-tab{
+    background:#0b1118;border:1px solid rgba(57,255,20,.18);color:var(--sub);
+    padding:10px 8px;font-size:.58rem;line-height:1.35;cursor:pointer;font-family:'Share Tech Mono',monospace;
+    min-height:48px;display:flex;align-items:center;justify-content:center;text-align:center;
+  }
+  .right-tab.active{border-color:var(--green);color:var(--green);background:rgba(57,255,20,.08);}
 
-  .analysis-panel{background:var(--dim);border:1px solid rgba(57,255,20,.2);padding:14px;display:none;flex-direction:column;gap:10px;}
-  .analysis-panel.visible{display:flex;}
+  .analysis-panel{background:var(--dim);border:1px solid rgba(57,255,20,.22);padding:14px;display:none;flex-direction:column;gap:10px;}
+  .analysis-panel.visible.tab-open{display:flex;}
 
   /* 기본 통계 */
   .grade-box{text-align:center;padding:14px;background:rgba(57,255,20,.06);border:1px solid rgba(57,255,20,.2);}
@@ -70,48 +145,80 @@
   .bar-r{background:var(--red);box-shadow:0 0 5px var(--red);}
 
   .advice-box{background:rgba(0,0,0,.3);border-left:3px solid var(--green);padding:8px 10px;font-size:.7rem;line-height:1.7;}
+  .play-style-row{display:grid;grid-template-columns:1fr 1.35fr;gap:10px;align-items:stretch;}
+  .play-bars-card{background:#0b1118;border:1px solid #1f2b33;padding:10px;display:flex;flex-direction:column;justify-content:center;}
 
   /* D3QN 분석 */
-  .d3qn-panel{background:var(--dim);border:1px solid rgba(0,245,255,.25);padding:14px;display:none;flex-direction:column;gap:10px;}
+  .d3qn-panel{background:var(--dim);border:1px solid rgba(57,255,20,.22);padding:14px;display:none;flex-direction:column;gap:10px;}
   .d3qn-panel.visible{display:flex;}
-  .d3qn-title{font-family:'Press Start 2P',monospace;font-size:.5rem;color:var(--cyan);margin-bottom:6px;}
+  .d3qn-panel.tabbed{display:none;}
+  .d3qn-panel.visible.tab-open.tabbed{display:flex;}
+  .d3qn-title{font-family:'Press Start 2P',monospace;font-size:.5rem;color:var(--green);margin-bottom:6px;}
 
   .progress-bar{height:4px;background:#1a1a2e;border-radius:2px;overflow:hidden;}
-  .progress-fill{height:100%;background:var(--cyan);box-shadow:0 0 5px var(--cyan);transition:width .3s ease;width:0%;}
+  .progress-fill{height:100%;background:var(--green);box-shadow:0 0 5px var(--green);transition:width .3s ease;width:0%;}
   .progress-text{font-size:.65rem;color:var(--sub);}
 
-  .agree-box{text-align:center;padding:10px;background:rgba(0,245,255,.05);border:1px solid rgba(0,245,255,.15);}
-  .agree-val{font-family:'Press Start 2P',monospace;font-size:1rem;color:var(--cyan);}
+  .agree-box{text-align:center;padding:12px;background:rgba(57,255,20,.05);border:1px solid rgba(57,255,20,.15);}
+  .agree-val{font-family:'Press Start 2P',monospace;font-size:1rem;color:var(--green);}
   .agree-label{font-size:.6rem;color:var(--sub);margin-top:4px;}
+  .qvalue-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .qvalue-card{background:#0b1118;border:1px solid #1f2b33;padding:12px;}
+  .qvalue-card.full{grid-column:1 / -1;}
+  .qvalue-mini{font-size:.62rem;color:var(--sub);margin-bottom:8px;}
+  .worst-mini{
+    font-family:'Press Start 2P',monospace;
+    font-size:.45rem;
+    color:var(--red);
+    margin-bottom:10px;
+  }
+  .avg-q-loss{font-family:'Press Start 2P',monospace;font-size:.9rem;color:var(--green);}
 
   .worst-box{background:rgba(255,51,102,.06);border:1px solid rgba(255,51,102,.25);padding:10px;font-size:.7rem;line-height:1.8;}
   .worst-box strong{color:var(--red);}
 
   /* 행동 분포 */
-  .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.65rem;}
+  .action-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:.65rem;}
   .action-item{background:rgba(255,255,255,.03);border:1px solid #1a1a2e;padding:5px 7px;}
   .action-name{color:var(--sub);}
-  .action-count{color:var(--cyan);font-size:.75rem;}
+  .action-count{color:var(--green);font-size:.75rem;}
 
-  /* 최악 10개 */
+  /* 최악 5개 */
   .worst-table{width:100%;font-size:.63rem;border-collapse:collapse;}
   .worst-table th{color:var(--sub);font-weight:normal;text-align:left;padding:3px 2px;border-bottom:1px solid #1a1a2e;}
   .worst-table td{padding:4px 2px;border-bottom:1px solid #0d1117;}
   .loss-high{color:var(--red);}
   .loss-mid{color:var(--yellow);}
   .loss-low{color:var(--green);}
+  .summary-card{background:rgba(255,255,255,.03);border:1px solid rgba(57,255,20,.18);padding:10px 12px;}
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .summary-item{background:#0b1118;border:1px solid rgba(57,255,20,.18);padding:8px 10px;}
+  .summary-k{font-size:.62rem;color:var(--sub);margin-bottom:4px;}
+  .summary-v{font-size:.88rem;color:#fff;}
+  .feedback-box{background:rgba(255,255,255,.03);border-left:3px solid var(--yellow);padding:10px;font-size:.72rem;line-height:1.8;white-space:pre-wrap;}
+  @media (max-width: 1380px){
+    .top-row{grid-template-columns:minmax(0,1fr) 400px;}
+    .side-column{width:400px;}
+  }
+  @media (max-width: 1180px){
+    .layout{flex-direction:column;}
+    .left{width:100%;}
+    .top-row{grid-template-columns:1fr;}
+  }
 </style>
 </head>
-<body>
+<body data-has-llm="{{ 'true' if has_openrouter else 'false' }}">
 <div class="layout">
 
   <!-- 왼쪽 -->
   <div class="left">
     <a href="/" class="back-btn">◀ MENU</a>
+    <button class="start-btn" id="startBtn">GAME START</button>
     <div class="panel">
       <div class="panel-title">STATS</div>
       <div class="stat-row"><span>SCORE</span><span class="stat-val" id="score">0</span></div>
       <div class="stat-row"><span>STEPS</span><span class="stat-val" id="steps">0</span></div>
+      <div class="stat-row"><span>SESSION</span><span class="stat-val" id="siSessionLabel">LIVE</span></div>
     </div>
     <div class="panel">
       <div class="panel-title">CONTROLS</div>
@@ -122,82 +229,171 @@
         <span class="key">C</span> 발사(대안)
       </div>
     </div>
-    <button class="start-btn" id="startBtn">GAME START</button>
+    <div class="llm-status">
+      <div class="panel-title" style="color:var(--green)">LLM STATUS</div>
+      <div class="llm-status-row">
+        <span class="llm-dot {{ 'on' if has_openrouter else 'off' }}"></span>
+        <span>{{ 'API KEY 설정됨' if has_openrouter else 'API KEY 미설정' }}</span>
+      </div>
+      <div class="llm-sub">
+        {% if has_openrouter %}
+        기본 모델: {{ openrouter_model }}<br>예비 모델: {{ openrouter_fallback }}
+        {% else %}
+        OPENROUTER_API_KEY가 없어 현재는 로컬 데이터 기반 코칭 피드백을 사용합니다.
+        {% endif %}
+      </div>
+      <div class="llm-sub" id="llmCurrentStatus">
+        현재 선택: {% if has_openrouter %}대기 중{% else %}로컬{% endif %}
+      </div>
+    </div>
+    <div class="session-panel">
+      <div class="panel-title" style="color:var(--yellow)">SESSIONS</div>
+      <input class="session-input" id="siSessionTitle" placeholder="기록 이름">
+      <div class="session-actions">
+        <button class="session-btn" id="siSaveBtn">저장</button>
+      </div>
+      <select class="session-select" id="siSessionSelect">
+        <option value="">저장된 기록 선택</option>
+      </select>
+      <div class="session-actions">
+        <button class="session-btn" id="siLoadBtn">불러오기</button>
+        <button class="session-btn" id="siDeleteBtn">삭제</button>
+      </div>
+      <div class="session-status" id="siSessionStatus">저장된 기록을 불러오거나 현재 판을 저장할 수 있습니다.</div>
+    </div>
   </div>
 
-  <!-- 게임 화면 -->
-  <div class="center">
-    <div class="game-title">👾 SPACE INVADERS</div>
-    <canvas id="gameCanvas" width="800" height="1050"></canvas>
-    <div class="status-bar" id="status">PRESS START TO PLAY</div>
-  </div>
-
-  <!-- 오른쪽 분석 -->
-  <div class="right">
-
-    <!-- 기본 통계 -->
-    <div class="analysis-panel" id="basicPanel">
-      <div class="panel-title" style="color:var(--green)">플레이 분석</div>
-      <div class="grade-box">
-        <div class="grade-label">플레이 스타일</div>
-        <div class="grade-value" id="playStyle">—</div>
-      </div>
-      <div>
-        <div class="bar-row">
-          <div class="bar-label"><span>왼쪽</span><span id="leftPct">0%</span></div>
-          <div class="bar-track"><div class="bar-fill bar-g" id="leftBar" style="width:0%"></div></div>
+  <div class="main-shell">
+    <div class="top-row">
+      <!-- 게임 화면 -->
+      <div class="center">
+        <div class="game-title">👾 SPACE INVADERS</div>
+        <canvas id="gameCanvas" width="800" height="1050"></canvas>
+        <div class="status-bar" id="status">PRESS START TO PLAY</div>
+        <div class="compare-stage" id="siCompareStage">
+          <img id="siCompareImageLarge" alt="counterfactual replay">
+          <div class="compare-caption">
+            <span>LEFT: HUMAN</span>
+            <span>RIGHT: AGENT</span>
+          </div>
         </div>
-        <div class="bar-row">
-          <div class="bar-label"><span>오른쪽</span><span id="rightPct">0%</span></div>
-          <div class="bar-track"><div class="bar-fill bar-y" id="rightBar" style="width:0%"></div></div>
+        <div class="analysis-zone" id="siAnalysisZone">
+          <div class="analysis-content">
+            <div class="right">
+              <div class="right-tabs" id="siRightTabs">
+                <button type="button" class="right-tab active" data-si-tab="play">플레이 스타일 분석</button>
+                <button type="button" class="right-tab" data-si-tab="qvalue">Q-VALUE</button>
+                <button type="button" class="right-tab" data-si-tab="worst">최악 행동</button>
+              </div>
+
+              <div class="analysis-panel" id="basicPanel">
+                <div class="panel-title" style="color:var(--green)">Action 기반 Play Style 분석</div>
+                <div class="play-style-row">
+                  <div class="grade-box">
+                    <div class="grade-label">Play Style</div>
+                    <div class="grade-value" id="playStyle">—</div>
+                  </div>
+                  <div class="play-bars-card">
+                    <div class="bar-row">
+                      <div class="bar-label"><span>왼쪽</span><span id="leftPct">0%</span></div>
+                      <div class="bar-track"><div class="bar-fill bar-g" id="leftBar" style="width:0%"></div></div>
+                    </div>
+                    <div class="bar-row">
+                      <div class="bar-label"><span>오른쪽</span><span id="rightPct">0%</span></div>
+                      <div class="bar-track"><div class="bar-fill bar-y" id="rightBar" style="width:0%"></div></div>
+                    </div>
+                    <div class="bar-row">
+                      <div class="bar-label"><span>발사</span><span id="firePct">0%</span></div>
+                      <div class="bar-track"><div class="bar-fill bar-g" id="fireBar" style="width:0%"></div></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="advice-box" id="advice">—</div>
+              </div>
+
+              <div class="d3qn-panel" id="d3qnProgress">
+                <div class="d3qn-title">D3QN 분석 중...</div>
+                <div class="progress-text" id="progressText">준비 중...</div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+              </div>
+
+              <div class="d3qn-panel tabbed" id="d3qnResult">
+                <div class="d3qn-title">D3QN Q-VALUE 분석</div>
+
+                <div class="qvalue-grid">
+                  <div class="qvalue-card agree-box">
+                    <div class="agree-val" id="agreeRate">—</div>
+                    <div class="agree-label">AI와 행동 일치율</div>
+                  </div>
+                  <div class="qvalue-card">
+                    <div class="qvalue-mini">평균 Q 손실</div>
+                    <div class="avg-q-loss stat-val" id="avgLoss">—</div>
+                  </div>
+
+                  <div class="qvalue-card">
+                    <div class="qvalue-mini">내 행동 분포</div>
+                    <div class="action-grid" id="playerActionGrid"></div>
+                  </div>
+                  <div class="qvalue-card">
+                    <div class="qvalue-mini">AI 권장 행동 분포</div>
+                    <div class="action-grid" id="aiActionGrid"></div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="d3qn-panel tabbed" id="siWorstPanel">
+                <div class="d3qn-title">최악 행동 분석</div>
+                <div class="qvalue-grid">
+                  <div class="qvalue-card">
+                    <div class="worst-mini">최악 행동</div>
+                    <div class="worst-box" id="worstBox">분석 완료 후 표시됩니다.</div>
+                  </div>
+                  <div class="qvalue-card">
+                    <div style="font-family:'Press Start 2P',monospace;font-size:.45rem;color:var(--red);margin-bottom:8px;">⚠ 최악 행동 TOP-5</div>
+                    <table class="worst-table">
+                      <thead><tr><th>스텝</th><th>내 행동</th><th>최선</th><th>손실</th></tr></thead>
+                      <tbody id="worstTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="bar-row">
-          <div class="bar-label"><span>발사</span><span id="firePct">0%</span></div>
-          <div class="bar-track"><div class="bar-fill bar-r" id="fireBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="side-column">
+        <div class="postgame-panel" id="siPostgamePanel">
+          <div class="postgame-title">GAME OVER · TOP-K MOMENTS</div>
+          <div class="candidate-bar" id="siCandidateBar"></div>
+        </div>
+        <div class="center-feedback" id="siCenterFeedback">
+          <div id="siFeedbackSourceCenter" class="center-feedback-source"></div>
+          <div class="feedback-tabs">
+            <button type="button" class="feedback-tab active" data-si-feedback-tab="feedback">코칭 피드백</button>
+            <button type="button" class="feedback-tab" data-si-feedback-tab="summary">비교 요약</button>
+          </div>
+          <div class="feedback-loading" id="siFeedbackLoading">
+            <div class="feedback-loading-label">외부 LLM 응답을 기다리는 중입니다...</div>
+            <div class="feedback-loading-track"><div class="feedback-loading-bar"></div></div>
+          </div>
+          <div id="siFeedbackTextCenter" class="center-feedback-box">후보를 선택하면 코칭 피드백이 여기에 표시됩니다.</div>
+          <div id="siFeedbackSummaryBox" class="feedback-summary-box">
+            <div class="summary-grid">
+              <div class="summary-item"><div class="summary-k">STEP</div><div class="summary-v" id="siStepVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">LOSS</div><div class="summary-v" id="siLossVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">HUMAN ACTION</div><div class="summary-v" id="siHumanActionVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">AGENT ACTION</div><div class="summary-v" id="siAgentActionVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">H SCORE DELTA</div><div class="summary-v" id="siHumanScoreVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">A SCORE DELTA</div><div class="summary-v" id="siAgentScoreVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">H FIRST SCORE</div><div class="summary-v" id="siHumanFirstVal">—</div></div>
+              <div class="summary-item"><div class="summary-k">A FIRST SCORE</div><div class="summary-v" id="siAgentFirstVal">—</div></div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="stat-row"><span>총 점수</span><span class="stat-val" id="finalScore">—</span></div>
-      <div class="stat-row"><span>이동 편향</span><span class="stat-val" id="moveBias">—</span></div>
-      <div class="advice-box" id="advice">—</div>
     </div>
-
-    <!-- D3QN 분석 진행 -->
-    <div class="d3qn-panel" id="d3qnProgress">
-      <div class="d3qn-title">D3QN 분석 중...</div>
-      <div class="progress-text" id="progressText">준비 중...</div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    </div>
-
-    <!-- D3QN 결과 -->
-    <div class="d3qn-panel" id="d3qnResult">
-      <div class="d3qn-title">D3QN Q-VALUE 분석</div>
-
-      <div class="agree-box">
-        <div class="agree-val" id="agreeRate">—</div>
-        <div class="agree-label">AI와 행동 일치율</div>
-      </div>
-
-      <div class="stat-row">
-        <span>평균 Q 손실</span>
-        <span class="stat-val" id="avgLoss">—</span>
-      </div>
-
-      <div class="worst-box" id="worstBox">분석 완료 후 표시됩니다.</div>
-
-      <!-- 행동 분포 비교 -->
-      <div style="font-size:.65rem;color:var(--sub);margin-top:4px;">내 행동 분포</div>
-      <div class="action-grid" id="playerActionGrid"></div>
-      <div style="font-size:.65rem;color:var(--sub);margin-top:4px;">AI 권장 행동 분포</div>
-      <div class="action-grid" id="aiActionGrid"></div>
-
-      <!-- 최악 착수 10개 -->
-      <div style="font-family:'Press Start 2P',monospace;font-size:.45rem;color:var(--red);margin-top:6px;">⚠ 최악 행동 TOP 10</div>
-      <table class="worst-table">
-        <thead><tr><th>스텝</th><th>내 행동</th><th>최선</th><th>손실</th></tr></thead>
-        <tbody id="worstTableBody"></tbody>
-      </table>
-    </div>
-
   </div>
 </div>
 
@@ -205,10 +401,261 @@
 const socket = io({ transports: ['websocket'] });
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
+const HAS_LLM = document.body.dataset.hasLlm === 'true';
 
 let gameActive = false, totalSteps = 0;
 const keys = { left:false, right:false, fire:false };
 let currentAction = 0;
+let siCompareFrames = [];
+let siCompareTimer = null;
+let siCandidates = [];
+const siReplayCache = new Map();
+let siSessionId = 0;
+let siPendingEntryIndex = null;
+let siPrecomputeStarted = false;
+const siCandidateStatus = new Map();
+let siSavedSessions = [];
+let siRightTab = 'play';
+let siFeedbackTab = 'feedback';
+const SI_REPLAY_FPS = 60;
+const SI_REPLAY_SECONDS = 20;
+const SI_REPLAY_HORIZON = SI_REPLAY_FPS * SI_REPLAY_SECONDS;
+const SI_STATUS_LABELS = {
+  waiting: '대기 중',
+  generating: '생성 중',
+  ready: '준비됨',
+  error: '실패'
+};
+
+function setSiRightTab(tab) {
+  siRightTab = tab;
+  document.querySelectorAll('#siRightTabs .right-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.siTab === tab);
+  });
+  document.getElementById('basicPanel').classList.toggle('tab-open', tab === 'play');
+  document.getElementById('d3qnResult').classList.toggle('tab-open', tab === 'qvalue');
+  document.getElementById('siWorstPanel').classList.toggle('tab-open', tab === 'worst');
+}
+
+function setSiFeedbackTab(tab) {
+  siFeedbackTab = tab;
+  document.querySelectorAll('[data-si-feedback-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.siFeedbackTab === tab);
+  });
+  document.getElementById('siFeedbackTextCenter').style.display = tab === 'feedback' ? 'block' : 'none';
+  document.getElementById('siFeedbackSummaryBox').classList.toggle('visible', tab === 'summary');
+}
+
+function getSiCandidateByEntry(entryIndex) {
+  return siCandidates.find(candidate => parseInt(candidate.entry_index) === parseInt(entryIndex)) || null;
+}
+
+function updateSiSummaryFromPayload(entryIndex, summary) {
+  const candidate = getSiCandidateByEntry(entryIndex);
+  document.getElementById('siStepVal').textContent = candidate?.step ?? summary?.step ?? '—';
+  document.getElementById('siLossVal').textContent =
+    candidate?.loss !== undefined && candidate?.loss !== null
+      ? Number(candidate.loss).toFixed(3)
+      : (summary?.loss ?? '—');
+  document.getElementById('siHumanActionVal').textContent = summary?.human_action_name || '—';
+  document.getElementById('siAgentActionVal').textContent = summary?.agent_action_name || '—';
+  document.getElementById('siHumanScoreVal').textContent = summary?.human_score_delta ?? '—';
+  document.getElementById('siAgentScoreVal').textContent = summary?.agent_score_delta ?? '—';
+  document.getElementById('siHumanFirstVal').textContent = summary?.human_first_reward_step ?? '—';
+  document.getElementById('siAgentFirstVal').textContent = summary?.agent_first_reward_step ?? '—';
+}
+
+function playSiFrames(frames) {
+  clearInterval(siCompareTimer);
+  siCompareFrames = frames || [];
+  if (!siCompareFrames.length) return;
+  let idx = 0;
+  const img = document.getElementById('siCompareImageLarge');
+  document.getElementById('siCompareStage').classList.add('visible');
+  img.src = 'data:image/jpeg;base64,' + siCompareFrames[0];
+  siCompareTimer = setInterval(() => {
+    idx = (idx + 1) % siCompareFrames.length;
+    img.src = 'data:image/jpeg;base64,' + siCompareFrames[idx];
+  }, 1000 / SI_REPLAY_FPS);
+}
+
+function renderSiSessionOptions(sessions) {
+  siSavedSessions = Array.isArray(sessions) ? sessions : [];
+  const select = document.getElementById('siSessionSelect');
+  const previous = select.value;
+  select.innerHTML = '<option value="">저장된 기록 선택</option>';
+  siSavedSessions.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.id;
+    option.textContent = `${item.title} · ${item.saved_at || ''}`;
+    select.appendChild(option);
+  });
+  if (previous && siSavedSessions.some(item => item.id === previous)) {
+    select.value = previous;
+  }
+}
+
+function applySiBasicReport(report) {
+  const p = document.getElementById('basicPanel');
+  p.classList.add('visible');
+  setSiRightTab(siRightTab);
+  document.getElementById('playStyle').textContent  = report.play_style || '—';
+  document.getElementById('advice').textContent     = report.ai_feedback || '—';
+
+  const lp = parseFloat(report.left_ratio || 0);
+  const rp = parseFloat(report.right_ratio || 0);
+  const fp = parseFloat(report.fire_ratio || 0);
+  document.getElementById('leftPct').textContent  = report.left_ratio || '0%';
+  document.getElementById('rightPct').textContent = report.right_ratio || '0%';
+  document.getElementById('firePct').textContent  = report.fire_ratio || '0%';
+  setTimeout(() => {
+    document.getElementById('leftBar').style.width  = lp + '%';
+    document.getElementById('rightBar').style.width = rp + '%';
+    document.getElementById('fireBar').style.width  = fp + '%';
+  }, 100);
+}
+
+function applySiAnalysisResult(data) {
+  const r = document.getElementById('d3qnResult');
+  r.classList.add('visible');
+  document.getElementById('siWorstPanel').classList.add('visible');
+  setSiRightTab(siRightTab);
+  document.getElementById('siPostgamePanel').classList.add('visible');
+  document.getElementById('siAnalysisZone').classList.add('visible');
+  document.getElementById('agreeRate').textContent = data.agree_rate + '%';
+  document.getElementById('avgLoss').textContent   = data.avg_loss.toFixed(3);
+
+  const w = data.worst;
+  if (w) {
+    document.getElementById('worstBox').innerHTML =
+      `<strong>스텝 ${w.step}</strong> — 행동: <strong>${w.action_name}</strong><br>` +
+      `내 Q: <strong>${w.player_q}</strong> | 최선 Q: <strong style="color:var(--green)">${w.best_q}</strong><br>` +
+      `최선 행동: <strong style="color:var(--cyan)">${w.best_action_name}</strong> | 손실: <strong style="color:var(--red)">${w.loss.toFixed(3)}</strong>`;
+  }
+
+  function makeGrid(counts, el) {
+    const actionOrder = ['NOOP', 'RIGHT', 'LEFT', 'FIRE', 'RIGHTFIRE', 'LEFTFIRE'];
+    el.innerHTML = '';
+    actionOrder.forEach((name) => {
+      const cnt = (counts && counts[name]) || 0;
+      el.innerHTML += `<div class="action-item"><div class="action-name">${name}</div><div class="action-count">${cnt}</div></div>`;
+    });
+  }
+  makeGrid(data.player_actions, document.getElementById('playerActionGrid'));
+  makeGrid(data.ai_actions, document.getElementById('aiActionGrid'));
+
+  const tbody = document.getElementById('worstTableBody');
+  tbody.innerHTML = '';
+  siCandidates = data.worst_10 || [];
+  siCandidateStatus.clear();
+  siPrecomputeStarted = false;
+  siPendingEntryIndex = siCandidates.length ? parseInt(siCandidates[0].entry_index) : null;
+  siCandidates.forEach(candidate => siCandidateStatus.set(parseInt(candidate.entry_index), 'waiting'));
+  siCandidates.forEach(a => {
+    const cls = a.loss > 0.3 ? 'loss-high' : (a.loss > 0.1 ? 'loss-mid' : 'loss-low');
+    tbody.innerHTML +=
+      `<tr>
+        <td>${a.step}</td>
+        <td>${a.action_name}</td>
+        <td style="color:var(--cyan)">${a.best_action_name}</td>
+        <td class="${cls}">${a.loss.toFixed(3)}</td>
+      </tr>`;
+  });
+  setSiRightTab(siRightTab);
+  renderSiCandidateBar(siCandidates);
+  if (siCandidates.length) {
+    requestSiReplay(parseInt(siCandidates[0].entry_index));
+  }
+}
+
+function setSiCandidateStatus(entryIndex, status) {
+  siCandidateStatus.set(entryIndex, status);
+  siCandidates = [...siCandidates];
+  renderSiCandidateBar(siCandidates);
+}
+
+function maybePrefetchSiCandidates() {
+  if (siPrecomputeStarted || !siCandidates.length) return;
+  const firstEntryIndex = parseInt(siCandidates[0].entry_index);
+  if (siPendingEntryIndex !== firstEntryIndex) return;
+  siPrecomputeStarted = true;
+  siCandidates.slice(1).forEach((candidate, idx) => {
+    const entryIndex = parseInt(candidate.entry_index);
+    if (siReplayCache.has(entryIndex)) {
+      setSiCandidateStatus(entryIndex, 'ready');
+      return;
+    }
+    setTimeout(() => prefetchSiReplay(entryIndex), 150 * (idx + 1));
+  });
+}
+
+function prefetchSiReplay(entryIndex) {
+  if (Number.isNaN(entryIndex) || siReplayCache.has(entryIndex)) return;
+  const currentStatus = siCandidateStatus.get(entryIndex);
+  if (currentStatus === 'generating' || currentStatus === 'ready') return;
+  setSiCandidateStatus(entryIndex, 'generating');
+  socket.emit('si_request_counterfactual', {
+    entry_index: entryIndex,
+    horizon: SI_REPLAY_HORIZON,
+    session_id: siSessionId
+  });
+}
+
+function requestSiReplay(entryIndex) {
+  if (Number.isNaN(entryIndex)) return;
+  siPendingEntryIndex = entryIndex;
+  if (siReplayCache.has(entryIndex)) {
+    const cached = siReplayCache.get(entryIndex);
+    setSiCandidateStatus(entryIndex, 'ready');
+    playSiFrames(cached.frames || []);
+    document.getElementById('siCenterFeedback').classList.add('visible');
+    document.getElementById('siFeedbackLoading').classList.remove('active');
+    document.getElementById('siFeedbackSourceCenter').textContent =
+      cached.feedback_source === 'llm'
+        ? '외부 LLM 코칭 피드백'
+        : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
+    document.getElementById('llmCurrentStatus').textContent =
+      `현재 선택: ${cached.feedback_route || (cached.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
+      (cached.feedback_model ? ` (${cached.feedback_model})` : '');
+    updateSiSummaryFromPayload(entryIndex, cached.summary || {});
+    document.getElementById('siFeedbackTextCenter').textContent = cached.feedback || '';
+    return;
+  }
+  setSiCandidateStatus(entryIndex, 'generating');
+  clearInterval(siCompareTimer);
+  siCompareFrames = [];
+  document.getElementById('siCompareStage').classList.remove('visible');
+  document.getElementById('siCompareImageLarge').src = '';
+  document.getElementById('siFeedbackSourceCenter').textContent = HAS_LLM ? '비교 리플레이 생성 및 외부 LLM 코칭 요청 중...' : '비교 리플레이 생성 중...';
+  document.getElementById('siFeedbackTextCenter').textContent = HAS_LLM ? '외부 LLM 응답을 기다리는 중입니다. 무료 모델 혼잡 시 로컬 코칭 피드백으로 대체될 수 있습니다.' : '';
+  document.getElementById('siCenterFeedback').classList.add('visible');
+  document.getElementById('siFeedbackLoading').classList.toggle('active', HAS_LLM);
+  document.getElementById('llmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 외부 LLM 확인 중' : '현재 선택: 로컬';
+  socket.emit('si_request_counterfactual', { entry_index: entryIndex, horizon: SI_REPLAY_HORIZON, session_id: siSessionId });
+}
+
+function renderSiCandidateBar(candidates) {
+  const bar = document.getElementById('siCandidateBar');
+  bar.innerHTML = '';
+  candidates.forEach((a, idx) => {
+    const btn = document.createElement('button');
+    const entryIndex = parseInt(a.entry_index);
+    const status = siCandidateStatus.get(entryIndex) || 'waiting';
+    btn.className = 'candidate-pill state-' + status + (siPendingEntryIndex === entryIndex ? ' active' : '');
+    btn.type = 'button';
+    btn.dataset.entryIndex = entryIndex;
+    btn.innerHTML =
+      `<span class="candidate-rank">TOP ${idx + 1}</span>` +
+      `<span class="candidate-main"><span class="candidate-step">STEP ${a.step}</span><span class="candidate-loss">(LOSS ${a.loss.toFixed(3)})</span></span>` +
+      `<span class="candidate-state">${SI_STATUS_LABELS[status] || SI_STATUS_LABELS.waiting}</span>`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.candidate-pill').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      requestSiReplay(parseInt(btn.dataset.entryIndex));
+    });
+    bar.appendChild(btn);
+  });
+}
 
 function updateAction() {
   if      (keys.fire && keys.right) currentAction = 4;
@@ -223,16 +670,61 @@ document.getElementById('startBtn').addEventListener('click', () => {
   gameActive = true; totalSteps = 0;
   document.getElementById('score').textContent = '0';
   document.getElementById('steps').textContent = '0';
+  document.getElementById('siSessionLabel').textContent = 'LIVE';
+  canvas.classList.remove('hidden');
   document.getElementById('basicPanel').classList.remove('visible');
   document.getElementById('d3qnProgress').classList.remove('visible');
   document.getElementById('d3qnResult').classList.remove('visible');
+  document.getElementById('siWorstPanel').classList.remove('visible');
+  document.getElementById('siAnalysisZone').classList.remove('visible');
+  document.getElementById('siPostgamePanel').classList.remove('visible');
+  document.getElementById('siCompareStage').classList.remove('visible');
+  document.getElementById('siCenterFeedback').classList.remove('visible');
+  document.getElementById('siCandidateBar').innerHTML = '';
+  siReplayCache.clear();
+  siCandidateStatus.clear();
+  siPendingEntryIndex = null;
+  siPrecomputeStarted = false;
+  siRightTab = 'play';
+  setSiRightTab('play');
+  setSiFeedbackTab('feedback');
+  document.getElementById('siFeedbackSourceCenter').textContent = '';
+  document.getElementById('siFeedbackTextCenter').textContent = '후보를 선택하면 코칭 피드백이 여기에 표시됩니다.';
+  document.getElementById('siFeedbackLoading').classList.remove('active');
   document.getElementById('status').textContent = 'PLAYING...';
   document.getElementById('startBtn').disabled = true;
   currentAction = 1;
   socket.emit('si_start');
 });
-
+document.getElementById('siSaveBtn').addEventListener('click', () => {
+  const title = document.getElementById('siSessionTitle').value.trim();
+  if (!title) {
+    window.alert('저장할 기록 이름을 입력해주세요.');
+    return;
+  }
+  socket.emit('si_save_session', {
+    title,
+  });
+});
+document.getElementById('siLoadBtn').addEventListener('click', () => {
+  const sessionId = document.getElementById('siSessionSelect').value;
+  if (!sessionId) return;
+  socket.emit('si_load_session', { session_id: sessionId });
+});
+document.getElementById('siDeleteBtn').addEventListener('click', () => {
+  const sessionId = document.getElementById('siSessionSelect').value;
+  if (!sessionId) return;
+  socket.emit('si_delete_session', { session_id: sessionId });
+});
+socket.emit('si_list_sessions');
+document.querySelectorAll('#siRightTabs .right-tab').forEach(btn => {
+  btn.addEventListener('click', () => setSiRightTab(btn.dataset.siTab));
+});
+document.querySelectorAll('[data-si-feedback-tab]').forEach(btn => {
+  btn.addEventListener('click', () => setSiFeedbackTab(btn.dataset.siFeedbackTab));
+});
 socket.on('si_frame', (data) => {
+  if (data.session_id !== undefined) siSessionId = data.session_id;
   if (!gameActive) return;
   const img = new Image();
   img.src = 'data:image/jpeg;base64,' + data.image;
@@ -240,6 +732,9 @@ socket.on('si_frame', (data) => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     totalSteps++;
     document.getElementById('steps').textContent = totalSteps;
+    if (typeof data.score !== 'undefined') {
+      document.getElementById('score').textContent = Math.round(Number(data.score) || 0);
+    }
     setTimeout(() => {
       if (gameActive) {
         socket.emit('si_action', { action: currentAction });
@@ -251,27 +746,10 @@ socket.on('si_frame', (data) => {
 
 socket.on('si_over', (report) => {
   gameActive = false;
+  canvas.classList.add('hidden');
   document.getElementById('status').textContent = 'GAME OVER';
   document.getElementById('startBtn').disabled = false;
-
-  const p = document.getElementById('basicPanel');
-  p.classList.add('visible');
-  document.getElementById('playStyle').textContent  = report.play_style || '—';
-  document.getElementById('finalScore').textContent = report.total_reward;
-  document.getElementById('moveBias').textContent   = report.move_bias;
-  document.getElementById('advice').textContent     = report.ai_feedback;
-
-  const lp = parseFloat(report.left_ratio);
-  const rp = parseFloat(report.right_ratio);
-  const fp = parseFloat(report.fire_ratio);
-  document.getElementById('leftPct').textContent  = report.left_ratio;
-  document.getElementById('rightPct').textContent = report.right_ratio;
-  document.getElementById('firePct').textContent  = report.fire_ratio;
-  setTimeout(() => {
-    document.getElementById('leftBar').style.width  = lp + '%';
-    document.getElementById('rightBar').style.width = rp + '%';
-    document.getElementById('fireBar').style.width  = fp + '%';
-  }, 100);
+  applySiBasicReport(report);
 
   if (report.has_d3qn) {
     document.getElementById('d3qnProgress').classList.add('visible');
@@ -280,55 +758,59 @@ socket.on('si_over', (report) => {
 
 // D3QN 진행
 socket.on('si_analysis_start', (data) => {
+  if (data.session_id !== undefined && data.session_id !== siSessionId) return;
   document.getElementById('progressText').textContent = `0 / ${data.total} 스텝 분석 중...`;
   document.getElementById('progressFill').style.width = '0%';
 });
 
 socket.on('si_analysis_progress', (data) => {
+  if (data.session_id !== undefined && data.session_id !== siSessionId) return;
   document.getElementById('progressFill').style.width = data.pct + '%';
   document.getElementById('progressText').textContent = `${data.current} / ${data.total} 분석 중...`;
 });
 
 socket.on('si_analysis_done', (data) => {
+  if (data.session_id !== undefined && data.session_id !== siSessionId) return;
   document.getElementById('d3qnProgress').classList.remove('visible');
-  const r = document.getElementById('d3qnResult');
-  r.classList.add('visible');
+  applySiAnalysisResult(data);
+});
 
-  document.getElementById('agreeRate').textContent = data.agree_rate + '%';
-  document.getElementById('avgLoss').textContent   = data.avg_loss.toFixed(3);
-
-  // 최악 착수 요약
-  const w = data.worst;
-  if (w) {
-    document.getElementById('worstBox').innerHTML =
-      `<strong>스텝 ${w.step}</strong> — 행동: <strong>${w.action_name}</strong><br>` +
-      `내 Q: <strong>${w.player_q}</strong> | 최선 Q: <strong style="color:var(--green)">${w.best_q}</strong><br>` +
-      `최선 행동: <strong style="color:var(--cyan)">${w.best_action_name}</strong> | 손실: <strong style="color:var(--red)">${w.loss.toFixed(3)}</strong>`;
+socket.on('si_counterfactual_ready', (data) => {
+  if (data.session_id !== undefined && data.session_id !== siSessionId) return;
+  const responseEntryIndex = parseInt(data.entry_index);
+  siReplayCache.set(responseEntryIndex, data);
+  setSiCandidateStatus(responseEntryIndex, 'ready');
+  if (responseEntryIndex !== siPendingEntryIndex) {
+    maybePrefetchSiCandidates();
+    return;
   }
+  playSiFrames(data.frames || []);
+  const s = data.summary || {};
+  document.getElementById('siCenterFeedback').classList.add('visible');
+  document.getElementById('siFeedbackLoading').classList.remove('active');
+  document.getElementById('siFeedbackSourceCenter').textContent =
+    data.feedback_source === 'llm'
+      ? '외부 LLM 코칭 피드백'
+      : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
+  document.getElementById('llmCurrentStatus').textContent =
+    `현재 선택: ${data.feedback_route || (data.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
+    (data.feedback_model ? ` (${data.feedback_model})` : '');
+  updateSiSummaryFromPayload(responseEntryIndex, s);
+  document.getElementById('siFeedbackTextCenter').textContent = data.feedback || '';
+  maybePrefetchSiCandidates();
+});
 
-  // 행동 분포
-  function makeGrid(counts, el) {
-    el.innerHTML = '';
-    Object.entries(counts).sort((a,b) => b[1]-a[1]).forEach(([name, cnt]) => {
-      el.innerHTML += `<div class="action-item"><div class="action-name">${name}</div><div class="action-count">${cnt}</div></div>`;
-    });
+socket.on('si_counterfactual_error', (data) => {
+  const responseEntryIndex = data.entry_index !== undefined ? parseInt(data.entry_index) : null;
+  if (responseEntryIndex !== null && !Number.isNaN(responseEntryIndex)) {
+    setSiCandidateStatus(responseEntryIndex, 'error');
+    if (responseEntryIndex !== siPendingEntryIndex) return;
   }
-  makeGrid(data.player_actions, document.getElementById('playerActionGrid'));
-  makeGrid(data.ai_actions,     document.getElementById('aiActionGrid'));
-
-  // 최악 10개 표
-  const tbody = document.getElementById('worstTableBody');
-  tbody.innerHTML = '';
-  data.worst_10.forEach(a => {
-    const cls = a.loss > 0.3 ? 'loss-high' : (a.loss > 0.1 ? 'loss-mid' : 'loss-low');
-    tbody.innerHTML +=
-      `<tr>
-        <td>${a.step}</td>
-        <td>${a.action_name}</td>
-        <td style="color:var(--cyan)">${a.best_action_name}</td>
-        <td class="${cls}">${a.loss.toFixed(3)}</td>
-      </tr>`;
-  });
+  document.getElementById('siCenterFeedback').classList.add('visible');
+  document.getElementById('siFeedbackLoading').classList.remove('active');
+  document.getElementById('siFeedbackSourceCenter').textContent = '비교 리플레이 생성 실패';
+  document.getElementById('siFeedbackTextCenter').textContent = data.message || '오류가 발생했습니다.';
+  document.getElementById('siCompareStage').classList.remove('visible');
 });
 
 document.addEventListener('keydown', e => {
@@ -343,6 +825,69 @@ document.addEventListener('keyup', e => {
   if (e.key === 'ArrowRight')      keys.right = false;
   if (e.key === ' ' || e.key==='c') keys.fire = false;
   updateAction();
+});
+
+socket.on('si_sessions_list', (data) => {
+  renderSiSessionOptions(data.sessions || []);
+});
+
+socket.on('si_session_saved', (data) => {
+  document.getElementById('siSessionStatus').textContent = data.message || '저장 결과를 확인해주세요.';
+  if (data.ok) {
+    renderSiSessionOptions(data.sessions || []);
+  }
+});
+
+socket.on('si_session_deleted', (data) => {
+  document.getElementById('siSessionStatus').textContent = data.message || '삭제 결과를 확인해주세요.';
+  renderSiSessionOptions(data.sessions || []);
+});
+
+socket.on('si_session_loaded', (data) => {
+  if (!data.ok) {
+    document.getElementById('siSessionStatus').textContent = data.message || '기록을 불러오지 못했습니다.';
+    return;
+  }
+  siSessionId = data.session_id;
+  siReplayCache.clear();
+  siCandidateStatus.clear();
+  (data.cached_counterfactuals || []).forEach(item => {
+    const entryIndex = parseInt(item.entry_index);
+    siReplayCache.set(entryIndex, item);
+  });
+  canvas.classList.add('hidden');
+  document.getElementById('status').textContent = '';
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('siSessionLabel').textContent = data.meta?.title || 'LOADED';
+  document.getElementById('score').textContent = data.basic?.total_reward ?? '0';
+  document.getElementById('steps').textContent = data.basic?.total_steps ?? '0';
+  applySiBasicReport(data.basic || {});
+  applySiAnalysisResult(data.analysis || {});
+  siCandidates.forEach(candidate => {
+    const entryIndex = parseInt(candidate.entry_index);
+    siCandidateStatus.set(entryIndex, siReplayCache.has(entryIndex) ? 'ready' : 'waiting');
+  });
+  siPendingEntryIndex = null;
+  siPrecomputeStarted = true;
+  renderSiCandidateBar(siCandidates);
+  document.getElementById('siSessionTitle').value = data.meta?.title || '';
+  document.getElementById('siSessionStatus').textContent = `불러온 기록: ${data.meta?.title || '이름 없음'}`;
+  document.getElementById('siCompareStage').classList.remove('visible');
+  document.getElementById('siCompareImageLarge').src = '';
+  document.getElementById('siCenterFeedback').classList.remove('visible');
+  document.getElementById('siFeedbackLoading').classList.remove('active');
+  document.getElementById('siFeedbackSourceCenter').textContent = '';
+  document.getElementById('siFeedbackTextCenter').textContent = '후보를 선택하면 코칭 피드백이 여기에 표시됩니다.';
+  setSiFeedbackTab('feedback');
+  document.getElementById('llmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 대기 중' : '현재 선택: 로컬';
+  document.getElementById('siStepVal').textContent = '—';
+  document.getElementById('siLossVal').textContent = '—';
+  document.getElementById('siHumanActionVal').textContent = '—';
+  document.getElementById('siAgentActionVal').textContent = '—';
+  document.getElementById('siHumanScoreVal').textContent = '—';
+  document.getElementById('siAgentScoreVal').textContent = '—';
+  document.getElementById('siHumanFirstVal').textContent = '—';
+  document.getElementById('siAgentFirstVal').textContent = '—';
 });
 </script>
 </body>
