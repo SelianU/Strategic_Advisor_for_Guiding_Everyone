@@ -102,6 +102,8 @@
     display:grid;
     gap:3px;
     cursor:pointer;
+    position:relative;
+    z-index:1;
   }
 
   .cell {
@@ -114,6 +116,7 @@
   }
   .cell:hover { background:rgba(0,245,255,.08); }
   .cell.last-move { border-color:var(--yellow); border-width:2px; }
+  .cell.winning-cell { border-color:var(--yellow); box-shadow:0 0 0 1px rgba(255,230,0,.75) inset, 0 0 10px rgba(255,230,0,.35); }
 
   .stone {
     width:34px; height:34px; border-radius:50%;
@@ -137,6 +140,30 @@
   .show-qval .cell .qval { display:block; }
 
   .status-bar { font-size:.7rem; color:var(--sub); letter-spacing:2px; }
+  .board-overlay {
+    position:absolute; inset:10px; pointer-events:none; z-index:3;
+  }
+  .board-overlay svg { width:100%; height:100%; overflow:visible; }
+  .board-overlay line {
+    stroke: var(--yellow);
+    stroke-width: 5;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 8px rgba(255,230,0,.55));
+  }
+  .outcome-overlay {
+    position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
+    pointer-events:none; z-index:4;
+    background:rgba(5,5,8,.72);
+    border:1px solid rgba(255,230,0,.4);
+    color:var(--yellow);
+    font-family:'Press Start 2P',monospace;
+    font-size:.75rem;
+    letter-spacing:2px;
+    padding:10px 14px;
+    text-shadow:0 0 8px rgba(255,230,0,.45);
+    display:none;
+  }
+  .outcome-overlay.visible { display:block; }
   .postgame-panel { display:none; width:100%; background:rgba(13,17,23,.92); border:1px solid rgba(255,230,0,.25); padding:14px; gap:12px; }
   .postgame-panel.visible { display:flex; flex-direction:column; }
   .postgame-title { font-family:'Press Start 2P',monospace; font-size:.55rem; color:var(--yellow); }
@@ -318,6 +345,10 @@
         <div class="game-title">⚫ GOMOKU</div>
         <div class="board-wrap" id="gomokuBoardWrap">
           <div id="gomokuBoard"></div>
+          <div class="board-overlay" id="gomokuBoardOverlay">
+            <svg id="gomokuWinOverlay"></svg>
+          </div>
+          <div class="outcome-overlay" id="gomokuOutcomeOverlay"></div>
         </div>
         <div class="status-bar" id="statusBar">WAITING</div>
         <div class="compare-stage" id="gomokuCompareStage">
@@ -418,6 +449,10 @@ let gomokuPendingMoveNum = null;
 let gomokuPrecomputeStarted = false;
 const gomokuCandidateStatus = new Map();
 let gomokuSavedSessions = [];
+let gomokuGameOverHoldUntil = 0;
+let gomokuGameOverTimer = null;
+let gomokuPendingAnalysisData = null;
+let gomokuLastStateSeq = -1;
 let gomokuRightTab = 'summary';
 let gomokuFeedbackTab = 'feedback';
 const GOMOKU_STATUS_LABELS = {
@@ -602,13 +637,51 @@ function initBoard() {
   }
 }
 
-function renderBoard(cells, lastMove) {
+function clearGomokuTerminalOverlay() {
+  document.getElementById('gomokuWinOverlay').innerHTML = '';
+  const outcomeEl = document.getElementById('gomokuOutcomeOverlay');
+  outcomeEl.textContent = '';
+  outcomeEl.classList.remove('visible');
+}
+
+function drawGomokuWinningLine(winningLine) {
+  const svg = document.getElementById('gomokuWinOverlay');
+  svg.innerHTML = '';
+  if (!Array.isArray(winningLine) || winningLine.length < 2) return;
+
+  const overlayRect = document.getElementById('gomokuBoardOverlay').getBoundingClientRect();
+  const normalized = winningLine.map(item => {
+    if (Array.isArray(item)) return item;
+    if (Number.isInteger(item)) return [Math.floor(item / BOARD_W), item % BOARD_W];
+    return null;
+  }).filter(Boolean);
+  if (normalized.length < 2) return;
+  const endpoints = [normalized[0], normalized[normalized.length - 1]].map(([row, col]) => {
+    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) return null;
+    const rect = cell.getBoundingClientRect();
+    return {
+      x: rect.left - overlayRect.left + rect.width / 2,
+      y: rect.top - overlayRect.top + rect.height / 2,
+    };
+  });
+  if (!endpoints[0] || !endpoints[1]) return;
+  svg.innerHTML = `<line x1="${endpoints[0].x}" y1="${endpoints[0].y}" x2="${endpoints[1].x}" y2="${endpoints[1].y}"></line>`;
+}
+
+function renderBoard(cells, lastMove, winningLine = null, outcomeText = '') {
   const allCells = document.querySelectorAll('.cell');
+  const normalized = (winningLine || []).map(item => {
+    if (Array.isArray(item)) return item;
+    if (Number.isInteger(item)) return [Math.floor(item / BOARD_W), item % BOARD_W];
+    return null;
+  }).filter(Boolean);
+  const winningSet = new Set(normalized.map(([row, col]) => `${row},${col}`));
   allCells.forEach(cell => {
     const move = parseInt(cell.dataset.move);
     const p = cells[move];
     cell.innerHTML = '';
-    cell.classList.remove('last-move');
+    cell.classList.remove('last-move', 'winning-cell');
 
     if (p === 1) {
       const s = document.createElement('div');
@@ -621,7 +694,17 @@ function renderBoard(cells, lastMove) {
     }
 
     if (move === lastMove) cell.classList.add('last-move');
+    if (winningSet.has(`${cell.dataset.row},${cell.dataset.col}`)) cell.classList.add('winning-cell');
   });
+  drawGomokuWinningLine(normalized);
+  const outcomeEl = document.getElementById('gomokuOutcomeOverlay');
+  if (outcomeText) {
+    outcomeEl.textContent = outcomeText;
+    outcomeEl.classList.add('visible');
+  } else {
+    outcomeEl.textContent = '';
+    outcomeEl.classList.remove('visible');
+  }
 }
 
 function setMsg(text, color = 'var(--cyan)') {
@@ -633,6 +716,11 @@ function setMsg(text, color = 'var(--cyan)') {
 // ── 이벤트 핸들러 ────────────────────────────────────────────
 document.getElementById('startBtn').addEventListener('click', () => {
   gameActive = false; myMoveCount = 0;
+  clearTimeout(gomokuGameOverTimer);
+  gomokuGameOverTimer = null;
+  gomokuGameOverHoldUntil = 0;
+  gomokuPendingAnalysisData = null;
+  gomokuLastStateSeq = -1;
   gomokuSessionId += 1;
   gomokuPendingMoveNum = null;
   gomokuPrecomputeStarted = false;
@@ -649,6 +737,7 @@ document.getElementById('startBtn').addEventListener('click', () => {
   document.getElementById('gomokuFeedbackTextCenter').textContent = '착수를 고르면 코칭 피드백이 여기에 표시됩니다.';
   document.getElementById('gomokuFeedbackLoading').classList.remove('active');
   gomokuReplayCache.clear();
+  clearGomokuTerminalOverlay();
   hideAnalysis();
   initBoard();
   socket.emit('gomoku_start');
@@ -689,28 +778,50 @@ function onCellClick(e) {
 
 // ── Socket 이벤트 ────────────────────────────────────────────
 socket.on('gomoku_state', (data) => {
+  console.log('gomoku_state received', {
+    session_id: data.session_id,
+    state_seq: data.state_seq,
+    game_over: !!data.game_over,
+    winner: data.winner,
+    last_move: data.last_move,
+    message: data.message,
+  });
   if (data.session_id !== undefined) {
     gomokuSessionId = data.session_id;
   }
+  if (data.state_seq !== undefined) {
+    if (data.state_seq < gomokuLastStateSeq) return;
+    gomokuLastStateSeq = data.state_seq;
+  }
   boardState = data.cells;
-  renderBoard(data.cells, data.last_move);
-  setMsg(data.message);
-  document.getElementById('statusBar').textContent =
-    data.current_player === 1 ? '당신의 차례 (흑 ●)' : 'AI 생각 중...';
-
+  renderBoard(data.cells, data.last_move, data.winning_line || null, data.outcome_text || '');
   if (data.game_over) {
     gameActive = false;
     document.getElementById('statusBar').textContent = 'GAME OVER';
     document.getElementById('startBtn').disabled = false;
-    const color = data.winner === 1 ? 'var(--green)' : 'var(--red)';
+    const color = data.winner === 1 ? 'var(--green)' : (data.winner === 0 ? 'var(--yellow)' : 'var(--red)');
     setMsg(data.message, color);
-  } else {
-    // 인간 차례면 활성화
-    if (data.current_player === 1) {
-      gameActive = true;
-      myMoveCount++;
-      document.getElementById('moveCount').textContent = myMoveCount;
-    }
+    clearTimeout(gomokuGameOverTimer);
+    gomokuGameOverHoldUntil = Date.now() + 3200;
+    gomokuPendingAnalysisData = null;
+    gomokuGameOverTimer = setTimeout(() => {
+      gomokuGameOverTimer = null;
+      gomokuGameOverHoldUntil = 0;
+      if (gomokuPendingAnalysisData) {
+        const pending = gomokuPendingAnalysisData;
+        gomokuPendingAnalysisData = null;
+        showAnalysis(pending);
+      }
+    }, 3200);
+    return;
+  }
+  setMsg(data.message);
+  document.getElementById('statusBar').textContent =
+    data.current_player === 1 ? '당신의 차례 (흑 ●)' : 'AI 생각 중...';
+  if (data.current_player === 1) {
+    gameActive = true;
+    myMoveCount++;
+    document.getElementById('moveCount').textContent = myMoveCount;
   }
 });
 
@@ -722,6 +833,7 @@ socket.on('gomoku_error', (data) => {
 // ── 분석 진행 ────────────────────────────────────────────────
 socket.on('gomoku_analysis_start', (data) => {
   if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
+  if (Date.now() < gomokuGameOverHoldUntil) return;
   document.getElementById('progressSection').classList.add('visible');
   document.getElementById('progressText').textContent = `0 / ${data.total} 착수 분석 중...`;
   document.getElementById('progressFill').style.width = '0%';
@@ -729,6 +841,7 @@ socket.on('gomoku_analysis_start', (data) => {
 
 socket.on('gomoku_analysis_progress', (data) => {
   if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
+  if (Date.now() < gomokuGameOverHoldUntil) return;
   const pct = (data.current / data.total * 100).toFixed(0);
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressText').textContent =
@@ -737,6 +850,10 @@ socket.on('gomoku_analysis_progress', (data) => {
 
 socket.on('gomoku_analysis_done', (data) => {
   if (data.session_id !== undefined && data.session_id !== gomokuSessionId) return;
+  if (Date.now() < gomokuGameOverHoldUntil) {
+    gomokuPendingAnalysisData = data;
+    return;
+  }
   document.getElementById('progressSection').classList.remove('visible');
   showAnalysis(data);
 });
@@ -749,6 +866,7 @@ function hideAnalysis() {
 }
 
 function showAnalysis(data) {
+  clearGomokuTerminalOverlay();
   // 종합 점수
   const avgLoss = data.avg_loss;
   let grade, gradeColor;
@@ -910,6 +1028,7 @@ socket.on('gomoku_session_loaded', (data) => {
   setGomokuFeedbackTab('feedback');
   document.getElementById('gomokuLlmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 대기 중' : '현재 선택: 로컬';
   updateGomokuSummaryFromPayload(null, {});
+  clearGomokuTerminalOverlay();
 });
 
 // 초기화
