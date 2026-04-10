@@ -120,7 +120,7 @@
   .analysis-zone.visible{display:flex;}
   .analysis-content{display:flex;flex-direction:column;gap:12px;}
   .right{width:100%;display:flex;flex-direction:column;gap:12px;}
-  .right-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .right-tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
   .right-tab{
     background:#0b1118;border:1px solid rgba(57,255,20,.18);color:var(--sub);
     padding:10px 8px;font-size:.58rem;line-height:1.35;cursor:pointer;font-family:'Share Tech Mono',monospace;
@@ -281,34 +281,8 @@
           <div class="analysis-content">
             <div class="right">
               <div class="right-tabs" id="siRightTabs">
-                <button type="button" class="right-tab active" data-si-tab="play">플레이 스타일 분석</button>
-                <button type="button" class="right-tab" data-si-tab="qvalue">Q-VALUE</button>
+                <button type="button" class="right-tab active" data-si-tab="qvalue">Q-VALUE</button>
                 <button type="button" class="right-tab" data-si-tab="worst">최악 행동</button>
-              </div>
-
-              <div class="analysis-panel" id="basicPanel">
-                <div class="panel-title" style="color:var(--green)">Action 기반 Play Style 분석</div>
-                <div class="play-style-row">
-                  <div class="grade-box">
-                    <div class="grade-label">Play Style</div>
-                    <div class="grade-value" id="playStyle">—</div>
-                  </div>
-                  <div class="play-bars-card">
-                    <div class="bar-row">
-                      <div class="bar-label"><span>왼쪽</span><span id="leftPct">0%</span></div>
-                      <div class="bar-track"><div class="bar-fill bar-g" id="leftBar" style="width:0%"></div></div>
-                    </div>
-                    <div class="bar-row">
-                      <div class="bar-label"><span>오른쪽</span><span id="rightPct">0%</span></div>
-                      <div class="bar-track"><div class="bar-fill bar-y" id="rightBar" style="width:0%"></div></div>
-                    </div>
-                    <div class="bar-row">
-                      <div class="bar-label"><span>발사</span><span id="firePct">0%</span></div>
-                      <div class="bar-track"><div class="bar-fill bar-g" id="fireBar" style="width:0%"></div></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="advice-box" id="advice">—</div>
               </div>
 
               <div class="d3qn-panel" id="d3qnProgress">
@@ -365,7 +339,7 @@
 
       <div class="side-column">
         <div class="postgame-panel" id="siPostgamePanel">
-          <div class="postgame-title">GAME OVER · TOP-K MOMENTS</div>
+          <div class="postgame-title">GAME OVER · TOP-5 MOMENTS</div>
           <div class="candidate-bar" id="siCandidateBar"></div>
         </div>
         <div class="center-feedback" id="siCenterFeedback">
@@ -415,7 +389,7 @@ let siPendingEntryIndex = null;
 let siPrecomputeStarted = false;
 const siCandidateStatus = new Map();
 let siSavedSessions = [];
-let siRightTab = 'play';
+let siRightTab = 'qvalue';
 let siFeedbackTab = 'feedback';
 const SI_REPLAY_FPS = 60;
 const SI_REPLAY_SECONDS = 20;
@@ -432,7 +406,6 @@ function setSiRightTab(tab) {
   document.querySelectorAll('#siRightTabs .right-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.siTab === tab);
   });
-  document.getElementById('basicPanel').classList.toggle('tab-open', tab === 'play');
   document.getElementById('d3qnResult').classList.toggle('tab-open', tab === 'qvalue');
   document.getElementById('siWorstPanel').classList.toggle('tab-open', tab === 'worst');
 }
@@ -496,23 +469,7 @@ function renderSiSessionOptions(sessions) {
 }
 
 function applySiBasicReport(report) {
-  const p = document.getElementById('basicPanel');
-  p.classList.add('visible');
   setSiRightTab(siRightTab);
-  document.getElementById('playStyle').textContent  = report.play_style || '—';
-  document.getElementById('advice').textContent     = report.ai_feedback || '—';
-
-  const lp = parseFloat(report.left_ratio || 0);
-  const rp = parseFloat(report.right_ratio || 0);
-  const fp = parseFloat(report.fire_ratio || 0);
-  document.getElementById('leftPct').textContent  = report.left_ratio || '0%';
-  document.getElementById('rightPct').textContent = report.right_ratio || '0%';
-  document.getElementById('firePct').textContent  = report.fire_ratio || '0%';
-  setTimeout(() => {
-    document.getElementById('leftBar').style.width  = lp + '%';
-    document.getElementById('rightBar').style.width = rp + '%';
-    document.getElementById('fireBar').style.width  = fp + '%';
-  }, 100);
 }
 
 function applySiAnalysisResult(data) {
@@ -672,7 +629,6 @@ document.getElementById('startBtn').addEventListener('click', () => {
   document.getElementById('steps').textContent = '0';
   document.getElementById('siSessionLabel').textContent = 'LIVE';
   canvas.classList.remove('hidden');
-  document.getElementById('basicPanel').classList.remove('visible');
   document.getElementById('d3qnProgress').classList.remove('visible');
   document.getElementById('d3qnResult').classList.remove('visible');
   document.getElementById('siWorstPanel').classList.remove('visible');
@@ -685,8 +641,8 @@ document.getElementById('startBtn').addEventListener('click', () => {
   siCandidateStatus.clear();
   siPendingEntryIndex = null;
   siPrecomputeStarted = false;
-  siRightTab = 'play';
-  setSiRightTab('play');
+  siRightTab = 'qvalue';
+  setSiRightTab('qvalue');
   setSiFeedbackTab('feedback');
   document.getElementById('siFeedbackSourceCenter').textContent = '';
   document.getElementById('siFeedbackTextCenter').textContent = '후보를 선택하면 코칭 피드백이 여기에 표시됩니다.';

@@ -406,7 +406,7 @@
 
       <div class="side-column">
         <div class="postgame-panel" id="gomokuPostgamePanel">
-          <div class="postgame-title">GAME OVER · TOP-K MOMENTS</div>
+          <div class="postgame-title">GAME OVER · TOP-5 MOMENTS</div>
           <div class="candidate-bar" id="gomokuCandidateBar"></div>
         </div>
         <div class="center-feedback" id="gomokuCenterFeedback">
@@ -507,7 +507,7 @@ function playGomokuFrames(frames) {
   gomokuCompareTimer = setInterval(() => {
     idx = (idx + 1) % gomokuCompareFrames.length;
     img.src = 'data:image/jpeg;base64,' + gomokuCompareFrames[idx];
-  }, 1000);
+  }, 1800);
 }
 
 function renderGomokuSessionOptions(sessions) {

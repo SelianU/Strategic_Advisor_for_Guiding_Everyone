@@ -228,9 +228,185 @@
     letter-spacing: 2px;
     text-align: center;
   }
+
+  /* 설정 버튼 */
+  .settings-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    background: transparent;
+    border: 1px solid rgba(255,230,0,.3);
+    color: var(--yellow);
+    font-size: 1.1rem;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .2s, box-shadow .2s;
+  }
+  .settings-btn:hover {
+    background: rgba(255,230,0,.08);
+    box-shadow: 0 0 12px rgba(255,230,0,.3);
+  }
+
+  /* 모달 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: #0d1117;
+    border: 1px solid rgba(255,230,0,.35);
+    box-shadow: 0 0 40px rgba(255,230,0,.12);
+    padding: 28px 32px;
+    width: min(480px, 94vw);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .modal-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .65rem;
+    color: var(--yellow);
+    letter-spacing: 2px;
+  }
+  .modal-field { display: flex; flex-direction: column; gap: 6px; }
+  .modal-label { font-size: .68rem; color: #788; }
+  .modal-input-wrap { display: flex; gap: 8px; }
+  .modal-input {
+    flex: 1;
+    background: #06080b;
+    border: 1px solid #1f2b33;
+    color: var(--text);
+    padding: 10px 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: .75rem;
+  }
+  .modal-input:focus { outline: none; border-color: var(--yellow); }
+  .modal-show-btn {
+    background: transparent;
+    border: 1px solid #1f2b33;
+    color: #788;
+    padding: 0 12px;
+    cursor: pointer;
+    font-size: .7rem;
+    font-family: 'Share Tech Mono', monospace;
+    white-space: nowrap;
+  }
+  .modal-show-btn:hover { color: var(--text); border-color: #344; }
+  .modal-hint { font-size: .62rem; color: #344; line-height: 1.5; }
+  .modal-status {
+    font-size: .68rem;
+    min-height: 1.2em;
+    padding: 8px 10px;
+    background: rgba(0,0,0,.3);
+    border-left: 3px solid #1f2b33;
+    display: none;
+  }
+  .modal-status.visible { display: block; }
+  .modal-status.ok  { border-color: var(--green); color: var(--green); }
+  .modal-status.err { border-color: var(--red);   color: var(--red); }
+  .modal-status.loading { border-color: var(--cyan); color: var(--cyan); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .modal-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: .68rem;
+    padding: 10px 18px;
+    cursor: pointer;
+    border: none;
+    transition: box-shadow .15s;
+  }
+  .modal-btn-test {
+    background: transparent;
+    border: 1px solid rgba(255,230,0,.3);
+    color: var(--yellow);
+  }
+  .modal-btn-test:hover { background: rgba(255,230,0,.08); }
+  .modal-btn-save { background: var(--yellow); color: #000; }
+  .modal-btn-save:hover { box-shadow: 0 0 16px var(--yellow); }
+  .modal-btn-cancel {
+    background: transparent;
+    border: 1px solid #1f2b33;
+    color: #566;
+  }
+  .modal-btn-cancel:hover { border-color: #344; color: #788; }
+  .modal-btn-disconnect {
+    background: transparent;
+    border: 1px solid rgba(255,51,102,.3);
+    color: var(--red);
+    margin-right: auto;
+  }
+  .modal-btn-disconnect:hover { background: rgba(255,51,102,.08); }
+  .modal-btn-disconnect:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* LLM 상태 표시 (메인화면) */
+  .llm-badge {
+    position: fixed;
+    top: 22px;
+    right: 70px;
+    z-index: 100;
+    font-size: .6rem;
+    color: #344;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .llm-badge-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #344;
+  }
+  .llm-badge-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
 </style>
 </head>
 <body>
+<!-- 설정 버튼 -->
+<div class="llm-badge" id="llmBadge">
+  <div class="llm-badge-dot" id="llmBadgeDot"></div>
+  <span id="llmBadgeText">LLM</span>
+</div>
+<button class="settings-btn" id="settingsBtn" title="API 설정">⚙</button>
+
+<!-- 설정 모달 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">⚙ LLM API 설정</div>
+
+    <div class="modal-field">
+      <div class="modal-label">OPENROUTER API KEY</div>
+      <div class="modal-input-wrap">
+        <input class="modal-input" type="password" id="apiKeyInput" placeholder="sk-or-..." autocomplete="off">
+        <button class="modal-show-btn" id="showKeyBtn">보기</button>
+      </div>
+      <div class="modal-hint" id="currentKeyHint">현재: 미설정</div>
+    </div>
+
+    <div class="modal-field">
+      <div class="modal-label">MODEL</div>
+      <input class="modal-input" type="text" id="modelInput" placeholder="meta-llama/llama-3.3-70b-instruct:free">
+      <div class="modal-hint">비워두면 기본 모델이 사용됩니다.</div>
+    </div>
+
+    <div class="modal-status" id="modalStatus"></div>
+
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-disconnect" id="disconnectBtn" disabled>연결 해제</button>
+      <button class="modal-btn modal-btn-cancel" id="modalCancelBtn">취소</button>
+      <button class="modal-btn modal-btn-test" id="testBtn">연결 테스트</button>
+      <button class="modal-btn modal-btn-save" id="saveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="container">
   <div class="header">
     <h1>AI ARCADE</h1>
@@ -277,5 +453,142 @@
     POWERED BY REINFORCEMENT LEARNING &nbsp;·&nbsp; AI FEEDBACK SYSTEM
   </div>
 </div>
+<script>
+const overlay       = document.getElementById('modalOverlay');
+const settingsBtn   = document.getElementById('settingsBtn');
+const cancelBtn     = document.getElementById('modalCancelBtn');
+const saveBtn       = document.getElementById('saveBtn');
+const testBtn       = document.getElementById('testBtn');
+const disconnectBtn = document.getElementById('disconnectBtn');
+const showKeyBtn    = document.getElementById('showKeyBtn');
+const apiKeyInput   = document.getElementById('apiKeyInput');
+const modelInput    = document.getElementById('modelInput');
+const statusEl      = document.getElementById('modalStatus');
+const keyHint       = document.getElementById('currentKeyHint');
+const badgeDot      = document.getElementById('llmBadgeDot');
+const badgeText     = document.getElementById('llmBadgeText');
+
+function setStatus(msg, type) {
+  statusEl.textContent = msg;
+  statusEl.className = 'modal-status visible ' + (type || '');
+}
+
+function clearStatus() {
+  statusEl.className = 'modal-status';
+}
+
+function updateBadge(hasKey) {
+  badgeDot.className = 'llm-badge-dot' + (hasKey ? ' on' : '');
+  badgeText.textContent = hasKey ? 'LLM ON' : 'LLM OFF';
+  badgeText.style.color = hasKey ? 'var(--green)' : '#344';
+  disconnectBtn.disabled = !hasKey;
+}
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const data = await res.json();
+    modelInput.value = data.model || '';
+    keyHint.textContent = data.has_key ? `현재: ${data.masked_key}` : '현재: 미설정';
+    updateBadge(data.has_key);
+  } catch(e) {}
+}
+
+settingsBtn.addEventListener('click', () => {
+  apiKeyInput.value = '';
+  clearStatus();
+  loadSettings();
+  overlay.classList.add('open');
+});
+
+function closeModal() {
+  overlay.classList.remove('open');
+}
+
+cancelBtn.addEventListener('click', closeModal);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+disconnectBtn.addEventListener('click', async () => {
+  setStatus('연결 해제 중...', 'loading');
+  disconnectBtn.disabled = true;
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clear_key: true, model: modelInput.value.trim() }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setStatus('연결이 해제되었습니다.', 'err');
+      apiKeyInput.value = '';
+      await loadSettings();
+    }
+  } catch(e) {
+    setStatus('요청 오류: ' + e.message, 'err');
+    disconnectBtn.disabled = false;
+  }
+});
+
+showKeyBtn.addEventListener('click', () => {
+  if (apiKeyInput.type === 'password') {
+    apiKeyInput.type = 'text';
+    showKeyBtn.textContent = '숨기기';
+  } else {
+    apiKeyInput.type = 'password';
+    showKeyBtn.textContent = '보기';
+  }
+});
+
+saveBtn.addEventListener('click', async () => {
+  const api_key = apiKeyInput.value.trim();
+  const model   = modelInput.value.trim();
+  setStatus('저장 중...', 'loading');
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key, model }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setStatus('저장되었습니다.', 'ok');
+      await loadSettings();
+      apiKeyInput.value = '';
+    } else {
+      setStatus('저장에 실패했습니다.', 'err');
+    }
+  } catch(e) {
+    setStatus('요청 오류: ' + e.message, 'err');
+  }
+});
+
+testBtn.addEventListener('click', async () => {
+  const api_key = apiKeyInput.value.trim();
+  const model   = modelInput.value.trim();
+  setStatus('연결 테스트 중...', 'loading');
+  testBtn.disabled = true;
+  try {
+    // 현재 입력값으로 임시 저장 후 테스트
+    if (api_key) {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key, model }),
+      });
+    }
+    const res  = await fetch('/api/settings/test', { method: 'POST' });
+    const data = await res.json();
+    setStatus(data.message || (data.ok ? '연결 성공' : '연결 실패'), data.ok ? 'ok' : 'err');
+    await loadSettings();
+  } catch(e) {
+    setStatus('요청 오류: ' + e.message, 'err');
+  } finally {
+    testBtn.disabled = false;
+  }
+});
+
+// 페이지 로드 시 배지 초기화
+loadSettings();
+</script>
 </body>
 </html>

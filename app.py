@@ -4,7 +4,7 @@ eventlet.monkey_patch()
 import sys, os, copy, pickle, base64, json, uuid
 from datetime import datetime
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import gymnasium as gym
 import ale_py  # noqa
@@ -27,6 +27,36 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+# ── Config (API 키 영속 저장) ─────────────────────────────────
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+
+def load_config():
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+            if cfg.get('openrouter_api_key'):
+                os.environ['OPENROUTER_API_KEY'] = cfg['openrouter_api_key']
+            if cfg.get('openrouter_model'):
+                os.environ['OPENROUTER_MODEL'] = cfg['openrouter_model']
+        except Exception as e:
+            print(f"⚠️  config.json 로드 실패: {e}")
+
+def save_config(api_key: str, model: str):
+    cfg = {}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+        except Exception:
+            pass
+    cfg['openrouter_api_key'] = api_key
+    cfg['openrouter_model'] = model
+    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+load_config()
 
 # ── Atari 환경 ───────────────────────────────────────────────
 # _si_cfg     = D3QNConfig()
@@ -353,7 +383,17 @@ def human_perspective_outcome_text(winner):
     return None
 
 
-def render_gomoku_board(board, highlight_move=None, title="", highlight_black_only=True, winning_line=None, outcome_text=None):
+def _q_to_bgr(t):
+    """t in [0,1]. Returns BGR: 0=cool blue, 0.5=green, 1=hot red."""
+    if t < 0.5:
+        s = t * 2
+        return (int(210 - 160 * s), int(80 + 130 * s), int(30 + 20 * s))
+    else:
+        s = (t - 0.5) * 2
+        return (int(50 - 50 * s), int(210 - 180 * s), int(50 + 205 * s))
+
+
+def render_gomoku_board(board, highlight_move=None, title="", highlight_black_only=True, winning_line=None, outcome_text=None, q_values=None):
     size = 420
     margin = 36
     cell = (size - margin * 2) // (BOARD_W - 1)
@@ -368,6 +408,30 @@ def render_gomoku_board(board, highlight_move=None, title="", highlight_black_on
     for i in range(BOARD_H):
         y = margin + 12 + i * cell
         cv2.line(img, (margin, y), (margin + cell * (BOARD_W - 1), y), (80, 60, 35), 1)
+    # ── Q-value 히트맵 (빈 교차점, 돌 그리기 전) ─────────────
+    if q_values is not None:
+        valid = [
+            (pos, float(q_values[pos])) for pos in board.availables
+            if pos < len(q_values) and not np.isnan(q_values[pos]) and q_values[pos] > 1e-6
+        ]
+        if valid:
+            valid.sort(key=lambda x: x[1], reverse=True)
+            top_k = valid[:8]
+            q_max = top_k[0][1]
+            q_min = top_k[-1][1]
+            q_range = max(q_max - q_min, 1e-8)
+            heat_layer = img.copy()
+            for pos, qv in top_k:
+                t = (qv - q_min) / q_range
+                bgr = _q_to_bgr(t)
+                row, col = divmod(pos, BOARD_W)
+                display_row = (BOARD_H - 1) - row
+                x = margin + col * cell
+                y = margin + 12 + display_row * cell
+                radius = int(5 + 9 * t)
+                cv2.circle(heat_layer, (x, y), radius, bgr, -1)
+                cv2.circle(heat_layer, (x, y), radius, (210, 210, 210), 1)
+            img = cv2.addWeighted(heat_layer, 0.75, img, 0.25, 0)
     for move, player in board.states.items():
         row, col = divmod(move, BOARD_W)
         display_row = (BOARD_H - 1) - row
@@ -475,6 +539,39 @@ def gomoku_page():
         openrouter_fallback=", ".join(FALLBACK_MODELS),
         saved_sessions=list_saved_sessions('gomoku'),
     )
+
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    api_key = os.getenv('OPENROUTER_API_KEY', '')
+    masked = ('*' * (len(api_key) - 4) + api_key[-4:]) if len(api_key) > 4 else ('*' * len(api_key))
+    return jsonify({
+        'has_key': bool(api_key),
+        'masked_key': masked,
+        'model': os.getenv('OPENROUTER_MODEL', DEFAULT_MODEL),
+    })
+
+@app.route('/api/settings', methods=['POST'])
+def post_settings():
+    data = request.get_json(force=True) or {}
+    api_key = data.get('api_key', '').strip()
+    model = data.get('model', '').strip() or DEFAULT_MODEL
+    if data.get('clear_key'):
+        os.environ.pop('OPENROUTER_API_KEY', None)
+    elif api_key:
+        os.environ['OPENROUTER_API_KEY'] = api_key
+    # 빈 키가 전송된 경우 기존 키를 유지 (모달 재오픈 시 입력란이 비워져도 덮어쓰지 않음)
+    os.environ['OPENROUTER_MODEL'] = model
+    save_config(os.getenv('OPENROUTER_API_KEY', ''), model)
+    return jsonify({'ok': True})
+
+@app.route('/api/settings/test', methods=['POST'])
+def test_settings():
+    ok, payload = test_openrouter_connection()
+    if isinstance(payload, str):
+        return jsonify({'ok': ok, 'message': payload})
+    summary = payload.get('summary', '') if isinstance(payload, dict) else str(payload)
+    return jsonify({'ok': ok, 'message': summary})
 
 
 @socketio.on('llm_test')
@@ -1157,9 +1254,11 @@ def handle_gomoku_counterfactual(data):
 
     best_move = candidate['best_row'] * BOARD_W + candidate['best_col']
     if best_move in agent_board.availables:
+        # 첫 흑 착수 프레임 (히트맵 없음 — 직전 백 프레임이 없어 기준 없음)
         agent_board.do_move(best_move)
         agent_sequence_labels.append(f"({candidate['best_row']}, {candidate['best_col']})")
-        agent_frames.append(render_gomoku_board(agent_board, highlight_move=best_move))
+        agent_frames.append(render_gomoku_board(
+            agent_board, highlight_move=best_move, highlight_black_only=False))
         end_a, winner_a = agent_board.game_end()
         if end_a:
             agent_outcome = human_perspective_outcome_text(winner_a)
@@ -1169,18 +1268,30 @@ def handle_gomoku_counterfactual(data):
         end_a, winner_a = agent_board.game_end()
         if end_a:
             break
+        current_player = agent_board.current_player
         next_a, _ = choose_gomoku_best_move(agent_board, n_playout=80)
         if next_a not in agent_board.availables:
             break
         next_r, next_c = divmod(next_a, BOARD_W)
         agent_board.do_move(next_a)
         agent_sequence_labels.append(f"({next_r}, {next_c})")
-        agent_frames.append(render_gomoku_board(agent_board, highlight_move=next_a))
         agent_turns += 1
         end_a, winner_a = agent_board.game_end()
         if end_a:
+            # 게임 종료 프레임: 히트맵 없음
             agent_outcome = human_perspective_outcome_text(winner_a)
+            agent_frames.append(render_gomoku_board(
+                agent_board, highlight_move=next_a, highlight_black_only=False))
             break
+        if current_player == 2:
+            # 백 착수 직후 → 흑 차례 상태에서 Q-value 계산해서 백 프레임에 히트맵 합침
+            black_q = compute_q_values(agent_board, gomoku_net, n_playout=80)['q_values']
+            agent_frames.append(render_gomoku_board(
+                agent_board, highlight_move=next_a, q_values=black_q, highlight_black_only=False))
+        else:
+            # 흑 착수 프레임: 히트맵 없음
+            agent_frames.append(render_gomoku_board(
+                agent_board, highlight_move=next_a, highlight_black_only=False))
 
     if not human_frames:
         human_frames.append(render_gomoku_board(human_board))
