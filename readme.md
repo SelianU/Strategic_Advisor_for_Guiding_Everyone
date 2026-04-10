@@ -10,13 +10,14 @@
 ### 👾 Space Invaders
 - Atari Space Invaders를 직접 플레이
 - **D3QN (Dueling Double DQN)** 모델이 플레이어의 모든 행동을 분석
-- 게임 종료 후 Q-value 손실, 행동 일치율, 최악의 선택 TOP 5 등 상세 피드백 제공
-- Top-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
+- 게임 종료 후 Q-value 손실, 행동 일치율, 최악의 선택 TOP-5 등 상세 피드백 제공
+- TOP-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
 
 ### ⚫ Gomoku vs AI
 - **AlphaZero** 기반 AI와 8×8 오목 대결
 - 게임 종료 후 각 착수의 Q-value와 최선 착수를 비교 분석
-- Top-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
+- TOP-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
+- 비교 리플레이에서 **Q-value 히트맵** 시각화 제공: 백돌 착수 프레임에 흑돌 후보 위치를 색상(파랑→초록→빨강)과 크기로 표시
 
 ---
 
@@ -72,7 +73,10 @@ python app.py
 
 ### 6. OpenRouter 연동 (선택)
 
-외부 LLM 코칭 피드백을 사용하려면 환경 변수를 설정하세요.
+서버 실행 후 브라우저에서 메인 화면 우상단 **⚙ 설정 버튼**을 눌러 API 키를 등록할 수 있습니다.
+입력한 키는 `config.json`에 저장되어 서버 재시작 후에도 유지됩니다.
+
+터미널에서 직접 설정하는 방법도 동일하게 지원합니다.
 
 ```bash
 export OPENROUTER_API_KEY='YOUR_KEY'
@@ -102,12 +106,12 @@ export OPENROUTER_MODEL='meta-llama/llama-3.3-70b-instruct:free'
 
 | 항목 | Space Invaders | Gomoku |
 |------|---------------|--------|
-| 플레이 스타일 분류 | ✅ | — |
 | 행동 분포 통계 | ✅ | — |
 | Q-value 분석 | ✅ (D3QN) | ✅ (AlphaZero) |
-| 최악의 선택 TOP 5 | ✅ | ✅ |
+| 최악의 선택 TOP-5 | ✅ | ✅ |
 | AI 권장 행동 비교 | ✅ | ✅ |
 | Human vs Agent 비교 리플레이 | ✅ | ✅ |
+| 비교 리플레이 Q-value 히트맵 | — | ✅ |
 | LLM / 로컬 코칭 피드백 | ✅ | ✅ |
 | 세션 저장 / 불러오기 | ✅ | ✅ |
 
