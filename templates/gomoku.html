@@ -184,8 +184,22 @@
   .candidate-pill.state-error .candidate-state { color:var(--red); }
   .compare-stage { display:none; width:min(100%,780px); background:#06080b; border:1px solid rgba(0,245,255,.25); padding:10px; }
   .compare-stage.visible { display:block; }
-  .compare-stage img { width:100%; display:block; background:#000; object-fit:contain; min-height:180px; max-height:470px; }
-  .compare-caption { display:flex; justify-content:space-between; margin-top:8px; font-size:.72rem; color:var(--sub); }
+  .compare-images { display:flex; gap:0; align-items:stretch; }
+  .compare-side { flex:1; display:flex; flex-direction:column; gap:0; }
+  .compare-side-label { font-family:'Share Tech Mono',monospace; font-size:.65rem; color:var(--sub); text-align:center; padding:4px 0; }
+  .compare-side-label.agent { color:var(--cyan); }
+  .compare-divider { width:16px; background:#111; flex-shrink:0; }
+  .compare-side img { width:100%; display:block; background:#000; object-fit:contain; min-height:180px; max-height:470px; }
+  .compare-caption { display:flex; justify-content:center; align-items:center; margin-top:8px; font-size:.72rem; color:var(--sub); gap:12px; }
+  .compare-nav { display:flex; align-items:center; gap:8px; }
+  .compare-nav-btn {
+    background:transparent; border:1px solid rgba(0,245,255,.3); color:var(--cyan);
+    font-size:.75rem; padding:4px 12px; cursor:pointer;
+    font-family:'Share Tech Mono',monospace; transition:background .15s;
+  }
+  .compare-nav-btn:hover:not(:disabled) { background:rgba(0,245,255,.1); }
+  .compare-nav-btn:disabled { opacity:.3; cursor:not-allowed; }
+  .compare-frame-counter { font-size:.68rem; color:var(--cyan); min-width:48px; text-align:center; }
   .center-feedback { display:none; width:100%; background:rgba(13,17,23,.92); border:1px solid rgba(255,230,0,.2); padding:14px; }
   .center-feedback.visible { display:block; }
   .center-feedback-source { font-size:.72rem; color:var(--yellow); margin-bottom:10px; }
@@ -352,10 +366,23 @@
         </div>
         <div class="status-bar" id="statusBar">WAITING</div>
         <div class="compare-stage" id="gomokuCompareStage">
-          <img id="gomokuCompareImageLarge" alt="gomoku counterfactual">
+          <div class="compare-images">
+            <div class="compare-side">
+              <div class="compare-side-label">HUMAN</div>
+              <img id="gomokuHumanImage" alt="human board">
+            </div>
+            <div class="compare-divider"></div>
+            <div class="compare-side">
+              <div class="compare-side-label agent">AGENT</div>
+              <img id="gomokuAgentImage" alt="agent board">
+            </div>
+          </div>
           <div class="compare-caption">
-            <span>LEFT: HUMAN</span>
-            <span>RIGHT: AGENT</span>
+            <div class="compare-nav">
+              <button class="compare-nav-btn" id="gomokuPrevBtn" disabled>◀</button>
+              <span class="compare-frame-counter" id="gomokuFrameCounter">1 / 1</span>
+              <button class="compare-nav-btn" id="gomokuNextBtn" disabled>▶</button>
+            </div>
           </div>
         </div>
         <div class="analysis-zone" id="gomokuAnalysisZone">
@@ -440,8 +467,10 @@ const BOARD_W = 8, BOARD_H = 8;
 const HAS_LLM = document.body.dataset.hasLlm === 'true';
 
 let gameActive = false, myMoveCount = 0, boardState = [];
-let gomokuCompareFrames = [];
+let gomokuCompareFrames = [];   // agent frames
+let gomokuHumanFrames = [];     // human frames (auto-play 동기화용)
 let gomokuCompareTimer = null;
+let gomokuCompareIdx = 0;
 let gomokuCandidates = [];
 const gomokuReplayCache = new Map();
 let gomokuSessionId = 0;
@@ -496,17 +525,55 @@ function updateGomokuSummaryFromPayload(moveNum, summary) {
   document.getElementById('gomokuAgentMoveVal').textContent = summary?.best_row !== undefined ? `(${summary.best_row}, ${summary.best_col})` : '—';
 }
 
-function playGomokuFrames(frames) {
-  clearInterval(gomokuCompareTimer);
-  gomokuCompareFrames = frames || [];
+// 재생 끝난 후 화살표 이동 시 양쪽 함께 업데이트
+function renderGomokuFrame(idx) {
   if (!gomokuCompareFrames.length) return;
-  let idx = 0;
-  const img = document.getElementById('gomokuCompareImageLarge');
+  gomokuCompareIdx = Math.max(0, Math.min(idx, gomokuCompareFrames.length - 1));
+  document.getElementById('gomokuAgentImage').src =
+    'data:image/jpeg;base64,' + gomokuCompareFrames[gomokuCompareIdx];
+  if (gomokuHumanFrames[gomokuCompareIdx]) {
+    document.getElementById('gomokuHumanImage').src =
+      'data:image/jpeg;base64,' + gomokuHumanFrames[gomokuCompareIdx];
+  }
+  document.getElementById('gomokuFrameCounter').textContent =
+    `${gomokuCompareIdx + 1} / ${gomokuCompareFrames.length}`;
+  document.getElementById('gomokuPrevBtn').disabled = gomokuCompareIdx === 0;
+  document.getElementById('gomokuNextBtn').disabled = gomokuCompareIdx === gomokuCompareFrames.length - 1;
+}
+
+// 자동 재생 중: 인간+에이전트 동기화
+function syncGomokuFrame(idx) {
+  gomokuCompareIdx = Math.max(0, Math.min(idx, gomokuCompareFrames.length - 1));
+  document.getElementById('gomokuAgentImage').src =
+    'data:image/jpeg;base64,' + gomokuCompareFrames[gomokuCompareIdx];
+  if (gomokuHumanFrames[gomokuCompareIdx]) {
+    document.getElementById('gomokuHumanImage').src =
+      'data:image/jpeg;base64,' + gomokuHumanFrames[gomokuCompareIdx];
+  }
+  document.getElementById('gomokuFrameCounter').textContent =
+    `${gomokuCompareIdx + 1} / ${gomokuCompareFrames.length}`;
+  document.getElementById('gomokuPrevBtn').disabled = gomokuCompareIdx === 0;
+  document.getElementById('gomokuNextBtn').disabled = gomokuCompareIdx === gomokuCompareFrames.length - 1;
+}
+
+function playGomokuFrames(humanFrames, agentFrames) {
+  clearInterval(gomokuCompareTimer);
+  gomokuCompareTimer = null;
+  gomokuHumanFrames = humanFrames || [];
+  gomokuCompareFrames = agentFrames || [];
+  if (!gomokuCompareFrames.length) return;
   document.getElementById('gomokuCompareStage').classList.add('visible');
-  img.src = 'data:image/jpeg;base64,' + gomokuCompareFrames[0];
+  // 처음엔 양쪽 동기화해서 재생
+  syncGomokuFrame(0);
   gomokuCompareTimer = setInterval(() => {
-    idx = (idx + 1) % gomokuCompareFrames.length;
-    img.src = 'data:image/jpeg;base64,' + gomokuCompareFrames[idx];
+    if (gomokuCompareIdx < gomokuCompareFrames.length - 1) {
+      syncGomokuFrame(gomokuCompareIdx + 1);
+    } else {
+      // 1회 재생 완료: 첫 프레임으로 복귀 (양쪽 모두 화살표로 이동 가능)
+      clearInterval(gomokuCompareTimer);
+      gomokuCompareTimer = null;
+      renderGomokuFrame(0);
+    }
   }, 1800);
 }
 
@@ -565,7 +632,7 @@ function requestGomokuReplay(moveNum) {
   if (gomokuReplayCache.has(cacheKey)) {
     const cached = gomokuReplayCache.get(cacheKey);
     setGomokuCandidateStatus(moveNum, 'ready');
-    playGomokuFrames(cached.frames || []);
+    playGomokuFrames(cached.human_frames || [], cached.agent_frames || []);
     const s = cached.summary || {};
     document.getElementById('gomokuCenterFeedback').classList.add('visible');
     document.getElementById('gomokuFeedbackLoading').classList.remove('active');
@@ -583,8 +650,10 @@ function requestGomokuReplay(moveNum) {
   setGomokuCandidateStatus(moveNum, 'generating');
   clearInterval(gomokuCompareTimer);
   gomokuCompareFrames = [];
+  gomokuHumanFrames = [];
   document.getElementById('gomokuCompareStage').classList.remove('visible');
-  document.getElementById('gomokuCompareImageLarge').src = '';
+  document.getElementById('gomokuHumanImage').src = '';
+  document.getElementById('gomokuAgentImage').src = '';
   document.getElementById('gomokuCenterFeedback').classList.add('visible');
   document.getElementById('gomokuFeedbackSourceCenter').textContent = HAS_LLM ? '비교 리플레이 생성 및 외부 LLM 코칭 요청 중...' : '비교 리플레이 생성 중...';
   document.getElementById('gomokuFeedbackTextCenter').textContent = HAS_LLM ? '외부 LLM 응답을 기다리는 중입니다. 무료 모델 혼잡 시 로컬 코칭 피드백으로 대체될 수 있습니다.' : '';
@@ -712,6 +781,15 @@ function setMsg(text, color = 'var(--cyan)') {
   el.textContent = text;
   el.style.color = color;
 }
+
+// ── 비교 영상 수동 탐색 ──────────────────────────────────────
+document.getElementById('gomokuPrevBtn').addEventListener('click', () => renderGomokuFrame(gomokuCompareIdx - 1));
+document.getElementById('gomokuNextBtn').addEventListener('click', () => renderGomokuFrame(gomokuCompareIdx + 1));
+document.addEventListener('keydown', (e) => {
+  if (!document.getElementById('gomokuCompareStage').classList.contains('visible')) return;
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); renderGomokuFrame(gomokuCompareIdx - 1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); renderGomokuFrame(gomokuCompareIdx + 1); }
+});
 
 // ── 이벤트 핸들러 ────────────────────────────────────────────
 document.getElementById('startBtn').addEventListener('click', () => {
@@ -943,7 +1021,7 @@ socket.on('gomoku_counterfactual_ready', (data) => {
     maybePrefetchGomokuCandidates();
     return;
   }
-  playGomokuFrames(data.frames || []);
+  playGomokuFrames(data.human_frames || [], data.agent_frames || []);
   const s = data.summary || {};
   document.getElementById('gomokuCenterFeedback').classList.add('visible');
   document.getElementById('gomokuFeedbackLoading').classList.remove('active');
@@ -1020,7 +1098,8 @@ socket.on('gomoku_session_loaded', (data) => {
   document.getElementById('gomokuSessionTitle').value = data.meta?.title || '';
   document.getElementById('gomokuSessionStatus').textContent = `불러온 기록: ${data.meta?.title || '이름 없음'}`;
   document.getElementById('gomokuCompareStage').classList.remove('visible');
-  document.getElementById('gomokuCompareImageLarge').src = '';
+  document.getElementById('gomokuHumanImage').src = '';
+  document.getElementById('gomokuAgentImage').src = '';
   document.getElementById('gomokuCenterFeedback').classList.remove('visible');
   document.getElementById('gomokuFeedbackLoading').classList.remove('active');
   document.getElementById('gomokuFeedbackSourceCenter').textContent = '';

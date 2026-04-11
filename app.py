@@ -191,13 +191,31 @@ def list_saved_sessions(game_name):
     return sessions
 
 
+def select_si_top5(analyses, k=5, min_gap=3):
+    """전체를 k구간으로 나눠 구간별 최대 loss를 뽑되, step 간격 min_gap 이상 보장."""
+    if not analyses:
+        return []
+    total = len(analyses)
+    seg_size = max(1, total // k)
+    selected = []
+    for seg_idx in range(k):
+        start = seg_idx * seg_size
+        end = total if seg_idx == k - 1 else (seg_idx + 1) * seg_size
+        candidates = sorted(analyses[start:end], key=lambda a: a['loss'], reverse=True)
+        for candidate in candidates:
+            if all(abs(candidate['step'] - s['step']) >= min_gap for s in selected):
+                selected.append(candidate)
+                break
+    return sorted(selected, key=lambda a: a['loss'], reverse=True)
+
+
 def si_analysis_snapshot():
     if not si_analysis_results:
         return None
     losses = [a['loss'] for a in si_analysis_results]
     avg_loss = round(float(np.mean(losses)), 3) if losses else 0.0
     worst = max(si_analysis_results, key=lambda a: a['loss']) if si_analysis_results else None
-    worst_10 = sorted(si_analysis_results, key=lambda a: a['loss'], reverse=True)[:5]
+    worst_10 = select_si_top5(si_analysis_results)
     agree = round(sum(1 for a in si_analysis_results if a['is_best']) / len(si_analysis_results) * 100, 1) if si_analysis_results else 0.0
     from collections import Counter
     p_cnt = Counter(a['action_name'] for a in si_analysis_results)
@@ -863,7 +881,7 @@ def run_si_analysis():
     losses    = [a['loss'] for a in analyses]
     avg_loss  = round(float(np.mean(losses)), 3)
     worst     = max(analyses, key=lambda a: a['loss'])
-    worst_10  = sorted(analyses, key=lambda a: a['loss'], reverse=True)[:5]
+    worst_10  = select_si_top5(analyses)
     agree     = round(sum(1 for a in analyses if a['is_best']) / len(analyses) * 100, 1)
     si_analysis_results = analyses
 
@@ -920,6 +938,8 @@ def handle_si_counterfactual(data):
         human_score = 0.0
         agent_score = 0.0
         rendered_frames = []
+        human_actions_log = []
+        agent_actions_log = []
         human_done = False
         agent_done = False
         human_frame = entry['pre_rgb'].copy()
@@ -928,6 +948,8 @@ def handle_si_counterfactual(data):
         for offset in range(replay_horizon):
             human_action = si_valid_entries[entry_index + offset]['action'] if entry_index + offset < len(si_valid_entries) else 0
             agent_action = best_action if offset == 0 else greedy_action_from_state(np.array(agent_frames, dtype=np.uint8))[0]
+            human_actions_log.append(int(human_action))
+            agent_actions_log.append(int(agent_action))
 
             if not human_done:
                 obs_h, reward_h, term_h, trunc_h, _ = human_env.step(human_action)
@@ -974,6 +996,8 @@ def handle_si_counterfactual(data):
         feedback, feedback_source, feedback_model, feedback_route = generate_feedback("space_invaders", summary)
         payload = {
             'frames': encode_frames(rendered_frames),
+            'human_actions': human_actions_log,
+            'agent_actions': agent_actions_log,
             'summary': summary,
             'feedback': feedback,
             'feedback_source': feedback_source,
@@ -1258,7 +1282,7 @@ def handle_gomoku_counterfactual(data):
         agent_board.do_move(best_move)
         agent_sequence_labels.append(f"({candidate['best_row']}, {candidate['best_col']})")
         agent_frames.append(render_gomoku_board(
-            agent_board, highlight_move=best_move, highlight_black_only=False))
+            agent_board, highlight_move=best_move))
         end_a, winner_a = agent_board.game_end()
         if end_a:
             agent_outcome = human_perspective_outcome_text(winner_a)
@@ -1281,37 +1305,29 @@ def handle_gomoku_counterfactual(data):
             # 게임 종료 프레임: 히트맵 없음
             agent_outcome = human_perspective_outcome_text(winner_a)
             agent_frames.append(render_gomoku_board(
-                agent_board, highlight_move=next_a, highlight_black_only=False))
+                agent_board, highlight_move=next_a))
             break
         if current_player == 2:
             # 백 착수 직후 → 흑 차례 상태에서 Q-value 계산해서 백 프레임에 히트맵 합침
             black_q = compute_q_values(agent_board, gomoku_net, n_playout=80)['q_values']
             agent_frames.append(render_gomoku_board(
-                agent_board, highlight_move=next_a, q_values=black_q, highlight_black_only=False))
+                agent_board, highlight_move=next_a, q_values=black_q))
         else:
             # 흑 착수 프레임: 히트맵 없음
             agent_frames.append(render_gomoku_board(
-                agent_board, highlight_move=next_a, highlight_black_only=False))
+                agent_board, highlight_move=next_a))
 
     if not human_frames:
         human_frames.append(render_gomoku_board(human_board))
     if not agent_frames:
         agent_frames.append(render_gomoku_board(agent_board))
 
+    # 양쪽 프레임 수 맞추기 (자동 재생 동기화용)
     length = max(len(human_frames), len(agent_frames))
-    if human_frames:
-        while len(human_frames) < length:
-            human_frames.append(human_frames[-1].copy())
-    if agent_frames:
-        while len(agent_frames) < length:
-            agent_frames.append(agent_frames[-1].copy())
-
-    combined_frames = []
-    for i in range(length):
-        hf = human_frames[i]
-        af = agent_frames[i]
-        spacer = np.full((hf.shape[0], 24, 3), 18, dtype=np.uint8)
-        combined_frames.append(np.concatenate([hf, spacer, af], axis=1))
+    while len(human_frames) < length:
+        human_frames.append(human_frames[-1].copy())
+    while len(agent_frames) < length:
+        agent_frames.append(agent_frames[-1].copy())
 
     summary = {
         'move_num': move_num,
@@ -1329,7 +1345,8 @@ def handle_gomoku_counterfactual(data):
     }
     feedback, feedback_source, feedback_model, feedback_route = generate_feedback("gomoku", summary)
     payload = {
-        'frames': encode_frames(combined_frames),
+        'human_frames': encode_frames(human_frames),
+        'agent_frames': encode_frames(agent_frames),
         'summary': summary,
         'feedback': feedback,
         'feedback_source': feedback_source,
