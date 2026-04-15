@@ -7,95 +7,132 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <style>
   :root {
-    --bg: #050508; --cyan: #00f5ff; --magenta: #ff00aa;
-    --yellow: #ffe600; --red: #ff3366; --green: #39ff14;
-    --dim: #0d1117; --dim2: #111820; --text: #c8d8e8; --sub: #566;
+    --bg: #04050a; --cyan: #00f5ff; --magenta: #ff00aa;
+    --yellow: #ffe600; --amber: #ffaa00; --red: #ff3366; --green: #39ff14;
+    --dim: #080b14; --dim2: #0d1020; --text: #c8d8e8; --sub: #4a5a6a;
+    --border-c: rgba(0,245,255,.12); --border-a: rgba(255,170,0,.15);
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Share Tech Mono',monospace; min-height:100vh; }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'Share Tech Mono',monospace; }
+  ::-webkit-scrollbar { width:3px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(0,245,255,.15); }
 
   body::before {
     content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
     background-image:
-      linear-gradient(rgba(0,245,255,.03) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(0,245,255,.03) 1px,transparent 1px);
-    background-size:40px 40px;
+      linear-gradient(rgba(0,245,255,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,245,255,.025) 1px,transparent 1px);
+    background-size:52px 52px;
   }
 
-  .layout { position:relative; z-index:1; display:flex; gap:16px; padding:16px; min-height:100vh; align-items:flex-start; }
+  /* ── PAGE TOP BAR ── */
+  .page-topbar {
+    position:relative; z-index:10; height:48px;
+    display:flex; align-items:center; gap:0;
+    background:rgba(4,5,10,.98); border-bottom:1px solid var(--border-c);
+    padding:0 16px;
+  }
+  .topbar-back {
+    font-family:'Press Start 2P',monospace; font-size:.55rem;
+    color:var(--cyan); border:1px solid rgba(0,245,255,.28); background:transparent;
+    padding:8px 14px; cursor:pointer; text-decoration:none;
+    transition:background .2s; white-space:nowrap; flex-shrink:0;
+  }
+  .topbar-back:hover { background:rgba(0,245,255,.08); }
+  .topbar-game-name {
+    font-family:'Press Start 2P',monospace; font-size:.62rem;
+    color:var(--text); letter-spacing:3px; padding:0 20px;
+  }
+  .topbar-flex { flex:1; }
+  .topbar-sensei {
+    font-size:.56rem; color:var(--amber); letter-spacing:2px;
+    padding:4px 10px; border:1px solid rgba(255,170,0,.28);
+    margin-right:12px; white-space:nowrap;
+  }
+  .topbar-pill {
+    display:flex; align-items:center; gap:8px; height:100%;
+    padding:0 18px; border-left:1px solid var(--border-c);
+    font-size:.65rem; color:var(--sub); white-space:nowrap; height:48px;
+  }
+  .tpill-dot { width:8px; height:8px; border-radius:50%; background:var(--sub); }
+  .tpill-dot.on { background:var(--green); box-shadow:0 0 7px var(--green); }
+  .tpill-dot.off { background:var(--red); box-shadow:0 0 7px var(--red); }
+
+  .layout { position:relative; z-index:1; display:flex; gap:0; height:calc(100vh - 48px); overflow:hidden; }
 
   /* 왼쪽 */
-  .left { width:176px; flex-shrink:0; display:flex; flex-direction:column; gap:14px; }
-
-  .back-btn {
-    font-family:'Press Start 2P',monospace; font-size:.5rem;
-    color:var(--cyan); border:1px solid var(--cyan); background:transparent;
-    padding:8px 10px; cursor:pointer; text-decoration:none; display:inline-block;
-    transition:background .2s, color .2s;
+  .left {
+    width:210px; flex-shrink:0; display:flex; flex-direction:column; gap:0;
+    border-right:1px solid var(--border-c); background:rgba(6,8,14,1);
+    overflow-y:auto; height:100%;
   }
-  .back-btn:hover { background:var(--cyan); color:#000; }
 
-  .panel { background:var(--dim); border:1px solid rgba(0,245,255,.25); padding:14px; }
-  .panel-title { font-family:'Press Start 2P',monospace; font-size:.5rem; color:var(--cyan); margin-bottom:10px; }
+  .left-inner { display:flex; flex-direction:column; gap:12px; padding:16px; }
 
-  .legend-row { display:flex; align-items:center; gap:8px; font-size:.72rem; margin:5px 0; color:#788; }
-  .dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+  .panel { background:var(--dim); border:1px solid rgba(0,245,255,.18); padding:14px; }
+  .panel-title { font-family:'Press Start 2P',monospace; font-size:.58rem; color:var(--cyan); margin-bottom:10px; letter-spacing:1px; }
+
+  .legend-row { display:flex; align-items:center; gap:10px; font-size:.82rem; margin:6px 0; color:#788; }
+  .dot { width:16px; height:16px; border-radius:50%; flex-shrink:0; }
   .dot-black { background:#111; border:2px solid #888; }
   .dot-white { background:#fff; border:2px solid #555; }
 
-  .info-row { display:flex; justify-content:space-between; font-size:.72rem; margin:5px 0; }
+  .info-row { display:flex; justify-content:space-between; font-size:.82rem; margin:6px 0; }
   .info-val { color:var(--cyan); }
 
-  .color-pick { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px; }
+  .color-pick { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
   .color-btn {
-    display:flex; align-items:center; gap:6px; padding:8px 6px;
+    display:flex; align-items:center; gap:6px; padding:10px 8px;
     background:#0b1118; border:1px solid #1f2b33; color:var(--sub);
-    font-family:'Share Tech Mono',monospace; font-size:.68rem; cursor:pointer;
+    font-family:'Share Tech Mono',monospace; font-size:.76rem; cursor:pointer;
     transition:.15s;
   }
   .color-btn:hover { border-color:var(--cyan); color:var(--text); }
   .color-btn.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,245,255,.08); }
 
   .start-btn {
-    width:100%; font-family:'Press Start 2P',monospace; font-size:.55rem;
-    background:var(--cyan); color:#000; border:none; padding:12px;
+    width:100%; font-family:'Press Start 2P',monospace; font-size:.62rem;
+    background:var(--cyan); color:#000; border:none; padding:13px;
     cursor:pointer; letter-spacing:1px; transition:box-shadow .2s;
   }
   .start-btn:hover { box-shadow:0 0 20px var(--cyan); }
   .start-btn:disabled { opacity:.35; cursor:not-allowed; }
   .llm-status { background:var(--dim); border:1px solid rgba(0,245,255,.18); padding:12px; }
-  .llm-status-row { display:flex; align-items:center; gap:8px; font-size:.72rem; color:var(--text); }
+  .llm-status-row { display:flex; align-items:center; gap:8px; font-size:.78rem; color:var(--text); }
   .llm-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
   .llm-dot.on { background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
   .llm-dot.off { background:var(--red); box-shadow:0 0 8px var(--red); }
-  .llm-sub { font-size:.62rem; color:var(--sub); margin-top:8px; line-height:1.5; word-break:break-all; }
-  .session-panel { background:var(--dim); border:1px solid rgba(255,230,0,.18); padding:12px; }
+  .llm-sub { font-size:.66rem; color:var(--sub); margin-top:8px; line-height:1.5; word-break:break-all; }
+  .session-panel { background:var(--dim); border:1px solid var(--border-a); padding:12px; }
   .session-input,.session-select {
     width:100%; background:#0b1118; border:1px solid #1f2b33; color:var(--text);
-    padding:8px 10px; font-family:'Share Tech Mono',monospace; font-size:.68rem; margin-top:8px;
+    padding:9px 10px; font-family:'Share Tech Mono',monospace; font-size:.72rem; margin-top:8px;
   }
-  .session-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .session-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
   .session-btn {
-    flex:1; min-width:68px; background:transparent; border:1px solid rgba(255,230,0,.28); color:var(--yellow);
-    padding:8px 10px; font-size:.66rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    flex:1; min-width:60px; background:transparent; border:1px solid rgba(255,170,0,.28); color:var(--amber);
+    padding:8px 8px; font-size:.68rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
   }
-  .session-btn:hover { background:rgba(255,230,0,.08); }
-  .session-status { margin-top:8px; font-size:.66rem; line-height:1.5; color:var(--sub); white-space:pre-wrap; }
+  .session-btn:hover { background:rgba(255,170,0,.08); }
+  .session-status { margin-top:8px; font-size:.67rem; line-height:1.5; color:var(--sub); white-space:pre-wrap; }
 
   .msg-box {
-    background:rgba(0,245,255,.05); border:1px solid rgba(0,245,255,.2);
-    padding:10px; font-size:.7rem; line-height:1.7; color:var(--cyan);
-    min-height:50px;
+    background:rgba(0,245,255,.04); border:1px solid rgba(0,245,255,.18);
+    border-left:3px solid var(--cyan);
+    padding:10px 12px; font-size:.75rem; line-height:1.7; color:var(--cyan);
+    min-height:44px;
   }
 
-  .main-shell { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; }
-  .top-row { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:14px; align-items:flex-start; }
-  .center { min-width:0; display:flex; flex-direction:column; align-items:center; gap:14px; }
-  .side-column { display:flex; flex-direction:column; gap:14px; align-self:flex-start; width:400px; }
+  .main-shell { flex:1; min-width:0; display:flex; flex-direction:column; height:100%; overflow:hidden; }
+  .top-row { display:grid; grid-template-columns:minmax(0,1fr) 420px; flex:1; overflow:hidden; min-height:0; }
+  .center { min-width:0; display:flex; flex-direction:column; align-items:center; gap:12px; overflow-y:auto; padding:16px; height:100%; }
+  .side-column { display:flex; flex-direction:column; gap:12px; border-left:1px solid var(--border-c); overflow-y:auto; padding:16px; height:100%; }
 
   .game-title {
-    font-family:'Press Start 2P',monospace; font-size:.75rem;
+    font-family:'Press Start 2P',monospace; font-size:.85rem;
     color:var(--cyan); text-shadow:0 0 10px var(--cyan); letter-spacing:3px;
+    flex-shrink:0;
   }
 
   .board-wrap {
@@ -117,11 +154,11 @@
   }
 
   .cell {
-    width:30px; height:30px;
+    width:34px; height:34px;
     background:rgba(255,255,255,.03);
     border:1px solid rgba(0,245,255,.12);
     display:flex; align-items:center; justify-content:center;
-    font-size:1.4rem; position:relative;
+    font-size:1.5rem; position:relative;
     transition:background .15s;
   }
   .cell:hover { background:rgba(0,245,255,.08); }
@@ -129,9 +166,9 @@
   .cell.winning-cell { border-color:var(--yellow); box-shadow:0 0 0 1px rgba(255,230,0,.75) inset, 0 0 10px rgba(255,230,0,.35); }
 
   .stone {
-    width:22px; height:22px; border-radius:50%;
+    width:26px; height:26px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-size:.6rem;
+    font-size:.65rem;
   }
   .stone-black {
     background:radial-gradient(circle at 35% 35%, #555, #111);
@@ -144,12 +181,12 @@
 
   /* Q value 오버레이 */
   .cell .qval {
-    position:absolute; font-size:.5rem; font-family:'Share Tech Mono',monospace;
+    position:absolute; font-size:.55rem; font-family:'Share Tech Mono',monospace;
     pointer-events:none; font-weight:bold; display:none;
   }
   .show-qval .cell .qval { display:block; }
 
-  .status-bar { font-size:.7rem; color:var(--sub); letter-spacing:2px; }
+  .status-bar { font-size:.8rem; color:var(--sub); letter-spacing:2px; }
   .board-overlay {
     position:absolute; inset:10px; pointer-events:none; z-index:3;
   }
@@ -176,19 +213,40 @@
   .outcome-overlay.visible { display:block; }
   .postgame-panel { display:none; width:100%; background:rgba(13,17,23,.92); border:1px solid rgba(255,230,0,.25); padding:14px; gap:12px; }
   .postgame-panel.visible { display:flex; flex-direction:column; }
-  .postgame-title { font-family:'Press Start 2P',monospace; font-size:.55rem; color:var(--yellow); }
-  .candidate-bar { display:flex; flex-direction:column; gap:8px; padding-bottom:2px; }
-  .candidate-pill { width:100%; background:#0b1118; border:1px solid rgba(255,230,0,.18); color:var(--text); padding:10px 12px; cursor:pointer; transition:.18s; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px; }
-  .candidate-pill:hover,.candidate-pill.active { border-color:var(--yellow); box-shadow:0 0 0 1px rgba(255,230,0,.35) inset; background:rgba(255,230,0,.06); }
-  .candidate-pill.state-waiting { opacity:.78; }
-  .candidate-pill.state-generating { border-color:var(--cyan); box-shadow:0 0 0 1px rgba(0,255,255,.35) inset; background:rgba(0,255,255,.04); }
-  .candidate-pill.state-ready { opacity:1; }
-  .candidate-pill.state-error { border-color:var(--red); background:rgba(255,49,98,.06); }
-  .candidate-rank { font-family:'Press Start 2P',monospace; font-size:.45rem; color:var(--yellow); white-space:nowrap; }
-  .candidate-main { display:flex; align-items:center; gap:6px; min-width:0; font-size:.72rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .candidate-step { font-size:.72rem; color:#fff; }
-  .candidate-loss { font-size:.72rem; color:var(--red); }
-  .candidate-state { font-size:.58rem; color:#95a5b6; letter-spacing:.03em; white-space:nowrap; text-align:right; }
+  /* ── SENSEI COACH PANEL ── */
+  .sensei-coach-header {
+    display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background:rgba(255,170,0,.05); border-bottom:1px solid rgba(255,170,0,.15);
+    flex-shrink:0;
+  }
+  .sensei-coach-icon { font-size:1.1rem; }
+  .sensei-coach-label {
+    font-family:'Press Start 2P',monospace; font-size:.56rem;
+    color:var(--amber); letter-spacing:2px;
+  }
+  .sensei-coach-status { margin-left:auto; font-size:.62rem; color:var(--sub); }
+
+  .postgame-panel { display:none; width:100%; background:var(--dim); border:1px solid rgba(255,170,0,.2); flex-shrink:0; }
+  .postgame-panel.visible { display:flex; flex-direction:column; }
+  .postgame-title {
+    font-family:'Press Start 2P',monospace; font-size:.58rem; color:var(--amber);
+    padding:10px 14px; border-bottom:1px solid rgba(255,170,0,.15);
+  }
+  .candidate-bar { display:flex; flex-direction:column; gap:0; }
+  .candidate-pill {
+    width:100%; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.04);
+    color:var(--text); padding:10px 14px; cursor:pointer; transition:.15s;
+    display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px;
+  }
+  .candidate-pill:hover,.candidate-pill.active { background:rgba(255,170,0,.06); border-bottom-color:rgba(255,170,0,.2); }
+  .candidate-pill.state-waiting { opacity:.7; }
+  .candidate-pill.state-generating { background:rgba(0,245,255,.04); }
+  .candidate-pill.state-error { background:rgba(255,49,98,.04); }
+  .candidate-rank { font-family:'Press Start 2P',monospace; font-size:.5rem; color:var(--amber); white-space:nowrap; }
+  .candidate-main { display:flex; align-items:center; gap:6px; min-width:0; font-size:.78rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .candidate-step { font-size:.78rem; color:#fff; }
+  .candidate-loss { font-size:.78rem; color:var(--red); }
+  .candidate-state { font-size:.62rem; color:#95a5b6; letter-spacing:.03em; white-space:nowrap; text-align:right; }
   .candidate-pill.state-generating .candidate-state { color:var(--cyan); }
   .candidate-pill.state-ready .candidate-state { color:var(--green); }
   .candidate-pill.state-error .candidate-state { color:var(--red); }
@@ -210,43 +268,45 @@
   .compare-nav-btn:hover:not(:disabled) { background:rgba(0,245,255,.1); }
   .compare-nav-btn:disabled { opacity:.3; cursor:not-allowed; }
   .compare-frame-counter { font-size:.68rem; color:var(--cyan); min-width:48px; text-align:center; }
-  .center-feedback { display:none; width:100%; background:rgba(13,17,23,.92); border:1px solid rgba(255,230,0,.2); padding:14px; }
+  /* ── COACH FEEDBACK (amber theme) ── */
+  .center-feedback { display:none; width:100%; background:rgba(255,170,0,.03); border:1px solid rgba(255,170,0,.18); border-left:3px solid var(--amber); }
   .center-feedback.visible { display:block; }
-  .center-feedback-source { font-size:.72rem; color:var(--yellow); margin-bottom:10px; }
-  .feedback-loading { display:none; margin-bottom:12px; }
+  .center-feedback-source { font-size:.70rem; color:var(--amber); margin-bottom:10px; padding:12px 14px 0; }
+  .feedback-loading { display:none; margin:10px 14px; }
   .feedback-loading.active { display:block; }
-  .feedback-loading-label { font-size:.68rem; color:var(--sub); margin-bottom:6px; }
-  .feedback-loading-track { height:6px; background:#1a1a2e; border-radius:999px; overflow:hidden; }
-  .feedback-loading-bar { width:35%; height:100%; background:linear-gradient(90deg,var(--cyan),var(--yellow)); box-shadow:0 0 8px rgba(0,245,255,.4); animation:feedback-loading 1.2s ease-in-out infinite; }
-  .center-feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:12px; font-size:.78rem; line-height:1.85; white-space:pre-wrap; }
-  .feedback-tabs { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .feedback-loading-label { font-size:.66rem; color:var(--sub); margin-bottom:6px; }
+  .feedback-loading-track { height:4px; background:#1a1a2e; border-radius:999px; overflow:hidden; }
+  .feedback-loading-bar { width:35%; height:100%; background:linear-gradient(90deg,var(--amber),var(--cyan)); box-shadow:0 0 8px rgba(255,170,0,.4); animation:feedback-loading 1.2s ease-in-out infinite; }
+  .center-feedback-box { padding:14px; font-size:.80rem; line-height:1.85; white-space:pre-wrap; color:var(--text); }
+  .feedback-tabs { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid rgba(255,170,0,.12); }
   .feedback-tab {
-    background:#0b1118; border:1px solid rgba(255,230,0,.18); color:var(--sub);
-    padding:10px 8px; font-size:.62rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
-    min-height:40px; display:flex; align-items:center; justify-content:center; text-align:center;
+    background:transparent; border:none; border-right:1px solid rgba(255,170,0,.12); color:var(--sub);
+    padding:9px 8px; font-size:.64rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    min-height:36px; display:flex; align-items:center; justify-content:center; text-align:center;
   }
-  .feedback-tab.active { border-color:var(--yellow); color:var(--yellow); background:rgba(255,230,0,.08); }
-  .feedback-summary-box { display:none; background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:12px; }
+  .feedback-tab:last-child { border-right:none; }
+  .feedback-tab.active { color:var(--amber); background:rgba(255,170,0,.06); }
+  .feedback-summary-box { display:none; padding:12px 14px; }
   .feedback-summary-box.visible { display:block; }
   @keyframes feedback-loading {
     0% { transform:translateX(-120%); }
     100% { transform:translateX(320%); }
   }
 
-  /* 하단 분석 */
-  .analysis-zone { display:none; width:min(100%,780px); flex-direction:column; gap:10px; }
+  /* 분석 (보드 아래) */
+  .analysis-zone { display:none; width:100%; flex-direction:column; gap:10px; align-self:stretch; }
   .analysis-zone.visible { display:flex; }
-  .analysis-content { display:flex; flex-direction:column; gap:12px; }
-  .right { width:100%; display:flex; flex-direction:column; gap:14px; }
-  .right-tabs { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
+  .analysis-content { display:flex; flex-direction:column; gap:10px; }
+  .right { width:100%; display:flex; flex-direction:column; gap:10px; }
+  .right-tabs { display:grid; grid-template-columns:repeat(2,1fr); gap:4px; }
   .right-tab {
-    background:#0b1118; border:1px solid rgba(0,245,255,.18); color:var(--sub);
-    padding:10px 8px; font-size:.58rem; line-height:1.35; cursor:pointer; font-family:'Share Tech Mono',monospace;
-    min-height:48px; display:flex; align-items:center; justify-content:center; text-align:center;
+    background:var(--dim); border:1px solid rgba(0,245,255,.15); color:var(--sub);
+    padding:10px 8px; font-size:.64rem; line-height:1.35; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center;
   }
-  .right-tab.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,245,255,.08); }
+  .right-tab.active { border-color:var(--cyan); color:var(--cyan); background:rgba(0,245,255,.06); }
 
-  .analysis-section { background:var(--dim); border:1px solid rgba(0,245,255,.2); padding:14px; display:none; }
+  .analysis-section { background:var(--dim); border:1px solid rgba(0,245,255,.15); padding:12px; display:none; }
   .analysis-section.visible.tab-open { display:block; }
 
   .analysis-section .panel-title { margin-bottom:12px; }
@@ -258,12 +318,12 @@
     height:100%; background:var(--cyan); box-shadow:0 0 6px var(--cyan);
     transition:width .5s ease; width:0%;
   }
-  .progress-text { font-size:.65rem; color:var(--sub); }
+  .progress-text { font-size:.74rem; color:var(--sub); }
 
   /* 착수별 분석 표 */
-  .move-table { width:100%; font-size:.67rem; border-collapse:collapse; margin-top:8px; }
-  .move-table th { color:var(--sub); font-weight:normal; text-align:left; padding:4px 3px; border-bottom:1px solid #1a1a2e; }
-  .move-table td { padding:5px 3px; border-bottom:1px solid #0d1117; vertical-align:middle; }
+  .move-table { width:100%; font-size:.76rem; border-collapse:collapse; margin-top:8px; }
+  .move-table th { color:var(--sub); font-weight:normal; text-align:left; padding:6px 4px; border-bottom:1px solid #1a1a2e; }
+  .move-table td { padding:6px 4px; border-bottom:1px solid #0d1117; vertical-align:middle; }
   .move-table tr.worst-row td { background:rgba(255,51,102,.08); }
   .move-table .q-good { color:var(--green); }
   .move-table .q-ok   { color:var(--yellow); }
@@ -273,43 +333,67 @@
   /* 최악 착수 상세 */
   .worst-detail {
     background:rgba(255,51,102,.06); border:1px solid rgba(255,51,102,.3);
-    padding:12px; font-size:.72rem; line-height:1.9;
+    padding:14px; font-size:.80rem; line-height:1.9;
   }
   .worst-detail strong { color:var(--red); }
 
   /* 종합 점수 */
   .score-display {
-    text-align:center; padding:16px;
+    text-align:center; padding:20px;
     background:rgba(0,245,255,.05); border:1px solid rgba(0,245,255,.2);
   }
-  .score-label { font-size:.6rem; color:var(--sub); margin-bottom:6px; }
-  .score-value { font-family:'Press Start 2P',monospace; font-size:1.5rem; color:var(--cyan); text-shadow:0 0 12px var(--cyan); }
-  .score-grade { font-size:.65rem; color:var(--text); margin-top:6px; }
-  .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .summary-item { background:#0b1118; border:1px solid #1f2b33; padding:8px 10px; }
-  .summary-k { font-size:.62rem; color:var(--sub); margin-bottom:4px; }
-  .summary-v { font-size:.88rem; color:#fff; }
-  .feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:10px; font-size:.72rem; line-height:1.8; white-space:pre-wrap; margin-top:8px; }
+  .score-label { font-size:.7rem; color:var(--sub); margin-bottom:8px; }
+  .score-value { font-family:'Press Start 2P',monospace; font-size:1.8rem; color:var(--cyan); text-shadow:0 0 12px var(--cyan); }
+  .score-grade { font-size:.75rem; color:var(--text); margin-top:8px; }
+  .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .summary-item { background:#0b1118; border:1px solid #1f2b33; padding:10px 12px; }
+  .summary-k { font-size:.70rem; color:var(--sub); margin-bottom:4px; }
+  .summary-v { font-size:.96rem; color:#fff; }
+  .feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:12px; font-size:.80rem; line-height:1.85; white-space:pre-wrap; margin-top:10px; }
   .summary-top-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:12px; }
   .qvalue-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .qvalue-card { background:#0b1118; border:1px solid #1f2b33; padding:12px; }
+  .qvalue-card { background:#0b1118; border:1px solid #1f2b33; padding:14px; }
   .qvalue-card.full { grid-column:1 / -1; }
-  @media (max-width: 1380px){
-    .top-row { grid-template-columns:minmax(0,1fr) 360px; }
-    .side-column { width:360px; }
+  .center-feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:14px; font-size:.84rem; line-height:1.85; white-space:pre-wrap; }
+  .feedback-tab {
+    background:#0b1118; border:1px solid rgba(255,230,0,.18); color:var(--sub);
+    padding:12px 10px; font-size:.70rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    min-height:46px; display:flex; align-items:center; justify-content:center; text-align:center;
   }
-  @media (max-width: 1180px){
-    .layout { flex-direction:column; }
-    .left { width:100%; }
-    .top-row { grid-template-columns:1fr; }
+  @media (max-width: 1380px){
+    .top-row { grid-template-columns:minmax(0,1fr) 380px; }
+  }
+  @media (max-width: 1100px){
+    .top-row { grid-template-columns:minmax(0,1fr) 320px; }
+  }
+  @media (max-width: 900px){
+    html, body { overflow:auto; }
+    .layout { flex-direction:column; height:auto; overflow:visible; }
+    .left { width:100%; height:auto; overflow-y:visible; }
+    .main-shell { height:auto; overflow:visible; }
+    .top-row { grid-template-columns:1fr; height:auto; overflow:visible; min-height:unset; }
+    .center, .side-column { height:auto; overflow-y:visible; }
   }
 </style>
 </head>
 <body data-has-llm="{{ 'true' if has_openrouter else 'false' }}">
+
+<!-- ── PAGE TOP BAR ── -->
+<div class="page-topbar">
+  <a href="/" class="topbar-back">◀ MENU</a>
+  <div class="topbar-game-name">⚫ GOMOKU</div>
+  <div class="topbar-flex"></div>
+  <div class="topbar-sensei">🎓 SAGE</div>
+  <div class="topbar-pill">
+    <div class="tpill-dot {{ 'on' if has_openrouter else 'off' }}"></div>
+    <span>{{ 'LLM ON' if has_openrouter else 'LLM OFF' }}</span>
+  </div>
+</div>
+
 <div class="layout">
   <!-- 왼쪽 패널 -->
   <div class="left">
-    <a href="/" class="back-btn">◀ MENU</a>
+    <div class="left-inner">
     <button class="start-btn" id="startBtn">GAME START</button>
 
     <div class="panel">
@@ -358,7 +442,7 @@
       </div>
     </div>
     <div class="session-panel">
-      <div class="panel-title" style="color:var(--yellow)">SESSIONS</div>
+      <div class="panel-title" style="color:var(--amber)">SESSIONS</div>
       <input class="session-input" id="gomokuSessionTitle" placeholder="기록 이름">
       <div class="session-actions">
         <button class="session-btn" id="gomokuSaveBtn">저장</button>
@@ -372,6 +456,7 @@
       </div>
       <div class="session-status" id="gomokuSessionStatus">저장된 기록을 불러오거나 현재 판을 저장할 수 있습니다.</div>
     </div>
+    </div><!-- /.left-inner -->
   </div>
 
   <div class="main-shell">
@@ -387,7 +472,7 @@
           <div class="outcome-overlay" id="gomokuOutcomeOverlay"></div>
         </div>
         <div class="status-bar" id="statusBar">WAITING</div>
-        <div class="compare-stage" id="gomokuCompareStage">
+        <div class="compare-stage" id="gomokuCompareStage" style="width:100%">
           <div class="compare-images">
             <div class="compare-side">
               <div class="compare-side-label">HUMAN</div>
@@ -407,20 +492,20 @@
             </div>
           </div>
         </div>
-        <div class="analysis-zone" id="gomokuAnalysisZone">
+
+        <!-- Q-VALUE 분석 (보드 아래) -->
+        <div class="analysis-zone" id="gomokuAnalysisZone" style="width:100%">
           <div class="analysis-content">
             <div class="right">
               <div class="right-tabs" id="gomokuRightTabs">
                 <button type="button" class="right-tab active" data-gomoku-tab="summary">종합 분석</button>
                 <button type="button" class="right-tab" data-gomoku-tab="qvalue">착수별 Q-VALUE</button>
               </div>
-
               <div class="analysis-section" id="progressSection">
                 <div class="panel-title">AI 분석 중...</div>
                 <div class="progress-text" id="progressText">준비 중...</div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
               </div>
-
               <div class="analysis-section" id="scoreSection">
                 <div class="summary-top-grid">
                   <div class="score-display">
@@ -434,16 +519,11 @@
                   </div>
                 </div>
               </div>
-
               <div class="analysis-section" id="tableSection">
                 <div class="qvalue-card full">
                   <div class="panel-title">착수별 Q-VALUE</div>
                   <table class="move-table">
-                    <thead>
-                      <tr>
-                        <th>수</th><th>위치</th><th>Q(실제)</th><th>Q(최선)</th><th>손실</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>수</th><th>위치</th><th>Q(실제)</th><th>Q(최선)</th><th>손실</th></tr></thead>
                     <tbody id="moveTableBody"></tbody>
                   </table>
                 </div>
@@ -453,19 +533,30 @@
         </div>
       </div>
 
+      <!-- ── SENSEI COACH PANEL (right column) ── -->
       <div class="side-column">
+        <!-- SENSEI header -->
+        <div class="sensei-coach-header">
+          <span class="sensei-coach-icon">🎓</span>
+          <span class="sensei-coach-label">SAGE · COACH</span>
+          <span class="sensei-coach-status" id="coachStatus">대기 중</span>
+        </div>
+
+        <!-- TOP-5 MOMENTS -->
         <div class="postgame-panel" id="gomokuPostgamePanel">
           <div class="postgame-title">GAME OVER · TOP-5 MOMENTS</div>
           <div class="candidate-bar" id="gomokuCandidateBar"></div>
         </div>
+
+        <!-- LLM 코치 피드백 -->
         <div class="center-feedback" id="gomokuCenterFeedback">
           <div id="gomokuFeedbackSourceCenter" class="center-feedback-source"></div>
           <div class="feedback-tabs">
-            <button type="button" class="feedback-tab active" data-gomoku-feedback-tab="feedback">코칭 피드백</button>
-            <button type="button" class="feedback-tab" data-gomoku-feedback-tab="summary">비교 요약</button>
+            <button type="button" class="feedback-tab active" data-gomoku-feedback-tab="feedback">🎓 코칭 피드백</button>
+            <button type="button" class="feedback-tab" data-gomoku-feedback-tab="summary">📊 비교 요약</button>
           </div>
           <div class="feedback-loading" id="gomokuFeedbackLoading">
-            <div class="feedback-loading-label">외부 LLM 응답을 기다리는 중입니다...</div>
+            <div class="feedback-loading-label">SAGE가 분석 중입니다...</div>
             <div class="feedback-loading-track"><div class="feedback-loading-bar"></div></div>
           </div>
           <div id="gomokuFeedbackTextCenter" class="center-feedback-box">착수를 고르면 코칭 피드백이 여기에 표시됩니다.</div>
@@ -478,6 +569,7 @@
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -818,13 +910,26 @@ function setMsg(text, color = 'var(--cyan)') {
   el.style.color = color;
 }
 
-// ── 비교 영상 수동 탐색 ──────────────────────────────────────
-document.getElementById('gomokuPrevBtn').addEventListener('click', () => renderGomokuFrame(gomokuCompareIdx - 1));
-document.getElementById('gomokuNextBtn').addEventListener('click', () => renderGomokuFrame(gomokuCompareIdx + 1));
+// ── 비교 영상 수동 탐색 (조작 시 자동 재생 중단) ───────────
+function stopGomokuAutoPlay() {
+  if (gomokuCompareTimer) {
+    clearInterval(gomokuCompareTimer);
+    gomokuCompareTimer = null;
+  }
+}
+
+document.getElementById('gomokuPrevBtn').addEventListener('click', () => {
+  stopGomokuAutoPlay();
+  renderGomokuFrame(gomokuCompareIdx - 1);
+});
+document.getElementById('gomokuNextBtn').addEventListener('click', () => {
+  stopGomokuAutoPlay();
+  renderGomokuFrame(gomokuCompareIdx + 1);
+});
 document.addEventListener('keydown', (e) => {
   if (!document.getElementById('gomokuCompareStage').classList.contains('visible')) return;
-  if (e.key === 'ArrowLeft')  { e.preventDefault(); renderGomokuFrame(gomokuCompareIdx - 1); }
-  if (e.key === 'ArrowRight') { e.preventDefault(); renderGomokuFrame(gomokuCompareIdx + 1); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); stopGomokuAutoPlay(); renderGomokuFrame(gomokuCompareIdx - 1); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); stopGomokuAutoPlay(); renderGomokuFrame(gomokuCompareIdx + 1); }
 });
 
 // ── 이벤트 핸들러 ────────────────────────────────────────────

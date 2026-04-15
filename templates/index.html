@@ -3,384 +3,347 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI ARCADE</title>
+<title>AI ARCADE — SAGE</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #050508;
-    --grid: #0d1117;
+    --bg: #04050a;
+    --panel: #080b14;
+    --panel2: #0a0e1a;
     --cyan: #00f5ff;
     --green: #39ff14;
+    --amber: #ffaa00;
     --magenta: #ff00aa;
-    --yellow: #ffe600;
-    --dim: #1a1a2e;
+    --red: #ff3366;
     --text: #c8d8e8;
+    --sub: #4a5a6a;
+    --border-c: rgba(0,245,255,.12);
+    --border-a: rgba(255,170,0,.15);
   }
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'Share Tech Mono',monospace; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Share Tech Mono', monospace;
-    min-height: 100vh;
-    overflow-x: hidden;
-    position: relative;
-  }
-
-  /* 배경 그리드 */
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
     background-image:
-      linear-gradient(rgba(0,245,255,.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,245,255,.04) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
+      linear-gradient(rgba(0,245,255,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,245,255,.025) 1px,transparent 1px);
+    background-size:52px 52px;
   }
-
-  /* 스캔라인 */
+  /* faint vignette */
   body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,.15) 2px,
-      rgba(0,0,0,.15) 4px
-    );
-    pointer-events: none;
-    z-index: 1;
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%);
   }
 
-  .container {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 40px 20px;
-    gap: 60px;
+  /* ────── TOP BAR ────── */
+  .topbar {
+    position:relative; z-index:10;
+    height:52px; display:flex; align-items:center;
+    background:rgba(4,5,10,.98);
+    border-bottom:1px solid var(--border-c);
+    padding:0 20px;
+  }
+  .topbar-brand {
+    display:flex; align-items:center; gap:14px; margin-right:auto;
+  }
+  .topbar-hex {
+    width:34px; height:34px; border:1px solid var(--cyan);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--cyan); font-size:1.1rem;
+    box-shadow:0 0 12px rgba(0,245,255,.25), inset 0 0 8px rgba(0,245,255,.06);
+    flex-shrink:0;
+  }
+  .topbar-logo {
+    font-family:'Press Start 2P',monospace; font-size:.82rem;
+    color:var(--cyan); text-shadow:0 0 12px var(--cyan); letter-spacing:3px;
+  }
+  .topbar-divider {
+    width:1px; height:22px; background:rgba(255,170,0,.3); margin:0 2px;
+  }
+  .topbar-sys {
+    font-size:.6rem; color:var(--amber); letter-spacing:3px;
+    text-shadow:0 0 8px rgba(255,170,0,.4);
   }
 
-  /* 헤더 */
-  .header {
-    text-align: center;
+  .topbar-pills { display:flex; align-items:center; height:100%; gap:0; }
+  .topbar-pill {
+    display:flex; align-items:center; gap:8px; height:100%;
+    padding:0 18px; border-left:1px solid var(--border-c);
+    font-size:.65rem; color:var(--sub); white-space:nowrap;
+  }
+  .llm-badge-dot { width:8px; height:8px; border-radius:50%; background:var(--sub); flex-shrink:0; }
+  .llm-badge-dot.on { background:var(--green); box-shadow:0 0 7px var(--green); }
+
+  .settings-btn {
+    margin-left:14px; background:transparent;
+    border:1px solid var(--border-a); color:var(--amber);
+    font-size:1.1rem; width:44px; height:44px; flex-shrink:0;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background .2s, box-shadow .2s;
+  }
+  .settings-btn:hover { background:rgba(255,170,0,.08); box-shadow:0 0 14px rgba(255,170,0,.25); }
+
+  /* ────── MAIN GRID ────── */
+  .main {
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:290px 1fr;
+    height:calc(100vh - 52px); overflow:hidden;
   }
 
-  .header h1 {
-    font-family: 'Press Start 2P', monospace;
-    font-size: clamp(2rem, 6vw, 4rem);
-    color: var(--cyan);
-    text-shadow:
-      0 0 10px var(--cyan),
-      0 0 30px var(--cyan),
-      0 0 60px rgba(0,245,255,.4);
-    letter-spacing: 4px;
-    animation: flicker 4s infinite;
+  /* ────── LEFT · SENSEI PANEL ────── */
+  .sensei-panel {
+    border-right:1px solid var(--border-c);
+    background:linear-gradient(170deg, rgba(10,13,22,1) 0%, rgba(5,7,12,1) 100%);
+    display:flex; flex-direction:column; overflow-y:auto;
+    padding:22px 20px; gap:18px;
+  }
+  ::-webkit-scrollbar { width:3px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(0,245,255,.15); }
+
+  /* Identity block */
+  .sensei-id {
+    padding:16px; background:rgba(255,170,0,.05);
+    border:1px solid var(--border-a); border-left:3px solid var(--amber);
+  }
+  .sensei-tag {
+    font-size:.52rem; color:var(--amber); letter-spacing:3px; margin-bottom:8px;
+  }
+  .sensei-name {
+    font-family:'Press Start 2P',monospace; font-size:.75rem;
+    color:var(--text); letter-spacing:2px; margin-bottom:8px;
+  }
+  .sensei-desc { font-size:.68rem; color:var(--sub); line-height:1.75; }
+
+  /* Section label */
+  .sec-label {
+    font-size:.58rem; color:var(--sub); letter-spacing:2px;
+    padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,.05);
+    display:flex; align-items:center; gap:8px;
+  }
+  .sec-label::before {
+    content:''; width:16px; height:1px;
+    background:linear-gradient(90deg, var(--amber), transparent);
+    display:block; flex-shrink:0;
   }
 
-  .header .sub {
-    margin-top: 16px;
-    font-size: 0.85rem;
-    color: var(--magenta);
-    text-shadow: 0 0 8px var(--magenta);
-    letter-spacing: 3px;
-    animation: blink 1.2s step-end infinite;
+  /* Terminal block */
+  .terminal {
+    background:rgba(0,0,0,.5); border:1px solid rgba(0,245,255,.1);
+    padding:14px; font-size:.68rem; line-height:2;
+  }
+  .t-line { display:flex; gap:8px; }
+  .t-prompt { color:var(--cyan); flex-shrink:0; }
+  .t-text { color:var(--text); }
+  .t-amber { color:var(--amber); }
+  .t-cursor {
+    display:inline-block; width:8px; height:1em;
+    background:var(--cyan); animation:blink .85s step-end infinite;
+    vertical-align:text-bottom; margin-left:2px;
   }
 
-  @keyframes flicker {
-    0%,95%,100% { opacity: 1; }
-    96% { opacity: .7; }
-    97% { opacity: 1; }
-    98% { opacity: .6; }
+  /* Data rows */
+  .data-block { display:flex; flex-direction:column; gap:2px; }
+  .data-row {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:.72rem; padding:7px 10px;
+    background:rgba(255,255,255,.02);
+    border-left:2px solid transparent;
+    transition:border-color .2s;
+  }
+  .data-row:hover { border-left-color:rgba(0,245,255,.3); }
+  .data-v { color:var(--cyan); }
+
+  /* Step flow */
+  .steps-flow { display:flex; flex-direction:column; gap:6px; }
+  .step-item {
+    display:flex; align-items:center; gap:10px;
+    font-size:.70rem; padding:6px 10px;
+    background:rgba(255,255,255,.02); border-left:2px solid rgba(0,245,255,.15);
+  }
+  .step-num {
+    font-family:'Press Start 2P',monospace; font-size:.45rem;
+    color:var(--amber); min-width:16px; text-align:center;
+  }
+  .step-label { color:var(--sub); flex:1; }
+  .step-val { color:var(--cyan); font-size:.65rem; }
+
+  /* ────── RIGHT · GAME AREA ────── */
+  .game-area {
+    display:flex; flex-direction:column;
+    padding:22px 28px 20px; gap:18px; overflow-y:auto;
   }
 
-  @keyframes blink {
-    0%,100% { opacity: 1; }
-    50% { opacity: 0; }
+  .game-area-header {
+    display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0;
+  }
+  .game-area-title {
+    font-family:'Press Start 2P',monospace; font-size:.72rem;
+    color:var(--text); letter-spacing:2px;
+  }
+  .game-count { font-size:.65rem; color:var(--sub); }
+
+  /* Coach hint bar */
+  .coach-bar {
+    display:flex; align-items:center; gap:14px; flex-shrink:0;
+    padding:12px 18px;
+    background:rgba(255,170,0,.04); border:1px solid var(--border-a);
+    border-left:3px solid var(--amber);
+    font-size:.71rem; color:var(--text); line-height:1.65;
+  }
+  .coach-bar-icon { font-size:1.4rem; flex-shrink:0; }
+  .coach-bar strong { color:var(--amber); }
+  .coach-bar a {
+    color:var(--cyan); text-decoration:none; border-bottom:1px solid rgba(0,245,255,.3);
   }
 
-  /* 게임 카드 */
-  .games {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 32px;
-    width: 100%;
-    max-width: 800px;
+  /* ────── GAME GRID ────── */
+  .game-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(195px, 1fr));
+    gap:14px;
   }
 
   .game-card {
-    position: relative;
-    background: var(--dim);
-    border: 2px solid;
-    padding: 40px 32px;
-    text-align: center;
-    cursor: pointer;
-    text-decoration: none;
-    display: block;
-    transition: transform .2s, box-shadow .2s;
-    overflow: hidden;
+    position:relative; background:var(--panel);
+    border:1px solid rgba(255,255,255,.06); padding:0;
+    text-decoration:none; overflow:hidden;
+    display:flex; flex-direction:column;
+    transition:transform .2s, box-shadow .2s;
   }
-
+  /* colored top stripe */
   .game-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity .3s;
+    content:''; display:block; height:2px; flex-shrink:0;
   }
+  .game-card:not(.card-soon):hover { transform:translateY(-3px); }
 
-  .game-card:hover {
-    transform: translateY(-6px);
-  }
+  /* invaders */
+  .card-invaders { border-color:rgba(57,255,20,.18); }
+  .card-invaders::before { background:var(--green); }
+  .card-invaders:hover { box-shadow:0 6px 28px rgba(57,255,20,.14); }
 
-  .game-card:hover::before {
-    opacity: 1;
-  }
+  /* gomoku */
+  .card-gomoku { border-color:rgba(0,245,255,.18); }
+  .card-gomoku::before { background:var(--cyan); }
+  .card-gomoku:hover { box-shadow:0 6px 28px rgba(0,245,255,.14); }
 
-  /* Space Invaders 카드 */
-  .card-invaders {
-    border-color: var(--green);
-    box-shadow: 0 0 20px rgba(57,255,20,.2), inset 0 0 40px rgba(57,255,20,.03);
-  }
-  .card-invaders::before {
-    background: radial-gradient(ellipse at top, rgba(57,255,20,.1), transparent 70%);
-  }
-  .card-invaders:hover {
-    box-shadow: 0 0 40px rgba(57,255,20,.5), inset 0 0 40px rgba(57,255,20,.08);
-  }
-  .card-invaders .card-icon { color: var(--green); text-shadow: 0 0 16px var(--green); }
-  .card-invaders .card-title { color: var(--green); }
-  .card-invaders .card-btn { background: var(--green); color: #000; }
-  .card-invaders .card-btn:hover { box-shadow: 0 0 20px var(--green); }
+  /* coming soon */
+  .card-soon { border-color:rgba(255,255,255,.04) !important; opacity:.38; cursor:not-allowed; }
+  .card-soon::before { background:var(--sub); }
+  .card-soon:hover { transform:none !important; box-shadow:none !important; }
 
-  /* Gomoku 카드 */
-  .card-gomoku {
-    border-color: var(--cyan);
-    box-shadow: 0 0 20px rgba(0,245,255,.2), inset 0 0 40px rgba(0,245,255,.03);
-  }
-  .card-gomoku::before {
-    background: radial-gradient(ellipse at top, rgba(0,245,255,.1), transparent 70%);
-  }
-  .card-gomoku:hover {
-    box-shadow: 0 0 40px rgba(0,245,255,.5), inset 0 0 40px rgba(0,245,255,.08);
-  }
-  .card-gomoku .card-icon { color: var(--cyan); text-shadow: 0 0 16px var(--cyan); }
-  .card-gomoku .card-title { color: var(--cyan); }
-  .card-gomoku .card-btn { background: var(--cyan); color: #000; }
-  .card-gomoku .card-btn:hover { box-shadow: 0 0 20px var(--cyan); }
+  /* card inner */
+  .card-inner { padding:22px 18px 18px; display:flex; flex-direction:column; align-items:center; flex:1; }
 
-  .card-icon {
-    font-size: 3.5rem;
-    display: block;
-    margin-bottom: 20px;
+  .card-badge {
+    position:absolute; top:10px; right:10px;
+    font-size:.5rem; padding:2px 7px; border:1px solid;
+    letter-spacing:1px; z-index:2;
   }
+  .card-invaders .card-badge { color:var(--green); border-color:rgba(57,255,20,.4); }
+  .card-gomoku .card-badge { color:var(--cyan); border-color:rgba(0,245,255,.4); }
+  .card-soon .card-badge { color:var(--sub); border-color:rgba(255,255,255,.1); }
+
+  .card-icon { font-size:2.6rem; margin-bottom:12px; line-height:1; }
 
   .card-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 0.9rem;
-    letter-spacing: 2px;
-    margin-bottom: 14px;
+    font-family:'Press Start 2P',monospace; font-size:.65rem;
+    letter-spacing:2px; line-height:1.6; margin-bottom:8px; text-align:center;
   }
+  .card-invaders .card-title { color:var(--green); }
+  .card-gomoku .card-title { color:var(--cyan); }
+  .card-soon .card-title { color:var(--sub); }
 
-  .card-desc {
-    font-size: 0.78rem;
-    color: #788;
-    line-height: 1.7;
-    margin-bottom: 28px;
+  .card-ai-tag {
+    font-size:.6rem; padding:3px 8px; border:1px solid; margin-bottom:12px;
+    letter-spacing:1px;
   }
+  .card-invaders .card-ai-tag { color:var(--amber); border-color:rgba(255,170,0,.25); background:rgba(255,170,0,.06); }
+  .card-gomoku .card-ai-tag { color:var(--amber); border-color:rgba(255,170,0,.25); background:rgba(255,170,0,.06); }
+  .card-soon .card-ai-tag { color:var(--sub); border-color:rgba(255,255,255,.08); background:none; }
 
-  .card-tag {
-    display: inline-block;
-    font-size: 0.65rem;
-    padding: 3px 8px;
-    border: 1px solid currentColor;
-    margin: 3px;
-    opacity: .7;
-  }
-  .card-invaders .card-tag { color: var(--green); }
-  .card-gomoku .card-tag  { color: var(--cyan); }
+  .card-desc { font-size:.67rem; color:var(--sub); line-height:1.7; text-align:center; margin-bottom:16px; flex:1; }
 
   .card-btn {
-    display: inline-block;
-    margin-top: 24px;
-    padding: 12px 28px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 0.65rem;
-    letter-spacing: 1px;
-    border: none;
-    cursor: pointer;
-    transition: box-shadow .2s, transform .1s;
+    padding:9px 20px; font-family:'Press Start 2P',monospace;
+    font-size:.52rem; letter-spacing:1px; border:none; cursor:pointer;
+    transition:box-shadow .2s; display:block; text-align:center;
   }
-  .card-btn:hover { transform: scale(1.05); }
+  .card-invaders .card-btn { background:var(--green); color:#000; }
+  .card-invaders .card-btn:hover { box-shadow:0 0 18px var(--green); }
+  .card-gomoku .card-btn { background:var(--cyan); color:#000; }
+  .card-gomoku .card-btn:hover { box-shadow:0 0 18px var(--cyan); }
+  .card-soon .card-btn { background:rgba(255,255,255,.05); color:var(--sub); cursor:not-allowed; }
 
-  /* 하단 */
-  .footer {
-    font-size: 0.65rem;
-    color: #344;
-    letter-spacing: 2px;
-    text-align: center;
-  }
-
-  /* 설정 버튼 */
-  .settings-btn {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 100;
-    background: transparent;
-    border: 1px solid rgba(255,230,0,.3);
-    color: var(--yellow);
-    font-size: 1.1rem;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background .2s, box-shadow .2s;
-  }
-  .settings-btn:hover {
-    background: rgba(255,230,0,.08);
-    box-shadow: 0 0 12px rgba(255,230,0,.3);
-  }
-
-  /* 모달 */
+  /* ────── MODAL ────── */
   .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.7);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.8); z-index:200;
+    align-items:center; justify-content:center;
   }
-  .modal-overlay.open { display: flex; }
-
+  .modal-overlay.open { display:flex; }
   .modal {
-    background: #0d1117;
-    border: 1px solid rgba(255,230,0,.35);
-    box-shadow: 0 0 40px rgba(255,230,0,.12);
-    padding: 28px 32px;
-    width: min(480px, 94vw);
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+    background:#080b16; border:1px solid rgba(255,170,0,.28);
+    box-shadow:0 0 60px rgba(255,170,0,.08);
+    padding:36px 40px; width:min(560px,94vw);
+    display:flex; flex-direction:column; gap:22px;
   }
   .modal-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: .65rem;
-    color: var(--yellow);
-    letter-spacing: 2px;
+    font-family:'Press Start 2P',monospace; font-size:.72rem;
+    color:var(--amber); letter-spacing:2px;
   }
-  .modal-field { display: flex; flex-direction: column; gap: 6px; }
-  .modal-label { font-size: .68rem; color: #788; }
-  .modal-input-wrap { display: flex; gap: 8px; }
+  .modal-field { display:flex; flex-direction:column; gap:8px; }
+  .modal-label { font-size:.72rem; color:var(--sub); }
+  .modal-input-wrap { display:flex; gap:8px; }
   .modal-input {
-    flex: 1;
-    background: #06080b;
-    border: 1px solid #1f2b33;
-    color: var(--text);
-    padding: 10px 12px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: .75rem;
+    flex:1; background:#06080b; border:1px solid #1f2b33;
+    color:var(--text); padding:12px 14px;
+    font-family:'Share Tech Mono',monospace; font-size:.82rem;
   }
-  .modal-input:focus { outline: none; border-color: var(--yellow); }
+  .modal-input:focus { outline:none; border-color:var(--amber); }
   .modal-show-btn {
-    background: transparent;
-    border: 1px solid #1f2b33;
-    color: #788;
-    padding: 0 12px;
-    cursor: pointer;
-    font-size: .7rem;
-    font-family: 'Share Tech Mono', monospace;
-    white-space: nowrap;
+    background:transparent; border:1px solid #1f2b33; color:var(--sub);
+    padding:0 14px; cursor:pointer; font-size:.76rem;
+    font-family:'Share Tech Mono',monospace; white-space:nowrap;
   }
-  .modal-show-btn:hover { color: var(--text); border-color: #344; }
-  .modal-hint { font-size: .62rem; color: #344; line-height: 1.5; }
+  .modal-show-btn:hover { color:var(--text); border-color:#344; }
+  .modal-hint { font-size:.68rem; color:#344; line-height:1.6; }
   .modal-status {
-    font-size: .68rem;
-    min-height: 1.2em;
-    padding: 8px 10px;
-    background: rgba(0,0,0,.3);
-    border-left: 3px solid #1f2b33;
-    display: none;
+    font-size:.74rem; min-height:1.2em; padding:10px 12px;
+    background:rgba(0,0,0,.3); border-left:3px solid #1f2b33; display:none;
   }
-  .modal-status.visible { display: block; }
-  .modal-status.ok  { border-color: var(--green); color: var(--green); }
-  .modal-status.err { border-color: var(--red);   color: var(--red); }
-  .modal-status.loading { border-color: var(--cyan); color: var(--cyan); }
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .modal-status.visible { display:block; }
+  .modal-status.ok  { border-color:var(--green); color:var(--green); }
+  .modal-status.err { border-color:var(--red); color:var(--red); }
+  .modal-status.loading { border-color:var(--cyan); color:var(--cyan); }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
   .modal-btn {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: .68rem;
-    padding: 10px 18px;
-    cursor: pointer;
-    border: none;
-    transition: box-shadow .15s;
+    font-family:'Share Tech Mono',monospace; font-size:.76rem;
+    padding:12px 22px; cursor:pointer; border:none; transition:box-shadow .15s;
   }
-  .modal-btn-test {
-    background: transparent;
-    border: 1px solid rgba(255,230,0,.3);
-    color: var(--yellow);
-  }
-  .modal-btn-test:hover { background: rgba(255,230,0,.08); }
-  .modal-btn-save { background: var(--yellow); color: #000; }
-  .modal-btn-save:hover { box-shadow: 0 0 16px var(--yellow); }
-  .modal-btn-cancel {
-    background: transparent;
-    border: 1px solid #1f2b33;
-    color: #566;
-  }
-  .modal-btn-cancel:hover { border-color: #344; color: #788; }
+  .modal-btn-test { background:transparent; border:1px solid rgba(255,170,0,.3); color:var(--amber); }
+  .modal-btn-test:hover { background:rgba(255,170,0,.08); }
+  .modal-btn-save { background:var(--amber); color:#000; }
+  .modal-btn-save:hover { box-shadow:0 0 18px var(--amber); }
+  .modal-btn-cancel { background:transparent; border:1px solid #1f2b33; color:var(--sub); }
+  .modal-btn-cancel:hover { border-color:#344; color:var(--text); }
   .modal-btn-disconnect {
-    background: transparent;
-    border: 1px solid rgba(255,51,102,.3);
-    color: var(--red);
-    margin-right: auto;
+    background:transparent; border:1px solid rgba(255,51,102,.3); color:var(--red); margin-right:auto;
   }
-  .modal-btn-disconnect:hover { background: rgba(255,51,102,.08); }
-  .modal-btn-disconnect:disabled { opacity: .3; cursor: not-allowed; }
+  .modal-btn-disconnect:hover { background:rgba(255,51,102,.08); }
+  .modal-btn-disconnect:disabled { opacity:.3; cursor:not-allowed; }
 
-  /* LLM 상태 표시 (메인화면) */
-  .llm-badge {
-    position: fixed;
-    top: 22px;
-    right: 70px;
-    z-index: 100;
-    font-size: .6rem;
-    color: #344;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .llm-badge-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #344;
-  }
-  .llm-badge-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
 </style>
 </head>
 <body>
-<!-- 설정 버튼 -->
-<div class="llm-badge" id="llmBadge">
-  <div class="llm-badge-dot" id="llmBadgeDot"></div>
-  <span id="llmBadgeText">LLM</span>
-</div>
-<button class="settings-btn" id="settingsBtn" title="API 설정">⚙</button>
 
 <!-- 설정 모달 -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-title">⚙ LLM API 설정</div>
-
     <div class="modal-field">
       <div class="modal-label">OPENROUTER API KEY</div>
       <div class="modal-input-wrap">
@@ -389,15 +352,12 @@
       </div>
       <div class="modal-hint" id="currentKeyHint">현재: 미설정</div>
     </div>
-
     <div class="modal-field">
       <div class="modal-label">MODEL</div>
       <input class="modal-input" type="text" id="modelInput" placeholder="meta-llama/llama-3.3-70b-instruct:free">
       <div class="modal-hint">비워두면 기본 모델이 사용됩니다.</div>
     </div>
-
     <div class="modal-status" id="modalStatus"></div>
-
     <div class="modal-actions">
       <button class="modal-btn modal-btn-disconnect" id="disconnectBtn" disabled>연결 해제</button>
       <button class="modal-btn modal-btn-cancel" id="modalCancelBtn">취소</button>
@@ -407,55 +367,136 @@
   </div>
 </div>
 
-<div class="container">
-  <div class="header">
-    <h1>AI ARCADE</h1>
-    <p class="sub">▶ SELECT YOUR GAME ◀</p>
+<!-- ────── TOP BAR ────── -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-hex">⬡</div>
+    <div class="topbar-logo">AI ARCADE</div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-sys">SAGE</div>
+  </div>
+  <div class="topbar-pills">
+    <div class="topbar-pill">
+      <div class="llm-badge-dot" id="llmBadgeDot"></div>
+      <span id="llmBadgeText">LLM</span>
+    </div>
+  </div>
+  <button class="settings-btn" id="settingsBtn" title="API 설정">⚙</button>
+</div>
+
+<!-- ────── MAIN ────── -->
+<div class="main">
+
+  <!-- LEFT: SENSEI PANEL -->
+  <div class="sensei-panel">
+
+    <div class="sensei-id">
+      <div class="sensei-tag">▶ AI COACH SYSTEM</div>
+      <div class="sensei-name">SAGE</div>
+      <div class="sensei-desc" style="font-size:0.55rem;color:var(--amber);margin-top:2px;letter-spacing:0.03em">Strategic Advisor for Guiding Everyone</div>
+      <div class="sensei-desc">강화학습 에이전트가 당신의 플레이를 분석하고, AI 코치가 맞춤형 전략 피드백을 제공합니다.</div>
+    </div>
+
+    <div class="sec-label">SYSTEM STATUS</div>
+    <div class="data-block">
+      <div class="data-row"><span>FRAMEWORK</span><span class="data-v">PyTorch RL</span></div>
+      <div class="data-row"><span>AGENT A</span><span class="data-v">D3QN</span></div>
+      <div class="data-row"><span>AGENT B</span><span class="data-v">PPO</span></div>
+      <div class="data-row"><span>COACH LLM</span><span class="data-v" id="llmBadgeText2">미설정</span></div>
+    </div>
+
+    <div class="sec-label">TERMINAL</div>
+    <div class="terminal">
+      <div class="t-line"><span class="t-prompt">SYS&gt;</span><span class="t-text">에이전트 로드 완료</span></div>
+      <div class="t-line"><span class="t-prompt">SYS&gt;</span><span class="t-text">분석 모듈 준비됨</span></div>
+      <div class="t-line"><span class="t-prompt">SYS&gt;</span><span class="t-amber">게임을 선택하세요<span class="t-cursor"></span></span></div>
+    </div>
+
+    <div class="sec-label">HOW TO USE</div>
+    <div class="steps-flow">
+      <div class="step-item"><div class="step-num">01</div><div class="step-label">게임 플레이</div><div class="step-val">실행</div></div>
+      <div class="step-item"><div class="step-num">02</div><div class="step-label">행동 자동 기록</div><div class="step-val">자동</div></div>
+      <div class="step-item"><div class="step-num">03</div><div class="step-label">AI 분석</div><div class="step-val">Q-Value</div></div>
+      <div class="step-item"><div class="step-num">04</div><div class="step-label">SAGE 피드백</div><div class="step-val">LLM</div></div>
+    </div>
+
   </div>
 
-  <div class="games">
-    <!-- Space Invaders -->
-    <a href="/space-invaders" class="game-card card-invaders">
-      <span class="card-icon">👾</span>
-      <div class="card-title">SPACE<br>INVADERS</div>
-      <p class="card-desc">
-        외계인을 처치하고 지구를 구하세요.<br>
-        플레이 후 AI가 당신의 전략을 분석합니다.
-      </p>
-      <div>
-        <span class="card-tag">ACTION</span>
-        <span class="card-tag">ATARI</span>
-        <span class="card-tag">AI 분석</span>
-      </div>
-      <br>
-      <span class="card-btn">PLAY NOW</span>
-    </a>
+  <!-- RIGHT: GAME AREA -->
+  <div class="game-area">
 
-    <!-- Gomoku -->
-    <a href="/gomoku" class="game-card card-gomoku">
-      <span class="card-icon">⚫</span>
-      <div class="card-title">GOMOKU<br>VS AI</div>
-      <p class="card-desc">
-        AlphaZero AI와 오목 대결.<br>
-        게임 후 각 착수의 Q-value를 분석합니다.
-      </p>
-      <div>
-        <span class="card-tag">STRATEGY</span>
-        <span class="card-tag">AlphaZero</span>
-        <span class="card-tag">Q-VALUE</span>
-      </div>
-      <br>
-      <span class="card-btn">PLAY NOW</span>
-    </a>
-  </div>
+    <div class="game-area-header">
+      <div class="game-area-title">▶ SELECT GAME</div>
+      <div class="game-count">2 ACTIVE &nbsp;·&nbsp; 2 COMING SOON</div>
+    </div>
 
-  <div class="footer">
-    POWERED BY REINFORCEMENT LEARNING &nbsp;·&nbsp; AI FEEDBACK SYSTEM
+    <div class="coach-bar">
+      <div class="coach-bar-icon">🎓</div>
+      <div>
+        <strong>SAGE</strong>: 게임 후 AI 코치가 전략을 분석합니다.
+        <strong>LLM API</strong>를 설정하면 자연어 맞춤 피드백을 받을 수 있습니다.
+        &nbsp;<a href="#" id="settingsBtnInline">⚙ API 설정</a>
+      </div>
+    </div>
+
+    <div class="game-grid">
+
+      <!-- ── SPACE INVADERS ── -->
+      <a href="/space-invaders" class="game-card card-invaders">
+        <div class="card-inner">
+          <span class="card-badge">D3QN</span>
+          <div class="card-icon">👾</div>
+          <div class="card-title">SPACE<br>INVADERS</div>
+          <div class="card-ai-tag">ATARI · ACTION</div>
+          <p class="card-desc">외계인을 처치하고 지구를 구하세요. 플레이 후 D3QN 에이전트가 전략을 분석합니다.</p>
+          <span class="card-btn">PLAY NOW</span>
+        </div>
+      </a>
+
+      <!-- ── GOMOKU ── -->
+      <a href="/gomoku" class="game-card card-gomoku">
+        <div class="card-inner">
+          <span class="card-badge">PPO</span>
+          <div class="card-icon">⚫</div>
+          <div class="card-title">GOMOKU<br>VS AI</div>
+          <div class="card-ai-tag">STRATEGY · BOARD</div>
+          <p class="card-desc">PPO AI와 오목 대결. 각 착수의 Q-Value를 분석하고 최선의 수를 알려줍니다.</p>
+          <span class="card-btn">PLAY NOW</span>
+        </div>
+      </a>
+
+      <!-- ── COMING SOON: CHESS ── -->
+      <div class="game-card card-soon">
+        <div class="card-inner">
+          <span class="card-badge">SOON</span>
+          <div class="card-icon">♟</div>
+          <div class="card-title">CHESS<br>VS AI</div>
+          <div class="card-ai-tag">MCTS · CLASSIC</div>
+          <p class="card-desc">MCTS 기반 AI와 체스 대결. 포지션 평가와 전술 분석을 제공합니다.</p>
+          <span class="card-btn">COMING SOON</span>
+        </div>
+      </div>
+
+      <!-- ── COMING SOON: BREAKOUT ── -->
+      <div class="game-card card-soon">
+        <div class="card-inner">
+          <span class="card-badge">SOON</span>
+          <div class="card-icon">🎯</div>
+          <div class="card-title">BREAKOUT<br>AI</div>
+          <div class="card-ai-tag">Rainbow DQN</div>
+          <p class="card-desc">Rainbow DQN과 블록 깨기 대결. 집중력과 연속 콤보 전략을 분석합니다.</p>
+          <span class="card-btn">COMING SOON</span>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
+
 <script>
 const overlay       = document.getElementById('modalOverlay');
 const settingsBtn   = document.getElementById('settingsBtn');
+const settingsBtnInline = document.getElementById('settingsBtnInline');
 const cancelBtn     = document.getElementById('modalCancelBtn');
 const saveBtn       = document.getElementById('saveBtn');
 const testBtn       = document.getElementById('testBtn');
@@ -467,20 +508,22 @@ const statusEl      = document.getElementById('modalStatus');
 const keyHint       = document.getElementById('currentKeyHint');
 const badgeDot      = document.getElementById('llmBadgeDot');
 const badgeText     = document.getElementById('llmBadgeText');
+const badgeText2    = document.getElementById('llmBadgeText2');
 
 function setStatus(msg, type) {
   statusEl.textContent = msg;
   statusEl.className = 'modal-status visible ' + (type || '');
 }
+function clearStatus() { statusEl.className = 'modal-status'; }
 
-function clearStatus() {
-  statusEl.className = 'modal-status';
-}
-
-function updateBadge(hasKey) {
+function updateBadge(hasKey, model) {
   badgeDot.className = 'llm-badge-dot' + (hasKey ? ' on' : '');
   badgeText.textContent = hasKey ? 'LLM ON' : 'LLM OFF';
-  badgeText.style.color = hasKey ? 'var(--green)' : '#344';
+  badgeText.style.color = hasKey ? 'var(--green)' : 'var(--sub)';
+  if (badgeText2) {
+    badgeText2.textContent = hasKey ? (model || 'Connected') : '미설정';
+    badgeText2.style.color = hasKey ? 'var(--cyan)' : 'var(--sub)';
+  }
   disconnectBtn.disabled = !hasKey;
 }
 
@@ -490,104 +533,56 @@ async function loadSettings() {
     const data = await res.json();
     modelInput.value = data.model || '';
     keyHint.textContent = data.has_key ? `현재: ${data.masked_key}` : '현재: 미설정';
-    updateBadge(data.has_key);
+    updateBadge(data.has_key, data.model);
   } catch(e) {}
 }
 
-settingsBtn.addEventListener('click', () => {
-  apiKeyInput.value = '';
-  clearStatus();
-  loadSettings();
-  overlay.classList.add('open');
-});
+function openModal() { apiKeyInput.value = ''; clearStatus(); loadSettings(); overlay.classList.add('open'); }
+function closeModal() { overlay.classList.remove('open'); }
 
-function closeModal() {
-  overlay.classList.remove('open');
-}
-
+settingsBtn.addEventListener('click', openModal);
+if (settingsBtnInline) settingsBtnInline.addEventListener('click', e => { e.preventDefault(); openModal(); });
 cancelBtn.addEventListener('click', closeModal);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
 disconnectBtn.addEventListener('click', async () => {
-  setStatus('연결 해제 중...', 'loading');
-  disconnectBtn.disabled = true;
+  setStatus('연결 해제 중...', 'loading'); disconnectBtn.disabled = true;
   try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clear_key: true, model: modelInput.value.trim() }),
-    });
+    const res = await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ clear_key:true, model:modelInput.value.trim() }) });
     const data = await res.json();
-    if (data.ok) {
-      setStatus('연결이 해제되었습니다.', 'err');
-      apiKeyInput.value = '';
-      await loadSettings();
-    }
-  } catch(e) {
-    setStatus('요청 오류: ' + e.message, 'err');
-    disconnectBtn.disabled = false;
-  }
+    if (data.ok) { setStatus('연결이 해제되었습니다.', 'err'); apiKeyInput.value = ''; await loadSettings(); }
+  } catch(e) { setStatus('요청 오류: ' + e.message, 'err'); disconnectBtn.disabled = false; }
 });
 
 showKeyBtn.addEventListener('click', () => {
-  if (apiKeyInput.type === 'password') {
-    apiKeyInput.type = 'text';
-    showKeyBtn.textContent = '숨기기';
-  } else {
-    apiKeyInput.type = 'password';
-    showKeyBtn.textContent = '보기';
-  }
+  if (apiKeyInput.type === 'password') { apiKeyInput.type = 'text'; showKeyBtn.textContent = '숨기기'; }
+  else { apiKeyInput.type = 'password'; showKeyBtn.textContent = '보기'; }
 });
 
 saveBtn.addEventListener('click', async () => {
-  const api_key = apiKeyInput.value.trim();
-  const model   = modelInput.value.trim();
+  const api_key = apiKeyInput.value.trim(), model = modelInput.value.trim();
   setStatus('저장 중...', 'loading');
   try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key, model }),
-    });
+    const res = await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ api_key, model }) });
     const data = await res.json();
-    if (data.ok) {
-      setStatus('저장되었습니다.', 'ok');
-      await loadSettings();
-      apiKeyInput.value = '';
-    } else {
-      setStatus('저장에 실패했습니다.', 'err');
-    }
-  } catch(e) {
-    setStatus('요청 오류: ' + e.message, 'err');
-  }
+    if (data.ok) { setStatus('저장되었습니다.', 'ok'); await loadSettings(); apiKeyInput.value = ''; }
+    else setStatus('저장에 실패했습니다.', 'err');
+  } catch(e) { setStatus('요청 오류: ' + e.message, 'err'); }
 });
 
 testBtn.addEventListener('click', async () => {
-  const api_key = apiKeyInput.value.trim();
-  const model   = modelInput.value.trim();
-  setStatus('연결 테스트 중...', 'loading');
-  testBtn.disabled = true;
+  const api_key = apiKeyInput.value.trim(), model = modelInput.value.trim();
+  setStatus('연결 테스트 중...', 'loading'); testBtn.disabled = true;
   try {
-    // 현재 입력값으로 임시 저장 후 테스트
-    if (api_key) {
-      await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key, model }),
-      });
-    }
-    const res  = await fetch('/api/settings/test', { method: 'POST' });
+    if (api_key) await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ api_key, model }) });
+    const res = await fetch('/api/settings/test', { method:'POST' });
     const data = await res.json();
     setStatus(data.message || (data.ok ? '연결 성공' : '연결 실패'), data.ok ? 'ok' : 'err');
     await loadSettings();
-  } catch(e) {
-    setStatus('요청 오류: ' + e.message, 'err');
-  } finally {
-    testBtn.disabled = false;
-  }
+  } catch(e) { setStatus('요청 오류: ' + e.message, 'err'); }
+  finally { testBtn.disabled = false; }
 });
 
-// 페이지 로드 시 배지 초기화
 loadSettings();
 </script>
 </body>
