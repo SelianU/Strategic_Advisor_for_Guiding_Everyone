@@ -12,10 +12,7 @@ import cv2
 import numpy as np
 import torch
 
-# ── gomoku_rl (Gomoku) ───────────────────────────────────────
 from gomoku_rl_adapter import GomokuRLBoard, GomokuPPOEngine, load_gomoku_ppo
-
-# ── D3QN (Space Invaders) ────────────────────────────────────
 from d3qn_helper import load_d3qn, get_q_values, ACTION_NAMES
 from llm_feedback import generate_feedback, test_openrouter_connection, DEFAULT_MODEL, FALLBACK_MODELS
 
@@ -24,7 +21,6 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-# ── Config (API 키 영속 저장) ─────────────────────────────────
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 
 def load_config():
@@ -54,12 +50,10 @@ def save_config(api_key: str, model: str):
 
 load_config()
 
-# ── Atari 환경 ───────────────────────────────────────────────
-# _si_cfg     = D3QNConfig()
 from collections import deque
-_si_env    = gym.make('ALE/SpaceInvaders-v5', render_mode='rgb_array',
-                      frameskip=1, repeat_action_probability=0.0)
-_si_frames = deque(maxlen=4)   # D3QN 분석용 프레임 스택
+_si_env = gym.make('ALE/SpaceInvaders-v5', render_mode='rgb_array',
+                   frameskip=1, repeat_action_probability=0.0)
+_si_frames = deque(maxlen=4)
 
 def _preprocess(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
@@ -69,16 +63,7 @@ def _get_stacked():
     return np.array(_si_frames, dtype=np.uint8)
 
 
-def load_model(model_path, board_size):
-    return load_gomoku_ppo(model_path, board_size=board_size, device=DEVICE)
-
-
-def make_policy_value_fn(engine):
-    return engine.policy_value_fn
-
-
 def compute_q_values(board, policy_value_net, n_playout=80):
-    """Estimate action values for each legal move from policy logits and state value."""
     legal_positions = list(board.availables)
     if not legal_positions:
         return {
@@ -100,7 +85,6 @@ def compute_q_values(board, policy_value_net, n_playout=80):
         'v_s': float(v_s),
     }
 
-# ── D3QN 모델 ────────────────────────────────────────────────
 D3QN_MODEL_PATH = os.path.join(
     os.path.dirname(__file__), 'checkpoints_v3_logs', 'best_model.pth'
 )
@@ -110,15 +94,13 @@ if os.path.exists(D3QN_MODEL_PATH):
 else:
     print(f"⚠️  D3QN 모델 없음: {D3QN_MODEL_PATH}")
 
-# ── Gomoku 모델 ──────────────────────────────────────────────
 BOARD_W, BOARD_H, N_IN_ROW = 15, 15, 5
 _GOMOKU_PPO_PATH = os.path.join(
     os.path.dirname(__file__), 'gomoku_rl', 'pretrained_models', '15_15', 'ppo', '0.pt'
 )
-gomoku_net = load_model(_GOMOKU_PPO_PATH, board_size=BOARD_W)
+gomoku_net = load_gomoku_ppo(_GOMOKU_PPO_PATH, board_size=BOARD_W, device=DEVICE)
 print("✅ Gomoku PPO 모델 로드 완료 (15×15)")
 
-# ── 상태 ─────────────────────────────────────────────────────
 si_episode_data  = []
 si_env_ready     = False
 si_stacked_state = None
@@ -142,8 +124,6 @@ gomoku_human_color = 1   # 1=흑(선착), 2=백(후착)
 
 
 def emit_gomoku_terminal_state(payload, sid):
-    # Reuse the standard live-state event so the final AI move/result is rendered
-    # through the exact same path as ordinary Gomoku moves.
     socketio.emit('gomoku_state', payload, room=sid, namespace='/')
 
 SAVED_SESSIONS_DIR = os.path.join(os.path.dirname(__file__), 'saved_sessions')
@@ -183,7 +163,6 @@ def list_saved_sessions(game_name):
 
 
 def select_si_top5(analyses, k=5, min_gap=3):
-    """전체를 k구간으로 나눠 구간별 최대 loss를 뽑되, step 간격 min_gap 이상 보장."""
     if not analyses:
         return []
     total = len(analyses)
@@ -276,7 +255,7 @@ def serialize_gomoku_history():
 
 
 def rebuild_gomoku_history(saved_moves):
-    board = Board(width=BOARD_W, height=BOARD_H, n_in_row=N_IN_ROW)
+    board = GomokuRLBoard(board_size=BOARD_W, n_in_row=N_IN_ROW)
     board.init_board(start_player=0)
     rebuilt = []
     for item in saved_moves:
@@ -332,19 +311,6 @@ def compose_space_compare_frame(human_frame, agent_frame, overlay):
     canvas[:, w:w * 2] = agent_frame
     cv2.line(canvas, (w, 0), (w, h), (80, 80, 80), 2)
     return canvas
-
-
-def build_space_fallback_feedback(summary):
-    human_steps = summary.get('human_reward_steps', [])
-    agent_steps = summary.get('agent_reward_steps', [])
-    human_steps_text = ", ".join(f"{s}프레임" for s in human_steps[:5]) if human_steps else "득점이 없었습니다"
-    agent_steps_text = ", ".join(f"{s}프레임" for s in agent_steps[:5]) if agent_steps else "득점이 없었습니다"
-
-    lines = [
-        f"이 상황에서는 인간 플레이어가 {summary['human_action_name']}을 선택했지만, 에이전트의 {summary['agent_action_name']}가 더 유리했습니다. 비교 영상을 보면 에이전트 쪽은 이동보다 공격 타이밍을 먼저 살리면서 득점 흐름을 앞당겼고, 인간 쪽은 위험을 피하는 데는 성공했지만 득점으로 이어지는 기회를 더 늦게 잡았습니다.",
-        f"인간 쪽 득점은 {human_steps_text}에 나왔고, 에이전트 쪽 득점은 {agent_steps_text}에 이어졌습니다. 이번 장면에서 중요한 점은 최종 점수 차이보다 에이전트가 더 이른 프레임부터 반복적으로 득점 기회를 만들었다는 점입니다.",
-    ]
-    return "\n\n".join(lines)
 
 
 def find_gomoku_winning_line(board):
@@ -418,7 +384,6 @@ def render_gomoku_board(board, highlight_move=None, title="", highlight_black_on
     for i in range(BOARD_H):
         y = margin + 12 + i * cell
         cv2.line(img, (margin, y), (margin + cell * (BOARD_W - 1), y), (80, 60, 35), 1)
-    # ── Q-value 히트맵 (빈 교차점, 돌 그리기 전) ─────────────
     if q_values is not None:
         valid = [
             (pos, float(q_values[pos])) for pos in board.availables
@@ -511,21 +476,8 @@ def choose_gomoku_best_move(board, n_playout=80):
     return int(res['best_action']), res
 
 
-def build_gomoku_fallback_feedback(summary):
-    actual = f"({summary['actual_row']}, {summary['actual_col']})"
-    best = f"({summary['best_row']}, {summary['best_col']})"
-    human_seq = ", ".join(summary.get('human_sequence_labels', [])[:6]) or "기록 없음"
-    agent_seq = ", ".join(summary.get('agent_sequence_labels', [])[:6]) or "기록 없음"
-    lines = [
-        f"이 장면에서는 인간 플레이어가 {actual}에 착수했지만, AI가 권장한 {best}가 더 유리했습니다. 실제 착수는 돌을 길게 이어 가거나 상대 위협을 먼저 끊어내는 힘이 다소 약했던 반면, 권장 착수는 더 높은 가치로 평가되어 이후 전개에서 주도권을 잡기 쉬운 선택이었습니다.",
-        f"비교 전개를 보면 인간 쪽은 이후 수순이 {human_seq} 순으로 이어졌고, 에이전트 쪽은 {agent_seq}처럼 더 빠르게 핵심 자리를 선점하면서 열린 3목이나 4목으로 이어질 가능성을 넓혔습니다. 특히 권장 수는 한 방향만 잇는 데 그치지 않고 양쪽으로 확장될 여지를 만들거나, 상대가 먼저 위협을 만들기 전에 흐름을 끊는 데 더 적합한 수였습니다. 이번 장면에서 중요한 점은 한 수의 위치 차이가 돌의 연결, 상대 위협 차단, 다음 수를 강제하는 흐름, 이후 수순 전체의 효율을 함께 바꾼다는 점입니다.",
-    ]
-    return "\n\n".join(lines)
 
 
-
-
-# ══ 라우트 ════════════════════════════════════════════════════
 
 @app.route('/')
 def index():
@@ -572,7 +524,6 @@ def post_settings():
         os.environ.pop('OPENROUTER_API_KEY', None)
     elif api_key:
         os.environ['OPENROUTER_API_KEY'] = api_key
-    # 빈 키가 전송된 경우 기존 키를 유지 (모달 재오픈 시 입력란이 비워져도 덮어쓰지 않음)
     os.environ['OPENROUTER_MODEL'] = model
     save_config(os.getenv('OPENROUTER_API_KEY', ''), model)
     return jsonify({'ok': True})
@@ -756,8 +707,6 @@ def handle_gomoku_delete_session(data):
         shutil.rmtree(session_dir)
     emit('gomoku_session_deleted', {'ok': True, 'message': '기록을 삭제했습니다.', 'sessions': list_saved_sessions('gomoku')})
 
-
-# ══ Space Invaders ════════════════════════════════════════════
 
 def basic_analyze(data):
     acts   = [d['action'] for d in data if d['action'] is not None]
@@ -1007,8 +956,6 @@ def handle_si_counterfactual(data):
     emit('si_counterfactual_ready', payload)
 
 
-# ══ Gomoku ════════════════════════════════════════════════════
-
 def board_to_dict(board):
     cells = [int(board.states.get(r * BOARD_W + c, 0))
              for r in range(BOARD_H) for c in range(BOARD_W)]
@@ -1061,7 +1008,6 @@ def handle_gomoku_start(data=None):
         'session_id': gomoku_session_id,
         'state_seq': gomoku_state_seq,
     })
-    # 인간이 백을 선택한 경우 AI(흑)가 먼저 착수
     if gomoku_human_color == 2:
         sid = request.sid
         eventlet.sleep(0)
@@ -1069,7 +1015,6 @@ def handle_gomoku_start(data=None):
         _process_gomoku_ai_opening(gomoku_session_id, sid)
 
 def _process_gomoku_ai_opening(session_id, sid):
-    """인간이 백을 선택했을 때 AI(흑)의 첫 번째 착수를 처리한다 (history 기록 없음)."""
     global gomoku_board, gomoku_active, gomoku_state_seq
     if session_id != gomoku_session_id or not gomoku_active or gomoku_board is None:
         return
@@ -1101,7 +1046,7 @@ def handle_gomoku_move(data):
         emit('gomoku_error', {'message': '이미 돌이 놓인 위치입니다.'}, to=sid)
         return
     if gomoku_board.current_player != gomoku_human_color:
-        return  # AI 차례에 클릭 무시
+        return
 
     board_before = copy.deepcopy(gomoku_board)
     gomoku_board.do_move(move)
@@ -1137,7 +1082,6 @@ def handle_gomoku_move(data):
         'session_id': gomoku_session_id,
         'state_seq': gomoku_state_seq,
     }, to=sid)
-    # Flush the human move to the client first, then show the AI response.
     eventlet.sleep(0)
     eventlet.sleep(0.55)
     process_gomoku_ai_turn(gomoku_session_id, len(gomoku_history) - 1, sid)
@@ -1155,7 +1099,6 @@ def process_gomoku_ai_turn(session_id, history_index, sid):
         ai_r, ai_c = int(ai_move // BOARD_W), int(ai_move % BOARD_W)
         gomoku_board.do_move(ai_move)
         gomoku_history[history_index]['ai_move'] = ai_move
-        print(f"Gomoku AI move emitted: session={session_id}, move=({ai_r},{ai_c})")
 
         end2, winner2 = gomoku_board.game_end()
         if end2:
@@ -1163,7 +1106,6 @@ def process_gomoku_ai_turn(session_id, history_index, sid):
             r = '흑(●) 승리!' if winner2 == 1 else ('백(○) 승리!' if winner2 == 2 else '무승부')
             winning_line, _ = find_gomoku_winning_line(gomoku_board) if winner2 in (1, 2) else (None, -1)
             outcome_text = human_perspective_outcome_text(winner2)
-            print(f"Gomoku terminal emit: session={session_id}, winner={winner2}")
             emit_gomoku_terminal_state({
                 **board_to_dict(gomoku_board),
                 'message': f'AI 착수: ({ai_r},{ai_c}) — {r}',
@@ -1308,7 +1250,6 @@ def handle_gomoku_counterfactual(data):
 
     best_move = candidate['best_row'] * BOARD_W + candidate['best_col']
     if best_move in agent_board.availables:
-        # 첫 흑 착수 프레임 (히트맵 없음 — 직전 백 프레임이 없어 기준 없음)
         agent_board.do_move(best_move)
         agent_sequence_labels.append(f"({candidate['best_row']}, {candidate['best_col']})")
         agent_frames.append(render_gomoku_board(
@@ -1332,27 +1273,21 @@ def handle_gomoku_counterfactual(data):
         agent_turns += 1
         end_a, winner_a = agent_board.game_end()
         if end_a:
-            # 게임 종료 프레임: 히트맵 없음
             agent_outcome = human_perspective_outcome_text(winner_a)
             agent_frames.append(render_gomoku_board(
                 agent_board, highlight_move=next_a))
             break
         if current_player == 2:
-            # 백 착수 직후 → 흑 차례 상태에서 Q-value 계산해서 백 프레임에 히트맵 합침
             black_q = compute_q_values(agent_board, gomoku_net, n_playout=80)['q_values']
-            agent_frames.append(render_gomoku_board(
-                agent_board, highlight_move=next_a, q_values=black_q))
+            agent_frames.append(render_gomoku_board(agent_board, highlight_move=next_a, q_values=black_q))
         else:
-            # 흑 착수 프레임: 히트맵 없음
-            agent_frames.append(render_gomoku_board(
-                agent_board, highlight_move=next_a))
+            agent_frames.append(render_gomoku_board(agent_board, highlight_move=next_a))
 
     if not human_frames:
         human_frames.append(render_gomoku_board(human_board))
     if not agent_frames:
         agent_frames.append(render_gomoku_board(agent_board))
 
-    # 양쪽 프레임 수 맞추기 (자동 재생 동기화용)
     length = max(len(human_frames), len(agent_frames))
     while len(human_frames) < length:
         human_frames.append(human_frames[-1].copy())

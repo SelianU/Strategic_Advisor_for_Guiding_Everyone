@@ -1,7 +1,3 @@
-"""
-D3QN 분석 헬퍼 — app.py에서 import해서 사용
-DuelingDQN, GradRescale, AtariWrapper, Config를 독립적으로 제공
-"""
 import random
 from collections import deque
 
@@ -135,7 +131,6 @@ def load_d3qn(model_path: str, device='cpu'):
     net = DuelingDQN(input_shape, n_actions).to(device)
     ckpt = torch.load(model_path, map_location=device, weights_only=False)
 
-    # torch.compile로 저장된 경우 _orig_mod. 접두사 제거
     state_dict = ckpt['q_network']
     if any(k.startswith('_orig_mod.') for k in state_dict):
         state_dict = {k.replace('_orig_mod.', ''): v for k, v in state_dict.items()}
@@ -147,7 +142,6 @@ def load_d3qn(model_path: str, device='cpu'):
 
 
 def get_q_values(net, state: np.ndarray, device='cpu') -> np.ndarray:
-    """state (4,84,84) uint8 → Q값 배열 (n_actions,)"""
     s = torch.as_tensor(state, dtype=torch.uint8, device=device).unsqueeze(0)
     with torch.no_grad():
         q = net(s).squeeze(0).cpu().numpy()
@@ -155,10 +149,6 @@ def get_q_values(net, state: np.ndarray, device='cpu') -> np.ndarray:
 
 
 def analyze_episode(net, episode_data: list, device='cpu') -> dict:
-    """
-    episode_data: [{'stacked_state': ndarray, 'action': int, 'reward': float, ...}, ...]
-    반환: 착수별 분석 결과 + 최악의 착수
-    """
     analyses = []
     for i, entry in enumerate(episode_data):
         state  = entry.get('stacked_state')
@@ -193,7 +183,6 @@ def analyze_episode(net, episode_data: list, device='cpu') -> dict:
     avg_loss = round(float(np.mean(losses)), 3)
     worst    = max(analyses, key=lambda a: a['loss'])
 
-    # 행동별 통계
     from collections import Counter
     action_counts = Counter(a['action'] for a in analyses)
     best_counts   = Counter(a['best_action'] for a in analyses)
