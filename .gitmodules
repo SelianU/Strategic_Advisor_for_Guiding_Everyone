@@ -1,6 +1,3 @@
-[submodule "AlphaZero_Gomoku"]
-	path = AlphaZero_Gomoku
-	url = https://github.com/junxiaosong/AlphaZero_Gomoku.git
 [submodule "gomoku_rl"]
 	path = gomoku_rl
 	url = https://github.com/SelianU/gomoku_rl.git
