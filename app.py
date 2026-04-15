@@ -12,12 +12,8 @@ import cv2
 import numpy as np
 import torch
 
-# ── AlphaZero (Gomoku) ───────────────────────────────────────
-ALPHAZERO_DIR = os.path.join(os.path.dirname(__file__), 'AlphaZero_Gomoku')
-sys.path.insert(0, ALPHAZERO_DIR)
-from game import Board
-from mcts_alphaZero import MCTSPlayer
-from policy_value_net_numpy import PolicyValueNetNumpy
+# ── gomoku_rl (Gomoku) ───────────────────────────────────────
+from gomoku_rl_adapter import GomokuRLBoard, GomokuPPOEngine, load_gomoku_ppo
 
 # ── D3QN (Space Invaders) ────────────────────────────────────
 from d3qn_helper import load_d3qn, get_q_values, ACTION_NAMES
@@ -73,18 +69,12 @@ def _get_stacked():
     return np.array(_si_frames, dtype=np.uint8)
 
 
-def load_model(model_path, board_width, board_height):
-    try:
-        with open(model_path, 'rb') as f:
-            net_params = pickle.load(f)
-    except Exception:
-        with open(model_path, 'rb') as f:
-            net_params = pickle.load(f, encoding='bytes')
-    return PolicyValueNetNumpy(board_width, board_height, net_params)
+def load_model(model_path, board_size):
+    return load_gomoku_ppo(model_path, board_size=board_size, device=DEVICE)
 
 
-def make_policy_value_fn(policy_value_net):
-    return policy_value_net.policy_value_fn
+def make_policy_value_fn(engine):
+    return engine.policy_value_fn
 
 
 def compute_q_values(board, policy_value_net, n_playout=80):
@@ -121,12 +111,12 @@ else:
     print(f"⚠️  D3QN 모델 없음: {D3QN_MODEL_PATH}")
 
 # ── Gomoku 모델 ──────────────────────────────────────────────
-BOARD_W, BOARD_H, N_IN_ROW = 8, 8, 5
-gomoku_net = load_model(
-    os.path.join(ALPHAZERO_DIR, 'best_policy_8_8_5.model'),
-    BOARD_W, BOARD_H
+BOARD_W, BOARD_H, N_IN_ROW = 15, 15, 5
+_GOMOKU_PPO_PATH = os.path.join(
+    os.path.dirname(__file__), 'gomoku_rl', 'pretrained_models', '15_15', 'ppo', '0.pt'
 )
-print("✅ Gomoku 모델 로드 완료")
+gomoku_net = load_model(_GOMOKU_PPO_PATH, board_size=BOARD_W)
+print("✅ Gomoku PPO 모델 로드 완료 (15×15)")
 
 # ── 상태 ─────────────────────────────────────────────────────
 si_episode_data  = []
@@ -148,6 +138,7 @@ gomoku_session_id = 0
 gomoku_analysis_timer = None
 gomoku_ai_turn_timer = None
 gomoku_state_seq = 0
+gomoku_human_color = 1   # 1=흑(선착), 2=백(후착)
 
 
 def emit_gomoku_terminal_state(payload, sid):
@@ -392,12 +383,12 @@ def find_gomoku_winning_line(board):
 
 
 def human_perspective_outcome_text(winner):
-    if winner == 1:
-        return "WIN"
-    if winner == 2:
-        return "LOSE"
     if winner == -1:
         return "DRAW"
+    if winner == gomoku_human_color:
+        return "WIN"
+    if winner != -1:
+        return "LOSE"
     return None
 
 
@@ -412,9 +403,10 @@ def _q_to_bgr(t):
 
 
 def render_gomoku_board(board, highlight_move=None, title="", highlight_black_only=True, winning_line=None, outcome_text=None, q_values=None):
-    size = 420
     margin = 36
-    cell = (size - margin * 2) // (BOARD_W - 1)
+    cell = max(24, 510 // BOARD_W)          # 15×15: 34 / 8×8: 63 (자동 스케일)
+    size = margin * 2 + cell * (BOARD_W - 1)
+    stone_r = max(9, cell // 3)             # 돌 반지름 (cell에 비례)
     img = np.full((size + 48, size, 3), 226, dtype=np.uint8)
     img[:, :] = (226, 194, 140)
     cv2.rectangle(img, (0, 0), (size - 1, size + 47), (70, 45, 20), 2)
@@ -439,6 +431,8 @@ def render_gomoku_board(board, highlight_move=None, title="", highlight_black_on
             q_min = top_k[-1][1]
             q_range = max(q_max - q_min, 1e-8)
             heat_layer = img.copy()
+            heat_r_min = max(4, cell // 7)
+            heat_r_max = max(7, cell // 4)
             for pos, qv in top_k:
                 t = (qv - q_min) / q_range
                 bgr = _q_to_bgr(t)
@@ -446,7 +440,7 @@ def render_gomoku_board(board, highlight_move=None, title="", highlight_black_on
                 display_row = (BOARD_H - 1) - row
                 x = margin + col * cell
                 y = margin + 12 + display_row * cell
-                radius = int(5 + 9 * t)
+                radius = int(heat_r_min + (heat_r_max - heat_r_min) * t)
                 cv2.circle(heat_layer, (x, y), radius, bgr, -1)
                 cv2.circle(heat_layer, (x, y), radius, (210, 210, 210), 1)
             img = cv2.addWeighted(heat_layer, 0.75, img, 0.25, 0)
@@ -456,8 +450,8 @@ def render_gomoku_board(board, highlight_move=None, title="", highlight_black_on
         x = margin + col * cell
         y = margin + 12 + display_row * cell
         color = (30, 30, 30) if player == 1 else (240, 240, 240)
-        cv2.circle(img, (x, y), 16, color, -1)
-        cv2.circle(img, (x, y), 16, (60, 60, 60), 1)
+        cv2.circle(img, (x, y), stone_r, color, -1)
+        cv2.circle(img, (x, y), stone_r, (60, 60, 60), 1)
     if winning_line:
         line_points = []
         for move in winning_line:
@@ -469,7 +463,7 @@ def render_gomoku_board(board, highlight_move=None, title="", highlight_black_on
         line_color = (70, 220, 120) if outcome_text == "WIN" else ((80, 80, 255) if outcome_text == "LOSE" else (0, 215, 255))
         cv2.line(img, line_points[0], line_points[-1], line_color, 4, cv2.LINE_AA)
         for point in line_points:
-            cv2.circle(img, point, 20, line_color, 2, cv2.LINE_AA)
+            cv2.circle(img, point, stone_r + 4, line_color, 2, cv2.LINE_AA)
     if highlight_move is not None and highlight_move != -1:
         highlight_player = board.states.get(highlight_move)
         if highlight_black_only and highlight_player != 1 and not winning_line and not outcome_text:
@@ -478,7 +472,7 @@ def render_gomoku_board(board, highlight_move=None, title="", highlight_black_on
         display_row = (BOARD_H - 1) - row
         x = margin + col * cell
         y = margin + 12 + display_row * cell
-        cv2.circle(img, (x, y), 21, (0, 255, 255), 2)
+        cv2.circle(img, (x, y), stone_r + 5, (0, 255, 255), 2)
     if outcome_text:
         overlay = img.copy()
         cv2.rectangle(overlay, (82, 18), (size - 82, 66), (20, 20, 20), -1)
@@ -1033,8 +1027,8 @@ def schedule_gomoku_analysis(session_id):
     gomoku_analysis_timer = eventlet.spawn_after(3.2, run_gomoku_analysis, session_id)
 
 @socketio.on('gomoku_start')
-def handle_gomoku_start():
-    global gomoku_board, gomoku_history, gomoku_active, ai_player, gomoku_analysis_results, gomoku_counterfactual_cache, gomoku_session_id, gomoku_analysis_timer, gomoku_ai_turn_timer, gomoku_state_seq
+def handle_gomoku_start(data=None):
+    global gomoku_board, gomoku_history, gomoku_active, ai_player, gomoku_analysis_results, gomoku_counterfactual_cache, gomoku_session_id, gomoku_analysis_timer, gomoku_ai_turn_timer, gomoku_state_seq, gomoku_human_color
     if gomoku_analysis_timer is not None:
         try:
             gomoku_analysis_timer.cancel()
@@ -1047,23 +1041,53 @@ def handle_gomoku_start():
         except Exception:
             pass
         gomoku_ai_turn_timer = None
+    data = data or {}
+    gomoku_human_color = int(data.get('human_color', 1))
     gomoku_session_id += 1
-    gomoku_board = Board(width=BOARD_W, height=BOARD_H, n_in_row=N_IN_ROW)
+    gomoku_board = GomokuRLBoard(board_size=BOARD_W, n_in_row=N_IN_ROW)
     gomoku_board.init_board(start_player=0)
     gomoku_history = []
     gomoku_analysis_results = []
     gomoku_counterfactual_cache = {}
     gomoku_state_seq = 0
     gomoku_active  = True
-    ai_player = MCTSPlayer(make_policy_value_fn(gomoku_net), c_puct=5,
-                           n_playout=400, is_selfplay=0)
+    ai_player = gomoku_net
+    color_text = '흑(●)' if gomoku_human_color == 1 else '백(○)'
     gomoku_state_seq += 1
     emit('gomoku_state', {
         **board_to_dict(gomoku_board),
-        'message': '당신은 흑(●)입니다!',
+        'message': f'당신은 {color_text}입니다!',
+        'human_color': gomoku_human_color,
         'session_id': gomoku_session_id,
         'state_seq': gomoku_state_seq,
     })
+    # 인간이 백을 선택한 경우 AI(흑)가 먼저 착수
+    if gomoku_human_color == 2:
+        sid = request.sid
+        eventlet.sleep(0)
+        eventlet.sleep(0.4)
+        _process_gomoku_ai_opening(gomoku_session_id, sid)
+
+def _process_gomoku_ai_opening(session_id, sid):
+    """인간이 백을 선택했을 때 AI(흑)의 첫 번째 착수를 처리한다 (history 기록 없음)."""
+    global gomoku_board, gomoku_active, gomoku_state_seq
+    if session_id != gomoku_session_id or not gomoku_active or gomoku_board is None:
+        return
+    try:
+        ai_move = ai_player.get_action(gomoku_board, temp=1e-3)
+        ai_r, ai_c = int(ai_move // BOARD_W), int(ai_move % BOARD_W)
+        gomoku_board.do_move(ai_move)
+        gomoku_state_seq += 1
+        socketio.emit('gomoku_state', {
+            **board_to_dict(gomoku_board),
+            'message': f'AI 선착: ({ai_r},{ai_c}) — 당신의 차례입니다.',
+            'human_color': gomoku_human_color,
+            'session_id': session_id,
+            'state_seq': gomoku_state_seq,
+        }, room=sid, namespace='/')
+    except Exception as exc:
+        print(f'AI 선착 오류: {exc}')
+
 
 @socketio.on('gomoku_move')
 def handle_gomoku_move(data):
@@ -1076,6 +1100,8 @@ def handle_gomoku_move(data):
     if move not in gomoku_board.availables:
         emit('gomoku_error', {'message': '이미 돌이 놓인 위치입니다.'}, to=sid)
         return
+    if gomoku_board.current_player != gomoku_human_color:
+        return  # AI 차례에 클릭 무시
 
     board_before = copy.deepcopy(gomoku_board)
     gomoku_board.do_move(move)
@@ -1095,6 +1121,7 @@ def handle_gomoku_move(data):
             'winner': int(winner),
             'winning_line': winning_line,
             'outcome_text': outcome_text,
+            'human_color': gomoku_human_color,
             'session_id': gomoku_session_id,
             'state_seq': gomoku_state_seq + 1,
         }, sid)
@@ -1106,6 +1133,7 @@ def handle_gomoku_move(data):
     emit('gomoku_state', {
         **board_to_dict(gomoku_board),
         'message': f'당신의 착수: ({row},{col}) — AI 생각 중...',
+        'human_color': gomoku_human_color,
         'session_id': gomoku_session_id,
         'state_seq': gomoku_state_seq,
     }, to=sid)
@@ -1143,6 +1171,7 @@ def process_gomoku_ai_turn(session_id, history_index, sid):
                 'winner': int(winner2),
                 'winning_line': winning_line,
                 'outcome_text': outcome_text,
+                'human_color': gomoku_human_color,
                 'session_id': session_id,
                 'state_seq': gomoku_state_seq + 1,
             }, sid)
@@ -1154,6 +1183,7 @@ def process_gomoku_ai_turn(session_id, history_index, sid):
         socketio.emit('gomoku_state', {
             **board_to_dict(gomoku_board),
             'message': f'AI 착수: ({ai_r},{ai_c})',
+            'human_color': gomoku_human_color,
             'session_id': session_id,
             'state_seq': gomoku_state_seq,
         }, room=sid, namespace='/')
