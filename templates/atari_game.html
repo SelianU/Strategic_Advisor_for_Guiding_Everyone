@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>{{ game_title }} — AI ARCADE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<style>
+  :root {
+    --bg:#04050a; --theme:{{ theme_color }};
+    --theme-rgb:{{ theme_rgb }};
+    --yellow:#ffe600; --amber:#ffaa00; --red:#ff3366; --cyan:#00f5ff;
+    --dim:#080b14; --text:#c8d8e8; --sub:#4a5a6a;
+    --border-c:rgba({{ theme_rgb }},.12); --border-a:rgba(255,170,0,.15);
+  }
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;}
+  ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(var(--theme-rgb),.15);}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(rgba(var(--theme-rgb),.025) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--theme-rgb),.025) 1px,transparent 1px);
+    background-size:52px 52px;}
+
+  .page-topbar{position:relative;z-index:10;height:48px;display:flex;align-items:center;background:rgba(4,5,10,.98);border-bottom:1px solid var(--border-c);padding:0 16px;}
+  .topbar-back{font-family:'Press Start 2P',monospace;font-size:.55rem;color:var(--theme);border:1px solid rgba(var(--theme-rgb),.28);background:transparent;padding:8px 14px;cursor:pointer;text-decoration:none;transition:background .2s;flex-shrink:0;}
+  .topbar-back:hover{background:rgba(var(--theme-rgb),.08);}
+  .topbar-name{font-family:'Press Start 2P',monospace;font-size:.62rem;color:var(--text);letter-spacing:3px;padding:0 20px;}
+  .topbar-flex{flex:1;}
+  .topbar-sensei{font-size:.56rem;color:var(--amber);letter-spacing:2px;padding:4px 10px;border:1px solid rgba(255,170,0,.28);margin-right:12px;}
+  .topbar-pill{display:flex;align-items:center;gap:8px;padding:0 18px;border-left:1px solid var(--border-c);font-size:.65rem;color:var(--sub);height:48px;}
+  .tpill-dot{width:8px;height:8px;border-radius:50%;}
+  .tpill-dot.on{background:var(--theme);box-shadow:0 0 7px var(--theme);}
+  .tpill-dot.off{background:var(--red);box-shadow:0 0 7px var(--red);}
+
+  .layout{position:relative;z-index:1;display:flex;height:calc(100vh - 48px);overflow:hidden;}
+  .left{width:200px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border-c);background:rgba(6,8,14,1);overflow-y:auto;}
+  .left-inner{display:flex;flex-direction:column;gap:12px;padding:16px;}
+  .panel{background:var(--dim);border:1px solid rgba(var(--theme-rgb),.18);padding:14px;}
+  .panel-title{font-family:'Press Start 2P',monospace;font-size:.58rem;color:var(--theme);margin-bottom:10px;letter-spacing:1px;}
+  .stat-row{display:flex;justify-content:space-between;font-size:.78rem;margin:5px 0;}
+  .stat-val{color:var(--theme);}
+  .controls-list{font-size:.78rem;line-height:2;color:var(--sub);}
+  .key{background:#1a1a2e;padding:2px 6px;border:1px solid #344;}
+  .start-btn{width:100%;font-family:'Press Start 2P',monospace;font-size:.62rem;background:var(--theme);color:#000;border:none;padding:13px;cursor:pointer;transition:box-shadow .2s;}
+  .start-btn:hover{box-shadow:0 0 20px var(--theme);}
+  .start-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .no-model-warn{background:rgba(var(--theme-rgb),.06);border:1px solid rgba(var(--theme-rgb),.3);border-left:3px solid var(--theme);padding:12px;font-size:.72rem;line-height:1.8;}
+  .no-model-warn strong{color:var(--theme);}
+  .llm-status{background:var(--dim);border:1px solid rgba(var(--theme-rgb),.18);padding:12px;}
+  .llm-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .llm-dot.on{background:var(--theme);box-shadow:0 0 8px var(--theme);}
+  .llm-dot.off{background:var(--red);box-shadow:0 0 8px var(--red);}
+  .llm-sub{font-size:.66rem;color:var(--sub);margin-top:8px;line-height:1.5;word-break:break-all;}
+  .session-panel{background:var(--dim);border:1px solid var(--border-a);padding:12px;}
+  .session-input,.session-select{width:100%;background:#0b1118;border:1px solid #1f2b33;color:var(--text);padding:9px 10px;font-family:'Share Tech Mono',monospace;font-size:.72rem;margin-top:8px;}
+  .session-actions{display:flex;gap:6px;margin-top:10px;}
+  .session-btn{flex:1;background:transparent;border:1px solid rgba(255,170,0,.28);color:var(--amber);padding:8px;font-size:.68rem;cursor:pointer;font-family:'Share Tech Mono',monospace;}
+  .session-btn:hover{background:rgba(255,170,0,.08);}
+  .session-status{margin-top:8px;font-size:.67rem;color:var(--sub);white-space:pre-wrap;}
+
+  .main-shell{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+  .top-row{display:grid;grid-template-columns:minmax(0,1fr) 440px;flex:1;overflow:hidden;min-height:0;}
+  .center{min-width:0;display:flex;flex-direction:column;align-items:center;gap:12px;overflow-y:auto;padding:16px;}
+  .side-column{display:flex;flex-direction:column;gap:12px;border-left:1px solid var(--border-c);overflow-y:auto;padding:16px;}
+  .game-title{font-family:'Press Start 2P',monospace;font-size:.85rem;color:var(--theme);text-shadow:0 0 10px var(--theme);letter-spacing:3px;flex-shrink:0;}
+  canvas{border:2px solid var(--theme);box-shadow:0 0 30px rgba(var(--theme-rgb),.25);max-width:100%;max-height:calc(100vh - 180px);}
+  canvas.hidden{display:none;}
+  .status-bar{font-size:.78rem;color:var(--sub);letter-spacing:2px;}
+
+  /* ── 코치 패널 ── */
+  .coach-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,170,0,.05);border-bottom:1px solid rgba(255,170,0,.15);}
+  .coach-label{font-family:'Press Start 2P',monospace;font-size:.56rem;color:var(--amber);letter-spacing:2px;}
+  .coach-status{margin-left:auto;font-size:.62rem;color:var(--sub);}
+  .postgame-panel{display:none;background:var(--dim);border:1px solid rgba(255,170,0,.2);}
+  .postgame-panel.visible{display:flex;flex-direction:column;}
+  .postgame-title{font-family:'Press Start 2P',monospace;font-size:.58rem;color:var(--amber);padding:10px 14px;border-bottom:1px solid rgba(255,170,0,.15);}
+  .candidate-bar{display:flex;flex-direction:column;gap:8px;padding:0 0 4px;}
+  .candidate-pill{background:#0b1118;border:1px solid rgba(255,230,0,.18);color:var(--text);padding:12px 14px;cursor:pointer;transition:.18s;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;}
+  .candidate-pill:hover,.candidate-pill.active{border-color:var(--yellow);background:rgba(255,230,0,.06);}
+  .candidate-pill.state-waiting{opacity:.78;}
+  .candidate-pill.state-generating{border-color:var(--cyan);background:rgba(0,245,255,.04);}
+  .candidate-pill.state-error{border-color:var(--red);background:rgba(255,51,102,.06);}
+  .candidate-rank{font-family:'Press Start 2P',monospace;font-size:.55rem;color:var(--yellow);}
+  .candidate-main{display:flex;align-items:center;gap:6px;min-width:0;font-size:.80rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .candidate-loss{color:var(--red);}
+  .candidate-state{font-size:.66rem;color:#95a5b6;text-align:right;white-space:nowrap;}
+  .candidate-pill.state-generating .candidate-state{color:var(--cyan);}
+  .candidate-pill.state-ready .candidate-state{color:var(--theme);}
+  .candidate-pill.state-error .candidate-state{color:var(--red);}
+
+  /* ── 리플레이 영역 ── */
+  .compare-stage{display:none;width:min(100%,700px);background:#06080b;border:1px solid rgba(var(--theme-rgb),.25);padding:10px;}
+  .compare-stage.visible{display:block;}
+  .compare-stage img{width:100%;display:block;background:#000;object-fit:contain;min-height:180px;max-height:470px;}
+  .compare-caption{display:flex;justify-content:space-between;margin-top:8px;font-size:.72rem;color:var(--sub);}
+  .speed-controls{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .speed-btn{background:transparent;border:1px solid rgba(var(--theme-rgb),.3);color:var(--theme);font-family:'Share Tech Mono',monospace;font-size:.78rem;padding:6px 12px;cursor:pointer;transition:background .15s;}
+  .speed-btn:hover{background:rgba(var(--theme-rgb),.1);}
+  .speed-btn.active{background:rgba(var(--theme-rgb),.18);border-color:var(--theme);color:#fff;}
+  .speed-seek{font-size:.75rem;padding:4px 12px;}
+
+  /* 가상 키보드 */
+  .vkbd{display:flex;justify-content:space-around;margin-top:12px;gap:10px;}
+  .vkbd-side{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .vkbd-label{font-size:.7rem;color:var(--sub);}
+  .vkbd-label.agent{color:var(--theme);}
+  .vkbd-keys{display:flex;gap:6px;align-items:center;}
+  .vkey{display:flex;align-items:center;justify-content:center;background:#0a0f14;border:1px solid #1e2830;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:.74rem;color:#3a4a55;transition:.06s;user-select:none;height:32px;}
+  .vkey.narrow{width:32px;}
+  .vkey.wide{width:56px;font-size:.62rem;}
+  .vkey.pressed{background:rgba(var(--theme-rgb),.18);border-color:var(--theme);color:var(--theme);box-shadow:0 0 6px rgba(var(--theme-rgb),.4);}
+
+  /* 피드백 패널 */
+  .center-feedback{display:none;width:100%;background:rgba(255,170,0,.03);border:1px solid rgba(255,170,0,.18);border-left:3px solid var(--amber);}
+  .center-feedback.visible{display:block;}
+  .cf-source{font-size:.70rem;color:var(--amber);padding:12px 14px 0;}
+  .feedback-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,170,0,.12);}
+  .feedback-tab{background:transparent;border:none;border-right:1px solid rgba(255,170,0,.12);color:var(--sub);padding:9px 8px;font-size:.64rem;cursor:pointer;font-family:'Share Tech Mono',monospace;display:flex;align-items:center;justify-content:center;}
+  .feedback-tab:last-child{border-right:none;}
+  .feedback-tab.active{color:var(--amber);background:rgba(255,170,0,.06);}
+  .fb-loading{display:none;margin:10px 14px;}
+  .fb-loading.active{display:block;}
+  .fb-loading-label{font-size:.66rem;color:var(--sub);margin-bottom:6px;}
+  .fb-loading-track{height:4px;background:#1a1a2e;border-radius:999px;overflow:hidden;}
+  .fb-loading-bar{width:35%;height:100%;background:linear-gradient(90deg,var(--amber),var(--cyan));animation:fb-loading 1.2s ease-in-out infinite;}
+  @keyframes fb-loading{0%{transform:translateX(-120%);}100%{transform:translateX(320%);}}
+  .fb-text{padding:14px;font-size:.80rem;line-height:1.85;white-space:pre-wrap;color:var(--text);}
+  .fb-summary{display:none;background:rgba(255,255,255,.03);border-left:3px solid var(--yellow);padding:12px;}
+  .fb-summary.visible{display:block;}
+
+  /* 분석 영역 */
+  .analysis-zone{display:none;width:min(100%,700px);flex-direction:column;gap:10px;}
+  .analysis-zone.visible{display:flex;}
+  .right-tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:4px;}
+  .right-tab{background:#0b1118;border:1px solid rgba(var(--theme-rgb),.18);color:var(--sub);padding:12px 10px;font-size:.68rem;cursor:pointer;font-family:'Share Tech Mono',monospace;display:flex;align-items:center;justify-content:center;}
+  .right-tab.active{border-color:var(--theme);color:var(--theme);background:rgba(var(--theme-rgb),.08);}
+  .d3qn-panel{background:var(--dim);border:1px solid rgba(var(--theme-rgb),.22);padding:14px;display:none;flex-direction:column;gap:10px;}
+  .d3qn-panel.visible{display:flex;}
+  .d3qn-panel.tabbed{display:none;}
+  .d3qn-panel.visible.tab-open.tabbed{display:flex;}
+  .d3qn-title{font-family:'Press Start 2P',monospace;font-size:.5rem;color:var(--theme);margin-bottom:6px;}
+  .progress-bar{height:4px;background:#1a1a2e;border-radius:2px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--theme);transition:width .3s;width:0%;}
+  .progress-text{font-size:.65rem;color:var(--sub);}
+  .agree-box{text-align:center;padding:16px;background:rgba(var(--theme-rgb),.05);border:1px solid rgba(var(--theme-rgb),.15);}
+  .agree-val{font-family:'Press Start 2P',monospace;font-size:1.2rem;color:var(--theme);}
+  .agree-label{font-size:.7rem;color:var(--sub);margin-top:6px;}
+  .qvalue-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .qvalue-card{background:#0b1118;border:1px solid #1f2b33;padding:12px;}
+  .qvalue-mini{font-size:.70rem;color:var(--sub);margin-bottom:8px;}
+  .avg-q-loss{font-family:'Press Start 2P',monospace;font-size:1.05rem;color:var(--theme);}
+  .worst-box{background:rgba(255,51,102,.06);border:1px solid rgba(255,51,102,.25);padding:12px;font-size:.80rem;line-height:1.85;}
+  .worst-box strong{color:var(--red);}
+  .action-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:.72rem;}
+  .action-item{background:rgba(255,255,255,.03);border:1px solid #1a1a2e;padding:6px 8px;}
+  .action-name{color:var(--sub);}
+  .action-count{color:var(--theme);font-size:.82rem;}
+  .worst-table{width:100%;font-size:.72rem;border-collapse:collapse;}
+  .worst-table th{color:var(--sub);font-weight:normal;text-align:left;padding:5px 4px;border-bottom:1px solid #1a1a2e;}
+  .worst-table td{padding:5px 4px;border-bottom:1px solid #0d1117;}
+  .loss-high{color:var(--red);} .loss-mid{color:var(--yellow);} .loss-low{color:var(--theme);}
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .summary-item{background:#0b1118;border:1px solid rgba(var(--theme-rgb),.18);padding:10px 12px;}
+  .summary-k{font-size:.70rem;color:var(--sub);margin-bottom:4px;}
+  .summary-v{font-size:.96rem;color:#fff;}
+
+  @media(max-width:1380px){.top-row{grid-template-columns:minmax(0,1fr) 400px;}}
+  @media(max-width:1100px){.top-row{grid-template-columns:minmax(0,1fr) 320px;}}
+  @media(max-width:900px){html,body{overflow:auto;}.layout,.top-row{flex-direction:column;height:auto;overflow:visible;}.left{width:100%;}.center,.side-column{height:auto;overflow-y:visible;}canvas{max-height:60vh;}}
+</style>
+</head>
+<body data-has-llm="{{ 'true' if has_openrouter else 'false' }}">
+
+<div class="page-topbar">
+  <a href="/" class="topbar-back">◀ MENU</a>
+  <div class="topbar-name">{{ game_icon }} {{ game_title }}</div>
+  <div class="topbar-flex"></div>
+  <div class="topbar-sensei">🎓 SAGE</div>
+  <div class="topbar-pill">
+    <div class="tpill-dot {{ 'on' if has_openrouter else 'off' }}"></div>
+    <span>{{ 'LLM ON' if has_openrouter else 'LLM OFF' }}</span>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- 왼쪽 사이드바 -->
+  <div class="left">
+    <div class="left-inner">
+      <button class="start-btn" id="startBtn">GAME START</button>
+      <div class="panel">
+        <div class="panel-title">STATS</div>
+        <div class="stat-row"><span>SCORE</span><span class="stat-val" id="score">0</span></div>
+        <div class="stat-row"><span>STEPS</span><span class="stat-val" id="steps">0</span></div>
+        <div class="stat-row"><span>SESSION</span><span class="stat-val" id="sessionLabel">LIVE</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">CONTROLS</div>
+        <div class="controls-list">
+          <span class="key">←</span> 왼쪽<br>
+          <span class="key">→</span> 오른쪽<br>
+          <span class="key">SPACE</span> 발사
+        </div>
+      </div>
+      {% if not has_model %}
+      <div class="no-model-warn">
+        <strong>⚠ 모델 없음</strong><br>
+        checkpoints/best_model.pth를 배치하면 Q-value 분석이 활성화됩니다.
+      </div>
+      {% endif %}
+      <div class="llm-status">
+        <div class="panel-title">LLM STATUS</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.76rem;">
+          <span class="llm-dot {{ 'on' if has_openrouter else 'off' }}"></span>
+          <span>{{ 'API KEY 설정됨' if has_openrouter else 'API KEY 미설정' }}</span>
+        </div>
+        {% if has_openrouter %}
+        <div class="llm-sub">기본: {{ openrouter_model }}<br>예비: {{ openrouter_fallback }}</div>
+        {% else %}
+        <div class="llm-sub">로컬 데이터 기반 코칭 피드백을 사용합니다.</div>
+        {% endif %}
+        <div class="llm-sub" id="llmStatus">현재: {% if has_openrouter %}대기 중{% else %}로컬{% endif %}</div>
+      </div>
+      <div class="session-panel">
+        <div class="panel-title" style="color:var(--yellow)">SESSIONS</div>
+        <input class="session-input" id="sessionTitle" placeholder="기록 이름">
+        <div class="session-actions"><button class="session-btn" id="saveBtn">저장</button></div>
+        <select class="session-select" id="sessionSelect">
+          <option value="">저장된 기록 선택</option>
+          {% for s in saved_sessions %}
+          <option value="{{ s.id }}">{{ s.title }} · {{ s.saved_at }}</option>
+          {% endfor %}
+        </select>
+        <div class="session-actions">
+          <button class="session-btn" id="loadBtn">불러오기</button>
+          <button class="session-btn" id="deleteBtn">삭제</button>
+        </div>
+        <div class="session-status" id="sessionStatus">저장된 기록을 불러오거나 현재 판을 저장할 수 있습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-shell">
+    <div class="top-row">
+      <!-- 게임 화면 -->
+      <div class="center">
+        <div class="game-title">{{ game_icon }} {{ game_title }}</div>
+        <canvas id="gameCanvas" width="800" height="1050"></canvas>
+        <div class="status-bar" id="status">PRESS START TO PLAY</div>
+
+        <!-- 카운터팩추얼 리플레이 -->
+        <div class="compare-stage" id="compareStage">
+          <img id="compareImg" alt="counterfactual replay">
+          <div class="compare-caption"><span>LEFT: HUMAN</span><span>RIGHT: AGENT</span></div>
+          <div class="speed-controls">
+            <button class="speed-btn speed-seek" id="seekBack">◀◀ −1s</button>
+            <button class="speed-btn" data-speed="0.25">×¼</button>
+            <button class="speed-btn" data-speed="0.5">×½</button>
+            <button class="speed-btn active" data-speed="1">×1</button>
+            <button class="speed-btn" data-speed="2">×2</button>
+            <button class="speed-btn" data-speed="4">×4</button>
+            <button class="speed-btn speed-seek" id="seekFwd">+1s ▶▶</button>
+          </div>
+          <!-- 가상 키보드 (JS로 동적 생성) -->
+          <div class="vkbd" id="vkbd"></div>
+        </div>
+
+        <!-- Q-value 분석 -->
+        <div class="analysis-zone" id="analysisZone">
+          <div class="right-tabs" id="rightTabs">
+            <button type="button" class="right-tab active" data-tab="qvalue">Q-VALUE</button>
+            <button type="button" class="right-tab" data-tab="worst">최악 행동</button>
+          </div>
+          <div class="d3qn-panel" id="progressPanel">
+            <div class="d3qn-title">D3QN 분석 중...</div>
+            <div class="progress-text" id="progressText">준비 중...</div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          </div>
+          <div class="d3qn-panel tabbed" id="resultPanel">
+            <div class="d3qn-title">D3QN Q-VALUE 분석</div>
+            <div class="qvalue-grid">
+              <div class="qvalue-card agree-box">
+                <div class="agree-val" id="agreeRate">—</div>
+                <div class="agree-label">AI와 행동 일치율</div>
+              </div>
+              <div class="qvalue-card">
+                <div class="qvalue-mini">평균 Q 손실</div>
+                <div class="avg-q-loss" id="avgLoss">—</div>
+              </div>
+              <div class="qvalue-card">
+                <div class="qvalue-mini">내 행동 분포</div>
+                <div class="action-grid" id="playerGrid"></div>
+              </div>
+              <div class="qvalue-card">
+                <div class="qvalue-mini">AI 권장 행동 분포</div>
+                <div class="action-grid" id="aiGrid"></div>
+              </div>
+            </div>
+          </div>
+          <div class="d3qn-panel tabbed" id="worstPanel">
+            <div class="d3qn-title">최악 행동 분석</div>
+            <div class="qvalue-grid">
+              <div class="qvalue-card">
+                <div style="font-family:'Press Start 2P',monospace;font-size:.54rem;color:var(--red);margin-bottom:10px;">최악 행동</div>
+                <div class="worst-box" id="worstBox">분석 완료 후 표시됩니다.</div>
+              </div>
+              <div class="qvalue-card">
+                <div style="font-family:'Press Start 2P',monospace;font-size:.45rem;color:var(--red);margin-bottom:8px;">⚠ 최악 행동 TOP-5</div>
+                <table class="worst-table">
+                  <thead><tr><th>스텝</th><th>내 행동</th><th>최선</th><th>손실</th></tr></thead>
+                  <tbody id="worstBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 코치 사이드 패널 -->
+      <div class="side-column">
+        <div class="coach-header">
+          <span style="font-size:1.1rem">🎓</span>
+          <span class="coach-label">SAGE · COACH</span>
+          <span class="coach-status" id="coachStatus">대기 중</span>
+        </div>
+        <div class="postgame-panel" id="postgamePanel">
+          <div class="postgame-title">GAME OVER · TOP-5 MOMENTS</div>
+          <div class="candidate-bar" id="candidateBar"></div>
+        </div>
+        <div class="center-feedback" id="centerFeedback">
+          <div class="cf-source" id="fbSource"></div>
+          <div class="feedback-tabs">
+            <button type="button" class="feedback-tab active" data-fb-tab="feedback">🎓 코칭 피드백</button>
+            <button type="button" class="feedback-tab" data-fb-tab="summary">📊 비교 요약</button>
+          </div>
+          <div class="fb-loading" id="fbLoading">
+            <div class="fb-loading-label">외부 LLM 응답을 기다리는 중입니다...</div>
+            <div class="fb-loading-track"><div class="fb-loading-bar"></div></div>
+          </div>
+          <div class="fb-text" id="fbText">후보를 선택하면 코칭 피드백이 여기에 표시됩니다.</div>
+          <div class="fb-summary" id="fbSummary">
+            <div class="summary-grid">
+              <div class="summary-item"><div class="summary-k">STEP</div><div class="summary-v" id="sumStep">—</div></div>
+              <div class="summary-item"><div class="summary-k">LOSS</div><div class="summary-v" id="sumLoss">—</div></div>
+              <div class="summary-item"><div class="summary-k">HUMAN ACTION</div><div class="summary-v" id="sumHAction">—</div></div>
+              <div class="summary-item"><div class="summary-k">AGENT ACTION</div><div class="summary-v" id="sumAAction">—</div></div>
+              <div class="summary-item"><div class="summary-k">H SCORE DELTA</div><div class="summary-v" id="sumHScore">—</div></div>
+              <div class="summary-item"><div class="summary-k">A SCORE DELTA</div><div class="summary-v" id="sumAScore">—</div></div>
+              <div class="summary-item"><div class="summary-k">H FIRST SCORE</div><div class="summary-v" id="sumHFirst">—</div></div>
+              <div class="summary-item"><div class="summary-k">A FIRST SCORE</div><div class="summary-v" id="sumAFirst">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 게임별 설정 (Jinja 주입) ─────────────────────────────────────────────────
+const GAME_ID      = '{{ game_id }}';
+const P            = '{{ prefix }}';         // 소켓 이벤트 접두사
+const HAS_LLM      = {{ 'true' if has_openrouter else 'false' }};
+const HAS_MODEL    = {{ 'true' if has_model else 'false' }};
+const ACTION_NAMES = {{ action_names | tojson }};
+const KEYBOARD_KEYS = {{ keyboard_keys | tojson }};
+const KEY_COMBOS   = {{ key_combos | tojson }};
+const REPLAY_FPS   = 60;
+const REPLAY_HORIZON = REPLAY_FPS * 20;
+const STATUS_LABELS = { waiting:'대기 중', generating:'생성 중', ready:'준비됨', error:'실패' };
+
+// ── 상태 ─────────────────────────────────────────────────────────────────────
+const socket  = io({ transports: ['websocket'] });
+const canvas  = document.getElementById('gameCanvas');
+const ctx     = canvas.getContext('2d');
+let gameActive = false, totalSteps = 0;
+let sessionId  = 0, sessionLabel = 'LIVE';
+const keys = { left: false, right: false, fire: false };
+let currentAction = 0;
+
+let cfFrames = [], cfHActs = [], cfAActs = [];
+let cfIdx = 0, cfSpeed = 1, cfTimer = null;
+let candidates = [], pendingEI = null, prefetchStarted = false;
+const cfCache = new Map(), candidateStatus = new Map();
+let rightTab = 'qvalue', fbTab = 'feedback';
+
+// ── 가상 키보드 빌드 ─────────────────────────────────────────────────────────
+(function buildVkbd() {
+  const vkbd = document.getElementById('vkbd');
+  ['human', 'agent'].forEach(side => {
+    const div = document.createElement('div');
+    div.className = 'vkbd-side';
+    div.innerHTML = `<div class="vkbd-label ${side === 'agent' ? 'agent' : ''}">${side.toUpperCase()}</div>`;
+    const keys_div = document.createElement('div');
+    keys_div.className = 'vkbd-keys';
+    KEYBOARD_KEYS.forEach(k => {
+      const el = document.createElement('div');
+      el.className = 'vkey ' + (k.label.length <= 2 ? 'narrow' : 'wide');
+      el.id = `vkey_${side}_${k.id}`;
+      el.textContent = k.label;
+      keys_div.appendChild(el);
+    });
+    div.appendChild(keys_div);
+    vkbd.appendChild(div);
+  });
+})();
+
+// ── 키 → 액션 ────────────────────────────────────────────────────────────────
+function getAction() {
+  const parts = [];
+  if (keys.fire)  parts.push('fire');
+  if (keys.left)  parts.push('left');
+  if (keys.right) parts.push('right');
+  parts.sort();
+  const combo = parts.join('+');
+  return KEY_COMBOS[combo] ?? KEY_COMBOS[''] ?? 0;
+}
+
+function updateVkbd(humanAction, agentAction) {
+  KEYBOARD_KEYS.forEach(k => {
+    document.getElementById(`vkey_human_${k.id}`)?.classList.toggle('pressed', k.actions.includes(humanAction ?? 0));
+    document.getElementById(`vkey_agent_${k.id}`)?.classList.toggle('pressed', k.actions.includes(agentAction ?? 0));
+  });
+}
+
+// ── 카운터팩추얼 리플레이 ────────────────────────────────────────────────────
+function renderCfFrame(idx) {
+  if (!cfFrames.length) return;
+  cfIdx = Math.max(0, Math.min(idx, cfFrames.length - 1));
+  document.getElementById('compareImg').src = 'data:image/jpeg;base64,' + cfFrames[cfIdx];
+  updateVkbd(cfHActs[cfIdx], cfAActs[cfIdx]);
+}
+
+function setSpeed(speed) {
+  cfSpeed = speed;
+  document.querySelectorAll('.speed-btn[data-speed]').forEach(b =>
+    b.classList.toggle('active', parseFloat(b.dataset.speed) === speed));
+  if (cfTimer) { clearInterval(cfTimer); cfTimer = startCfTimer(); }
+}
+
+function startCfTimer() {
+  return setInterval(() => { cfIdx = (cfIdx + 1) % cfFrames.length; renderCfFrame(cfIdx); }, 1000 / (REPLAY_FPS * cfSpeed));
+}
+
+function playCfFrames(frames, hActs, aActs) {
+  clearInterval(cfTimer);
+  cfFrames = frames || []; cfHActs = hActs || []; cfAActs = aActs || [];
+  cfIdx = 0;
+  if (!cfFrames.length) return;
+  document.getElementById('compareStage').classList.add('visible');
+  renderCfFrame(0);
+  cfTimer = startCfTimer();
+}
+
+// ── 탭 전환 ──────────────────────────────────────────────────────────────────
+function setRightTab(tab) {
+  rightTab = tab;
+  document.querySelectorAll('#rightTabs .right-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('resultPanel').classList.toggle('tab-open', tab === 'qvalue');
+  document.getElementById('worstPanel').classList.toggle('tab-open', tab === 'worst');
+}
+
+function setFbTab(tab) {
+  fbTab = tab;
+  document.querySelectorAll('[data-fb-tab]').forEach(b => b.classList.toggle('active', b.dataset.fbTab === tab));
+  document.getElementById('fbText').style.display    = tab === 'feedback' ? 'block' : 'none';
+  document.getElementById('fbSummary').classList.toggle('visible', tab === 'summary');
+}
+
+// ── 후보 목록 ────────────────────────────────────────────────────────────────
+function setCandidateStatus(ei, status) {
+  candidateStatus.set(ei, status);
+  renderCandidateBar();
+}
+
+function renderCandidateBar() {
+  const bar = document.getElementById('candidateBar');
+  bar.innerHTML = '';
+  candidates.forEach((c, idx) => {
+    const ei     = parseInt(c.entry_index);
+    const status = candidateStatus.get(ei) || 'waiting';
+    const btn    = document.createElement('button');
+    btn.className = `candidate-pill state-${status}${pendingEI === ei ? ' active' : ''}`;
+    btn.type = 'button'; btn.dataset.ei = ei;
+    btn.innerHTML =
+      `<span class="candidate-rank">TOP ${idx + 1}</span>` +
+      `<span class="candidate-main"><span>STEP ${c.step}</span><span class="candidate-loss"> (LOSS ${c.loss.toFixed(3)})</span></span>` +
+      `<span class="candidate-state">${STATUS_LABELS[status]}</span>`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.candidate-pill').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      requestCf(parseInt(btn.dataset.ei));
+    });
+    bar.appendChild(btn);
+  });
+}
+
+function maybePrefetch() {
+  if (prefetchStarted || !candidates.length) return;
+  if (pendingEI !== parseInt(candidates[0].entry_index)) return;
+  prefetchStarted = true;
+  candidates.slice(1).forEach((c, i) => {
+    const ei = parseInt(c.entry_index);
+    if (cfCache.has(ei)) { setCandidateStatus(ei, 'ready'); return; }
+    setTimeout(() => prefetchCf(ei), 150 * (i + 1));
+  });
+}
+
+function prefetchCf(ei) {
+  if (Number.isNaN(ei) || cfCache.has(ei)) return;
+  const s = candidateStatus.get(ei);
+  if (s === 'generating' || s === 'ready') return;
+  setCandidateStatus(ei, 'generating');
+  socket.emit(P + 'request_counterfactual', { entry_index: ei, horizon: REPLAY_HORIZON, session_id: sessionId });
+}
+
+function requestCf(ei) {
+  if (Number.isNaN(ei)) return;
+  pendingEI = ei;
+  if (cfCache.has(ei)) {
+    const cached = cfCache.get(ei);
+    setCandidateStatus(ei, 'ready');
+    playCfFrames(cached.frames, cached.human_actions, cached.agent_actions);
+    showFeedback(cached);
+    return;
+  }
+  setCandidateStatus(ei, 'generating');
+  clearInterval(cfTimer); cfFrames = []; cfHActs = []; cfAActs = [];
+  updateVkbd(0, 0);
+  document.getElementById('compareStage').classList.remove('visible');
+  document.getElementById('fbSource').textContent = HAS_LLM ? '비교 리플레이 생성 및 LLM 코칭 요청 중...' : '비교 리플레이 생성 중...';
+  document.getElementById('fbText').textContent   = HAS_LLM ? '외부 LLM 응답을 기다리는 중입니다...' : '';
+  document.getElementById('centerFeedback').classList.add('visible');
+  document.getElementById('fbLoading').classList.toggle('active', HAS_LLM);
+  document.getElementById('llmStatus').textContent = HAS_LLM ? '현재: 외부 LLM 확인 중' : '현재: 로컬';
+  socket.emit(P + 'request_counterfactual', { entry_index: ei, horizon: REPLAY_HORIZON, session_id: sessionId });
+}
+
+function showFeedback(data) {
+  document.getElementById('centerFeedback').classList.add('visible');
+  document.getElementById('fbLoading').classList.remove('active');
+  document.getElementById('fbSource').textContent =
+    data.feedback_source === 'llm' ? '외부 LLM 코칭 피드백'
+    : (HAS_LLM ? '외부 LLM 지연으로 로컬 피드백 표시' : '로컬 데이터 기반 코칭 피드백');
+  document.getElementById('llmStatus').textContent =
+    `현재: ${data.feedback_route || (data.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
+    (data.feedback_model ? ` (${data.feedback_model})` : '');
+  document.getElementById('fbText').textContent = data.feedback || '';
+  const s = data.summary || {};
+  const c = candidates.find(x => parseInt(x.entry_index) === pendingEI);
+  document.getElementById('sumStep').textContent   = c?.step ?? s.step ?? '—';
+  document.getElementById('sumLoss').textContent   = c?.loss != null ? Number(c.loss).toFixed(3) : '—';
+  document.getElementById('sumHAction').textContent = s.human_action_name || '—';
+  document.getElementById('sumAAction').textContent = s.agent_action_name || '—';
+  document.getElementById('sumHScore').textContent  = s.human_score_delta ?? '—';
+  document.getElementById('sumAScore').textContent  = s.agent_score_delta ?? '—';
+  document.getElementById('sumHFirst').textContent  = s.human_first_reward_step ?? '—';
+  document.getElementById('sumAFirst').textContent  = s.agent_first_reward_step ?? '—';
+}
+
+// ── 분석 결과 적용 ───────────────────────────────────────────────────────────
+function applyAnalysis(data) {
+  document.getElementById('resultPanel').classList.add('visible');
+  document.getElementById('worstPanel').classList.add('visible');
+  document.getElementById('postgamePanel').classList.add('visible');
+  document.getElementById('analysisZone').classList.add('visible');
+  setRightTab(rightTab);
+  document.getElementById('agreeRate').textContent = data.agree_rate + '%';
+  document.getElementById('avgLoss').textContent   = data.avg_loss.toFixed(3);
+
+  const w = data.worst;
+  if (w) {
+    document.getElementById('worstBox').innerHTML =
+      `<strong>스텝 ${w.step}</strong> — ${w.action_name}<br>` +
+      `내 Q: <strong>${w.player_q}</strong> | 최선 Q: <strong style="color:var(--theme)">${w.best_q}</strong><br>` +
+      `최선: <strong style="color:var(--cyan)">${w.best_action_name}</strong> | 손실: <strong style="color:var(--red)">${w.loss.toFixed(3)}</strong>`;
+  }
+
+  const actionOrder = Object.keys(ACTION_NAMES).map(Number).sort((a, b) => a - b);
+  function makeGrid(counts, el) {
+    el.innerHTML = '';
+    actionOrder.forEach(id => {
+      const name = ACTION_NAMES[id];
+      const cnt  = (counts && counts[name]) || 0;
+      el.innerHTML += `<div class="action-item"><div class="action-name">${name}</div><div class="action-count">${cnt}</div></div>`;
+    });
+  }
+  makeGrid(data.player_actions, document.getElementById('playerGrid'));
+  makeGrid(data.ai_actions,     document.getElementById('aiGrid'));
+
+  const tbody = document.getElementById('worstBody');
+  tbody.innerHTML = '';
+  candidates = data.worst_10 || [];
+  candidateStatus.clear(); prefetchStarted = false;
+  pendingEI = candidates.length ? parseInt(candidates[0].entry_index) : null;
+  candidates.forEach(c => candidateStatus.set(parseInt(c.entry_index), 'waiting'));
+  candidates.forEach(a => {
+    const cls = a.loss > 0.3 ? 'loss-high' : (a.loss > 0.1 ? 'loss-mid' : 'loss-low');
+    tbody.innerHTML += `<tr><td>${a.step}</td><td>${a.action_name}</td><td style="color:var(--cyan)">${a.best_action_name}</td><td class="${cls}">${a.loss.toFixed(3)}</td></tr>`;
+  });
+  setRightTab(rightTab);
+  renderCandidateBar();
+  if (candidates.length) requestCf(parseInt(candidates[0].entry_index));
+}
+
+// ── 세션 목록 렌더 ───────────────────────────────────────────────────────────
+function renderSessions(sessions) {
+  const sel  = document.getElementById('sessionSelect');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">저장된 기록 선택</option>';
+  (sessions || []).forEach(item => {
+    const o = document.createElement('option');
+    o.value = item.id;
+    o.textContent = `${item.title} · ${item.saved_at || ''}`;
+    sel.appendChild(o);
+  });
+  if (prev && (sessions || []).some(s => s.id === prev)) sel.value = prev;
+}
+
+// ── UI 초기화 ────────────────────────────────────────────────────────────────
+function resetUI() {
+  canvas.classList.remove('hidden');
+  ['progressPanel','resultPanel','worstPanel','analysisZone','postgamePanel','compareStage','centerFeedback']
+    .forEach(id => { const el = document.getElementById(id); el.classList.remove('visible','tab-open'); });
+  document.getElementById('candidateBar').innerHTML = '';
+  cfCache.clear(); candidateStatus.clear(); pendingEI = null; prefetchStarted = false;
+  rightTab = 'qvalue'; setRightTab('qvalue'); setFbTab('feedback');
+  document.getElementById('fbSource').textContent = '';
+  document.getElementById('fbText').textContent   = '후보를 선택하면 코칭 피드백이 여기에 표시됩니다.';
+  document.getElementById('fbLoading').classList.remove('active');
+  document.getElementById('score').textContent = '0';
+  document.getElementById('steps').textContent = '0';
+  document.getElementById('sessionLabel').textContent = 'LIVE';
+  totalSteps = 0;
+}
+
+// ── 버튼 이벤트 ──────────────────────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', () => {
+  gameActive = true;
+  resetUI();
+  document.getElementById('status').textContent = 'PLAYING...';
+  document.getElementById('startBtn').disabled  = true;
+  currentAction = 1;  // 시작 시 FIRE
+  socket.emit(P + 'start');
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const title = document.getElementById('sessionTitle').value.trim();
+  if (!title) { alert('저장할 기록 이름을 입력해주세요.'); return; }
+  socket.emit(P + 'save_session', { title });
+});
+document.getElementById('loadBtn').addEventListener('click', () => {
+  const sid = document.getElementById('sessionSelect').value;
+  if (sid) socket.emit(P + 'load_session', { session_id: sid });
+});
+document.getElementById('deleteBtn').addEventListener('click', () => {
+  const sid = document.getElementById('sessionSelect').value;
+  if (sid) socket.emit(P + 'delete_session', { session_id: sid });
+});
+
+document.querySelectorAll('.speed-btn[data-speed]').forEach(b =>
+  b.addEventListener('click', () => setSpeed(parseFloat(b.dataset.speed))));
+document.getElementById('seekBack').addEventListener('click', () => {
+  clearInterval(cfTimer); cfTimer = null; renderCfFrame(Math.max(0, cfIdx - REPLAY_FPS));
+});
+document.getElementById('seekFwd').addEventListener('click', () => {
+  clearInterval(cfTimer); cfTimer = null; renderCfFrame(Math.min(cfFrames.length - 1, cfIdx + REPLAY_FPS));
+});
+
+document.querySelectorAll('#rightTabs .right-tab').forEach(b =>
+  b.addEventListener('click', () => setRightTab(b.dataset.tab)));
+document.querySelectorAll('[data-fb-tab]').forEach(b =>
+  b.addEventListener('click', () => setFbTab(b.dataset.fbTab)));
+
+// ── 키보드 입력 ───────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft')        keys.left  = true;
+  if (e.key === 'ArrowRight')       keys.right = true;
+  if (e.key === ' ' || e.key==='c') keys.fire  = true;
+  currentAction = getAction();
+  if (e.key === ' ') e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft')        keys.left  = false;
+  if (e.key === 'ArrowRight')       keys.right = false;
+  if (e.key === ' ' || e.key==='c') keys.fire  = false;
+  currentAction = getAction();
+});
+
+// ── 소켓 이벤트 ──────────────────────────────────────────────────────────────
+socket.emit(P + 'list_sessions');
+
+socket.on(P + 'frame', data => {
+  if (data.session_id !== undefined) sessionId = data.session_id;
+  if (!gameActive) return;
+  const img = new Image();
+  img.src = 'data:image/jpeg;base64,' + data.image;
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    totalSteps++;
+    document.getElementById('steps').textContent = totalSteps;
+    if (data.score != null) document.getElementById('score').textContent = Math.round(data.score);
+    setTimeout(() => {
+      if (gameActive) {
+        socket.emit(P + 'action', { action: currentAction });
+        // FIRE 순간 발사 후 NOOP으로 (fire 키가 떼어졌을 경우)
+        if (currentAction === 1 && !keys.fire) currentAction = 0;
+      }
+    }, 1000 / 60);
+  };
+});
+
+socket.on(P + 'over', report => {
+  gameActive = false;
+  canvas.classList.add('hidden');
+  document.getElementById('status').textContent = 'GAME OVER';
+  document.getElementById('startBtn').disabled = false;
+  if (report.has_model) document.getElementById('progressPanel').classList.add('visible');
+});
+
+socket.on(P + 'analysis_start', data => {
+  if (data.session_id !== undefined && data.session_id !== sessionId) return;
+  document.getElementById('progressText').textContent = `0 / ${data.total} 스텝 분석 중...`;
+  document.getElementById('progressFill').style.width = '0%';
+});
+socket.on(P + 'analysis_progress', data => {
+  if (data.session_id !== undefined && data.session_id !== sessionId) return;
+  document.getElementById('progressFill').style.width = data.pct + '%';
+  document.getElementById('progressText').textContent = `${data.current} / ${data.total} 분석 중...`;
+});
+socket.on(P + 'analysis_done', data => {
+  if (data.session_id !== undefined && data.session_id !== sessionId) return;
+  document.getElementById('progressPanel').classList.remove('visible');
+  applyAnalysis(data);
+});
+
+socket.on(P + 'counterfactual_ready', data => {
+  if (data.session_id !== undefined && data.session_id !== sessionId) return;
+  const ei = parseInt(data.entry_index);
+  cfCache.set(ei, data);
+  setCandidateStatus(ei, 'ready');
+  if (ei !== pendingEI) { maybePrefetch(); return; }
+  playCfFrames(data.frames, data.human_actions, data.agent_actions);
+  showFeedback(data);
+  maybePrefetch();
+});
+
+socket.on(P + 'counterfactual_error', data => {
+  const ei = data.entry_index != null ? parseInt(data.entry_index) : null;
+  if (ei != null && !Number.isNaN(ei)) {
+    setCandidateStatus(ei, 'error');
+    if (ei !== pendingEI) return;
+  }
+  document.getElementById('centerFeedback').classList.add('visible');
+  document.getElementById('fbLoading').classList.remove('active');
+  document.getElementById('fbSource').textContent = '비교 리플레이 생성 실패';
+  document.getElementById('fbText').textContent   = data.message || '오류가 발생했습니다.';
+  document.getElementById('compareStage').classList.remove('visible');
+});
+
+socket.on(P + 'sessions_list',  data => renderSessions(data.sessions));
+socket.on(P + 'session_saved',  data => { document.getElementById('sessionStatus').textContent = data.message || ''; if (data.ok) renderSessions(data.sessions); });
+socket.on(P + 'session_deleted',data => { document.getElementById('sessionStatus').textContent = data.message || ''; renderSessions(data.sessions); });
+socket.on(P + 'session_loaded', data => {
+  if (!data.ok) { document.getElementById('sessionStatus').textContent = data.message || '불러오기 실패'; return; }
+  sessionId = data.session_id;
+  cfCache.clear(); candidateStatus.clear();
+  (data.cached_counterfactuals || []).forEach(item => cfCache.set(parseInt(item.entry_index), item));
+  canvas.classList.add('hidden');
+  document.getElementById('status').textContent   = '';
+  document.getElementById('startBtn').disabled    = false;
+  document.getElementById('sessionLabel').textContent = data.meta?.title || 'LOADED';
+  document.getElementById('score').textContent    = data.basic?.total_reward ?? '0';
+  document.getElementById('steps').textContent    = data.basic?.total_steps  ?? '0';
+  applyAnalysis(data.analysis || {});
+  candidates.forEach(c => {
+    const ei = parseInt(c.entry_index);
+    candidateStatus.set(ei, cfCache.has(ei) ? 'ready' : 'waiting');
+  });
+  pendingEI = null; prefetchStarted = true;
+  renderCandidateBar();
+  document.getElementById('sessionTitle').value   = data.meta?.title || '';
+  document.getElementById('sessionStatus').textContent = `불러온 기록: ${data.meta?.title || '이름 없음'}`;
+  document.getElementById('compareStage').classList.remove('visible');
+  document.getElementById('centerFeedback').classList.remove('visible');
+  document.getElementById('fbSource').textContent = '';
+  document.getElementById('fbText').textContent   = '후보를 선택하면 코칭 피드백이 여기에 표시됩니다.';
+  setFbTab('feedback');
+});
+</script>
+</body>
+</html>
