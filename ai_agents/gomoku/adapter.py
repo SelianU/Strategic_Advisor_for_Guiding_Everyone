@@ -16,7 +16,29 @@ except ImportError:
 from omegaconf import OmegaConf
 
 import gomoku_rl as _gomoku_rl_pkg
-GOMOKU_RL_DIR = os.path.dirname(_gomoku_rl_pkg.__file__)
+
+
+def _resolve_gomoku_rl_dir() -> str:
+    candidates = []
+    submodule_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gomoku_rl")
+    candidates.append(submodule_dir)
+    pkg_file = getattr(_gomoku_rl_pkg, "__file__", None)
+    if pkg_file:
+        candidates.append(os.path.dirname(os.path.dirname(os.path.abspath(pkg_file))))
+    pkg_paths = list(getattr(_gomoku_rl_pkg, "__path__", []) or [])
+    for p in pkg_paths:
+        candidates.append(os.path.dirname(os.path.abspath(p)))
+        candidates.append(os.path.abspath(p))
+    for c in candidates:
+        if os.path.isfile(os.path.join(c, "cfg", "algo", "ppo.yaml")):
+            return c
+    raise FileNotFoundError(
+        "Could not locate gomoku_rl 'cfg/algo/ppo.yaml'. Tried: "
+        + ", ".join(candidates)
+    )
+
+
+GOMOKU_RL_DIR = _resolve_gomoku_rl_dir()
 
 from gomoku_rl.core import Gomoku
 from gomoku_rl.policy import get_policy
