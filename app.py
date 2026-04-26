@@ -57,7 +57,7 @@ load_config()
 
 from collections import deque
 _si_env = gym.make('ALE/SpaceInvaders-v5', render_mode='rgb_array',
-                   frameskip=2, repeat_action_probability=0.0)
+                   frameskip=1, repeat_action_probability=0.0)
 _si_frames = deque(maxlen=4)
 
 _bo_env = gym.make('ALE/Breakout-v5', render_mode='rgb_array',
