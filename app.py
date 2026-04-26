@@ -12,8 +12,8 @@ import cv2
 import numpy as np
 import torch
 
-from gomoku_rl_adapter import GomokuRLBoard, GomokuPPOEngine, load_gomoku_ppo
-from d3qn_helper import load_d3qn, get_q_values, ACTION_NAMES
+from ai_agents.gomoku import GomokuRLBoard, GomokuPPOEngine, load_gomoku_ppo
+from ai_agents.space_invaders import load_d3qn, get_q_values, ACTION_NAMES
 from llm_feedback import generate_feedback, test_openrouter_connection, DEFAULT_MODEL, FALLBACK_MODELS
 
 app = Flask(__name__)
@@ -86,7 +86,7 @@ def compute_q_values(board, policy_value_net, n_playout=80):
     }
 
 D3QN_MODEL_PATH = os.path.join(
-    os.path.dirname(__file__), 'checkpoints_v3_logs', 'best_model.pth'
+    os.path.dirname(__file__), 'ai_agents', 'space_invaders', 'checkpoints', 'best_model.pth'
 )
 d3qn_net = None
 if os.path.exists(D3QN_MODEL_PATH):
@@ -96,7 +96,8 @@ else:
 
 BOARD_W, BOARD_H, N_IN_ROW = 15, 15, 5
 _GOMOKU_PPO_PATH = os.path.join(
-    os.path.dirname(__file__), 'gomoku_rl', 'pretrained_models', '15_15', 'ppo', '0.pt'
+    os.path.dirname(__file__), 'ai_agents', 'gomoku', 'gomoku_rl',
+    'pretrained_models', '15_15', 'ppo', '0.pt'
 )
 gomoku_net = load_gomoku_ppo(_GOMOKU_PPO_PATH, board_size=BOARD_W, device=DEVICE)
 print("✅ Gomoku PPO 모델 로드 완료 (15×15)")
