@@ -123,6 +123,7 @@ if os.path.exists(BREAKOUT_MODEL_PATH):
 else:
     print(f"⚠️  Breakout 모델 없음: {BREAKOUT_MODEL_PATH}")
 
+# ── Space Invaders 상태 ──────────────────────────────────────
 si_episode_data  = []
 si_env_ready     = False
 si_stacked_state = None
@@ -132,11 +133,19 @@ si_analysis_results = []
 si_counterfactual_cache = {}
 si_session_id = 0
 
+# ── Breakout 상태 ────────────────────────────────────────────
 bo_episode_data  = []
 bo_env_ready     = False
 bo_last_rgb      = None
 bo_session_id    = 0
+bo_valid_entries = []
+bo_analysis_results = []
+bo_counterfactual_cache = {}
+bo_valid_entries = []
+bo_analysis_results = []
+bo_counterfactual_cache = {}
 
+# ── Gomoku 상태 ──────────────────────────────────────────────
 gomoku_board  = None
 gomoku_history = []
 gomoku_active  = False
@@ -147,7 +156,7 @@ gomoku_session_id = 0
 gomoku_analysis_timer = None
 gomoku_ai_turn_timer = None
 gomoku_state_seq = 0
-gomoku_human_color = 1   # 1=흑(선착), 2=백(후착)
+gomoku_human_color = 1
 
 
 def emit_gomoku_terminal_state(payload, sid):
@@ -188,6 +197,8 @@ def list_saved_sessions(game_name):
     sessions.sort(key=lambda item: item['saved_at'], reverse=True)
     return sessions
 
+
+# ── Space Invaders 헬퍼 ──────────────────────────────────────
 
 def select_si_top5(analyses, k=5, min_gap=3):
     if not analyses:
@@ -239,6 +250,80 @@ def serialize_si_counterfactual_cache():
         saved.append(item)
     return saved
 
+
+# ── Breakout 헬퍼 ────────────────────────────────────────────
+
+def select_bo_top5(analyses, k=5, min_gap=3):
+    if not analyses:
+        return []
+    total = len(analyses)
+    seg_size = max(1, total // k)
+    selected = []
+    for seg_idx in range(k):
+        start = seg_idx * seg_size
+        end = total if seg_idx == k - 1 else (seg_idx + 1) * seg_size
+        candidates = sorted(analyses[start:end], key=lambda a: a['loss'], reverse=True)
+        for candidate in candidates:
+            if all(abs(candidate['step'] - s['step']) >= min_gap for s in selected):
+                selected.append(candidate)
+                break
+    return sorted(selected, key=lambda a: a['loss'], reverse=True)
+
+
+def bo_analysis_snapshot():
+    if not bo_analysis_results:
+        return None
+    losses = [a['loss'] for a in bo_analysis_results]
+    avg_loss = round(float(np.mean(losses)), 3) if losses else 0.0
+    worst = max(bo_analysis_results, key=lambda a: a['loss']) if bo_analysis_results else None
+    worst_10 = select_bo_top5(bo_analysis_results)
+    agree = round(sum(1 for a in bo_analysis_results if a['is_best']) / len(bo_analysis_results) * 100, 1) if bo_analysis_results else 0.0
+    from collections import Counter
+    p_cnt = Counter(a['action_name'] for a in bo_analysis_results)
+    ai_cnt = Counter(a['best_action_name'] for a in bo_analysis_results)
+    return {
+        'avg_loss': avg_loss,
+        'worst': worst,
+        'worst_10': worst_10,
+        'total_steps': len(bo_analysis_results),
+        'agree_rate': agree,
+        'player_actions': dict(p_cnt),
+        'ai_actions': dict(ai_cnt),
+    }
+
+
+def serialize_bo_counterfactual_cache():
+    saved = []
+    for (session_id, entry_index, replay_horizon), payload in bo_counterfactual_cache.items():
+        if session_id != bo_session_id:
+            continue
+        item = copy.deepcopy(payload)
+        item['entry_index'] = entry_index
+        item['replay_horizon'] = replay_horizon
+        saved.append(item)
+    return saved
+
+
+def make_breakout_env():
+    return gym.make(
+        'ALE/Breakout-v5',
+        render_mode='rgb_array',
+        frameskip=2,
+        repeat_action_probability=0.0,
+    )
+
+
+def restore_breakout_env(env, snapshot):
+    env.reset()
+    env.unwrapped.ale.restoreSystemState(snapshot)
+
+
+def greedy_bo_action_from_state(state):
+    q_vals = bo_get_q_values(breakout_net, state, DEVICE)
+    return int(np.argmax(q_vals)), q_vals
+
+
+# ── Gomoku 헬퍼 ──────────────────────────────────────────────
 
 def gomoku_analysis_snapshot():
     if not gomoku_analysis_results:
@@ -386,7 +471,6 @@ def human_perspective_outcome_text(winner):
 
 
 def _q_to_bgr(t):
-    """t in [0,1]. Returns BGR: 0=cool blue, 0.5=green, 1=hot red."""
     if t < 0.5:
         s = t * 2
         return (int(210 - 160 * s), int(80 + 130 * s), int(30 + 20 * s))
@@ -397,9 +481,9 @@ def _q_to_bgr(t):
 
 def render_gomoku_board(board, highlight_move=None, title="", highlight_black_only=True, winning_line=None, outcome_text=None, q_values=None):
     margin = 36
-    cell = max(24, 510 // BOARD_W)          # 15×15: 34 / 8×8: 63 (자동 스케일)
+    cell = max(24, 510 // BOARD_W)
     size = margin * 2 + cell * (BOARD_W - 1)
-    stone_r = max(9, cell // 3)             # 돌 반지름 (cell에 비례)
+    stone_r = max(9, cell // 3)
     img = np.full((size + 48, size, 3), 226, dtype=np.uint8)
     img[:, :] = (226, 194, 140)
     cv2.rectangle(img, (0, 0), (size - 1, size + 47), (70, 45, 20), 2)
@@ -503,8 +587,7 @@ def choose_gomoku_best_move(board, n_playout=80):
     return int(res['best_action']), res
 
 
-
-
+# ── Flask Routes ─────────────────────────────────────────────
 
 @app.route('/')
 def index():
@@ -529,6 +612,7 @@ def breakout_page():
         has_openrouter=bool(os.getenv("OPENROUTER_API_KEY")),
         openrouter_model=os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL),
         openrouter_fallback=", ".join(FALLBACK_MODELS),
+        saved_sessions=list_saved_sessions('breakout'),
     )
 
 
@@ -575,6 +659,8 @@ def test_settings():
     return jsonify({'ok': ok, 'message': summary})
 
 
+# ── Socket.IO Handlers ───────────────────────────────────────
+
 @socketio.on('llm_test')
 def handle_llm_test():
     ok, payload = test_openrouter_connection()
@@ -583,14 +669,11 @@ def handle_llm_test():
     emit('llm_test_result', {'ok': ok, **payload})
 
 
+# ── Space Invaders Sessions ──────────────────────────────────
+
 @socketio.on('si_list_sessions')
 def handle_si_list_sessions():
     emit('si_sessions_list', {'sessions': list_saved_sessions('space_invaders')})
-
-
-@socketio.on('gomoku_list_sessions')
-def handle_gomoku_list_sessions():
-    emit('gomoku_sessions_list', {'sessions': list_saved_sessions('gomoku')})
 
 
 @socketio.on('si_save_session')
@@ -623,36 +706,6 @@ def handle_si_save_session(data):
             'cached_counterfactuals': serialize_si_counterfactual_cache(),
         }, f)
     emit('si_session_saved', {'ok': True, 'message': '기록을 저장했습니다.', 'sessions': list_saved_sessions('space_invaders')})
-
-
-@socketio.on('gomoku_save_session')
-def handle_gomoku_save_session(data):
-    if not gomoku_history or not gomoku_analysis_results:
-        emit('gomoku_session_saved', {'ok': False, 'message': '저장할 Gomoku 분석 결과가 없습니다.'})
-        return
-    title = (data.get('title') or '').strip() or 'Gomoku 기록'
-    note = (data.get('note') or '').strip()
-    session_id = build_session_id()
-    session_dir = os.path.join(ensure_session_dir('gomoku'), session_id)
-    os.makedirs(session_dir, exist_ok=True)
-    analysis_snapshot = gomoku_analysis_snapshot()
-    metadata = {
-        'game': 'gomoku',
-        'title': title,
-        'note': note,
-        'saved_at': datetime.now().isoformat(timespec='seconds'),
-        'summary': f"총 {len(gomoku_history)}수 · 평균 손실 {analysis_snapshot['avg_loss']}",
-    }
-    with open(os.path.join(session_dir, 'meta.json'), 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(session_dir, 'session.pkl'), 'wb') as f:
-        pickle.dump({
-            'history': serialize_gomoku_history(),
-            'analysis_results': gomoku_analysis_results,
-            'analysis_snapshot': analysis_snapshot,
-            'cached_counterfactuals': serialize_gomoku_counterfactual_cache(),
-        }, f)
-    emit('gomoku_session_saved', {'ok': True, 'message': '기록을 저장했습니다.', 'sessions': list_saved_sessions('gomoku')})
 
 
 @socketio.on('si_load_session')
@@ -691,6 +744,138 @@ def handle_si_load_session(data):
     })
 
 
+@socketio.on('si_delete_session')
+def handle_si_delete_session(data):
+    session_id = data.get('session_id')
+    session_dir = os.path.join(ensure_session_dir('space_invaders'), session_id)
+    if os.path.isdir(session_dir):
+        import shutil
+        shutil.rmtree(session_dir)
+    emit('si_session_deleted', {'ok': True, 'message': '기록을 삭제했습니다.', 'sessions': list_saved_sessions('space_invaders')})
+
+
+# ── Breakout Sessions ────────────────────────────────────────
+
+@socketio.on('bo_list_sessions')
+def handle_bo_list_sessions():
+    emit('bo_sessions_list', {'sessions': list_saved_sessions('breakout')})
+
+
+@socketio.on('bo_save_session')
+def handle_bo_save_session(data):
+    if not bo_episode_data or not bo_analysis_results:
+        emit('bo_session_saved', {'ok': False, 'message': '저장할 Breakout 분석 결과가 없습니다.'})
+        return
+    title = (data.get('title') or '').strip() or 'Breakout 기록'
+    note = (data.get('note') or '').strip()
+    session_id = build_session_id()
+    session_dir = os.path.join(ensure_session_dir('breakout'), session_id)
+    os.makedirs(session_dir, exist_ok=True)
+    basic_report = basic_analyze_bo(bo_episode_data)
+    analysis_snapshot = bo_analysis_snapshot()
+    metadata = {
+        'game': 'breakout',
+        'title': title,
+        'note': note,
+        'saved_at': datetime.now().isoformat(timespec='seconds'),
+        'summary': f"점수 {basic_report['total_reward']} · 스텝 {basic_report['total_steps']}",
+        'basic_report': basic_report,
+    }
+    with open(os.path.join(session_dir, 'meta.json'), 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
+    with open(os.path.join(session_dir, 'session.pkl'), 'wb') as f:
+        pickle.dump({
+            'episode_data': bo_episode_data,
+            'analysis_results': bo_analysis_results,
+            'analysis_snapshot': analysis_snapshot,
+            'cached_counterfactuals': serialize_bo_counterfactual_cache(),
+        }, f)
+    emit('bo_session_saved', {'ok': True, 'message': '기록을 저장했습니다.', 'sessions': list_saved_sessions('breakout')})
+
+
+@socketio.on('bo_load_session')
+def handle_bo_load_session(data):
+    global bo_episode_data, bo_analysis_results, bo_valid_entries, bo_counterfactual_cache, bo_session_id
+    session_id = data.get('session_id')
+    session_dir = os.path.join(ensure_session_dir('breakout'), session_id)
+    meta_path = os.path.join(session_dir, 'meta.json')
+    data_path = os.path.join(session_dir, 'session.pkl')
+    if not os.path.isfile(meta_path) or not os.path.isfile(data_path):
+        emit('bo_session_loaded', {'ok': False, 'message': '불러올 기록을 찾지 못했습니다.'})
+        return
+    with open(meta_path, 'r', encoding='utf-8') as f:
+        meta = json.load(f)
+    with open(data_path, 'rb') as f:
+        payload = pickle.load(f)
+    bo_session_id += 1
+    bo_episode_data = payload['episode_data']
+    bo_analysis_results = payload['analysis_results']
+    bo_valid_entries = [entry for entry in bo_episode_data if entry.get('action') is not None]
+    bo_counterfactual_cache = {}
+    cached_counterfactuals = payload.get('cached_counterfactuals') or []
+    for item in cached_counterfactuals:
+        entry_index = int(item.get('entry_index', -1))
+        replay_horizon = int(item.get('replay_horizon', 1200))
+        restored = copy.deepcopy(item)
+        restored['session_id'] = bo_session_id
+        bo_counterfactual_cache[(bo_session_id, entry_index, replay_horizon)] = restored
+    emit('bo_session_loaded', {
+        'ok': True,
+        'meta': meta,
+        'basic': meta.get('basic_report', {}),
+        'analysis': payload.get('analysis_snapshot') or bo_analysis_snapshot(),
+        'cached_counterfactuals': cached_counterfactuals,
+        'session_id': bo_session_id,
+    })
+
+
+@socketio.on('bo_delete_session')
+def handle_bo_delete_session(data):
+    session_id = data.get('session_id')
+    session_dir = os.path.join(ensure_session_dir('breakout'), session_id)
+    if os.path.isdir(session_dir):
+        import shutil
+        shutil.rmtree(session_dir)
+    emit('bo_session_deleted', {'ok': True, 'message': '기록을 삭제했습니다.', 'sessions': list_saved_sessions('breakout')})
+
+
+# ── Gomoku Sessions ──────────────────────────────────────────
+
+@socketio.on('gomoku_list_sessions')
+def handle_gomoku_list_sessions():
+    emit('gomoku_sessions_list', {'sessions': list_saved_sessions('gomoku')})
+
+
+@socketio.on('gomoku_save_session')
+def handle_gomoku_save_session(data):
+    if not gomoku_history or not gomoku_analysis_results:
+        emit('gomoku_session_saved', {'ok': False, 'message': '저장할 Gomoku 분석 결과가 없습니다.'})
+        return
+    title = (data.get('title') or '').strip() or 'Gomoku 기록'
+    note = (data.get('note') or '').strip()
+    session_id = build_session_id()
+    session_dir = os.path.join(ensure_session_dir('gomoku'), session_id)
+    os.makedirs(session_dir, exist_ok=True)
+    analysis_snapshot = gomoku_analysis_snapshot()
+    metadata = {
+        'game': 'gomoku',
+        'title': title,
+        'note': note,
+        'saved_at': datetime.now().isoformat(timespec='seconds'),
+        'summary': f"총 {len(gomoku_history)}수 · 평균 손실 {analysis_snapshot['avg_loss']}",
+    }
+    with open(os.path.join(session_dir, 'meta.json'), 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
+    with open(os.path.join(session_dir, 'session.pkl'), 'wb') as f:
+        pickle.dump({
+            'history': serialize_gomoku_history(),
+            'analysis_results': gomoku_analysis_results,
+            'analysis_snapshot': analysis_snapshot,
+            'cached_counterfactuals': serialize_gomoku_counterfactual_cache(),
+        }, f)
+    emit('gomoku_session_saved', {'ok': True, 'message': '기록을 저장했습니다.', 'sessions': list_saved_sessions('gomoku')})
+
+
 @socketio.on('gomoku_load_session')
 def handle_gomoku_load_session(data):
     global gomoku_board, gomoku_history, gomoku_analysis_results, gomoku_counterfactual_cache, gomoku_session_id, gomoku_active
@@ -726,16 +911,6 @@ def handle_gomoku_load_session(data):
     })
 
 
-@socketio.on('si_delete_session')
-def handle_si_delete_session(data):
-    session_id = data.get('session_id')
-    session_dir = os.path.join(ensure_session_dir('space_invaders'), session_id)
-    if os.path.isdir(session_dir):
-        import shutil
-        shutil.rmtree(session_dir)
-    emit('si_session_deleted', {'ok': True, 'message': '기록을 삭제했습니다.', 'sessions': list_saved_sessions('space_invaders')})
-
-
 @socketio.on('gomoku_delete_session')
 def handle_gomoku_delete_session(data):
     session_id = data.get('session_id')
@@ -745,6 +920,8 @@ def handle_gomoku_delete_session(data):
         shutil.rmtree(session_dir)
     emit('gomoku_session_deleted', {'ok': True, 'message': '기록을 삭제했습니다.', 'sessions': list_saved_sessions('gomoku')})
 
+
+# ── Basic analyze ────────────────────────────────────────────
 
 def basic_analyze(data):
     acts   = [d['action'] for d in data if d['action'] is not None]
@@ -761,6 +938,9 @@ def basic_analyze(data):
         'left_ratio': f'{left/total*100:.1f}%', 'right_ratio': f'{right/total*100:.1f}%',
         'fire_ratio': f'{agg:.1f}%', 'move_bias': bias, 'ai_feedback': advice,
     }
+
+
+# ── Space Invaders Game ──────────────────────────────────────
 
 @socketio.on('si_start')
 def handle_si_start():
@@ -839,7 +1019,7 @@ def run_si_analysis():
         if analysis_session_id != si_session_id:
             return
         if i % 50 == 0:
-                socketio.emit('si_analysis_progress',
+            socketio.emit('si_analysis_progress',
                           {'current': i, 'total': total, 'pct': round(i/total*100), 'session_id': analysis_session_id})
         q_vals   = get_q_values(d3qn_net, entry['pre_stacked_state'], DEVICE)
         action   = entry['action']
@@ -994,6 +1174,8 @@ def handle_si_counterfactual(data):
     emit('si_counterfactual_ready', payload)
 
 
+# ── Breakout Game ────────────────────────────────────────────
+
 def basic_analyze_bo(data):
     acts = [d['action'] for d in data if d['action'] is not None]
     total = len(acts) or 1
@@ -1020,9 +1202,13 @@ def basic_analyze_bo(data):
 @socketio.on('bo_start')
 def handle_bo_start():
     global bo_episode_data, bo_env_ready, bo_last_rgb, bo_session_id
+    global bo_valid_entries, bo_analysis_results, bo_counterfactual_cache
     bo_session_id += 1
     bo_env_ready = False
     bo_episode_data = []
+    bo_valid_entries = []
+    bo_analysis_results = []
+    bo_counterfactual_cache = {}
 
     obs_raw, _ = _bo_env.reset()
     proc = _preprocess(obs_raw)
@@ -1047,6 +1233,9 @@ def handle_bo_action(data):
     if not bo_env_ready:
         return
     action = int(data.get('action', 0))
+    pre_snapshot = _bo_env.unwrapped.ale.cloneSystemState()
+    pre_stacked_state = _get_stacked_bo().copy()
+    pre_rgb = bo_last_rgb.copy() if bo_last_rgb is not None else _bo_env.render()
     obs_raw, reward, terminated, truncated, _ = _bo_env.step(action)
     done = terminated or truncated
     bo_last_rgb = obs_raw.copy()
@@ -1055,6 +1244,9 @@ def handle_bo_action(data):
 
     bo_episode_data.append({
         'step': len(bo_episode_data),
+        'pre_snapshot': pre_snapshot,
+        'pre_stacked_state': pre_stacked_state,
+        'pre_rgb': pre_rgb,
         'rgb': obs_raw,
         'stacked_state': _get_stacked_bo().copy(),
         'action': action,
@@ -1066,8 +1258,65 @@ def handle_bo_action(data):
         bo_env_ready = False
         basic = basic_analyze_bo(bo_episode_data)
         emit('bo_over', {**basic, 'has_breakout': (breakout_net is not None)})
+        if breakout_net is not None:
+            socketio.start_background_task(run_bo_analysis)
     else:
         emit('bo_frame', {'image': encode_frame(obs_raw), 'done': False, 'score': current_score})
+
+
+def run_bo_analysis():
+    global bo_valid_entries, bo_analysis_results, bo_session_id
+    valid = [d for d in bo_episode_data if d['action'] is not None]
+    if not valid:
+        return
+    analysis_session_id = bo_session_id
+    bo_valid_entries = valid
+    total = len(valid)
+    socketio.emit('bo_analysis_start', {'total': total, 'session_id': analysis_session_id})
+
+    analyses = []
+    for i, entry in enumerate(valid):
+        if analysis_session_id != bo_session_id:
+            return
+        if i % 50 == 0:
+            socketio.emit('bo_analysis_progress',
+                          {'current': i, 'total': total, 'pct': round(i/total*100), 'session_id': analysis_session_id})
+        q_vals   = bo_get_q_values(breakout_net, entry['pre_stacked_state'], DEVICE)
+        action   = entry['action']
+        best_act = int(np.argmax(q_vals))
+        player_q = float(q_vals[action])
+        best_q   = float(q_vals[best_act])
+        analyses.append({
+            'step': entry['step'], 'action': action, 'entry_index': i,
+            'action_name':      BO_ACTION_NAMES.get(action, str(action)),
+            'best_action':      best_act,
+            'best_action_name': BO_ACTION_NAMES.get(best_act, str(best_act)),
+            'q_values':         [round(float(v), 3) for v in q_vals],
+            'player_q':         round(player_q, 3),
+            'best_q':           round(best_q, 3),
+            'loss':             round(best_q - player_q, 3),
+            'reward':           entry['reward'],
+            'is_best':          (action == best_act),
+        })
+
+    losses    = [a['loss'] for a in analyses]
+    avg_loss  = round(float(np.mean(losses)), 3)
+    worst     = max(analyses, key=lambda a: a['loss'])
+    worst_10  = select_bo_top5(analyses)
+    agree     = round(sum(1 for a in analyses if a['is_best']) / len(analyses) * 100, 1)
+    bo_analysis_results = analyses
+
+    from collections import Counter
+    p_cnt  = Counter(a['action_name']      for a in analyses)
+    ai_cnt = Counter(a['best_action_name'] for a in analyses)
+
+    socketio.emit('bo_analysis_done', {
+        'avg_loss': avg_loss, 'worst': worst, 'worst_10': worst_10,
+        'total_steps': total, 'agree_rate': agree,
+        'player_actions': dict(p_cnt), 'ai_actions': dict(ai_cnt),
+        'session_id': analysis_session_id,
+    })
+    print(f"✅ Breakout 분석 완료 avg_loss={avg_loss:.3f} agree={agree}%")
 
 
 @socketio.on('bo_request_ai_action')
@@ -1085,6 +1334,123 @@ def handle_bo_request_ai_action(data):
         'q_values': [round(float(v), 3) for v in q_vals],
     })
 
+
+@socketio.on('bo_request_counterfactual')
+def handle_bo_counterfactual(data):
+    global bo_counterfactual_cache
+    if breakout_net is None or not bo_valid_entries:
+        emit('bo_counterfactual_error', {'message': 'Breakout counterfactual 데이터를 찾지 못했습니다.'})
+        return
+
+    entry_index = int(data.get('entry_index', -1))
+    replay_horizon = int(data.get('horizon', 1200))
+    request_session_id = int(data.get('session_id', bo_session_id))
+    if request_session_id != bo_session_id:
+        emit('bo_counterfactual_error', {'message': '이전 판의 비교 요청이라 취소되었습니다.', 'session_id': request_session_id, 'entry_index': entry_index})
+        return
+    cache_key = (request_session_id, entry_index, replay_horizon)
+    if cache_key in bo_counterfactual_cache:
+        emit('bo_counterfactual_ready', bo_counterfactual_cache[cache_key])
+        return
+    if entry_index < 0 or entry_index >= len(bo_valid_entries):
+        emit('bo_counterfactual_error', {'message': '선택한 후보를 찾지 못했습니다.', 'entry_index': entry_index})
+        return
+
+    entry = bo_valid_entries[entry_index]
+    q_vals = bo_get_q_values(breakout_net, entry['pre_stacked_state'], DEVICE)
+    best_action = int(np.argmax(q_vals))
+
+    human_env = make_breakout_env()
+    agent_env = make_breakout_env()
+    try:
+        restore_breakout_env(human_env, entry['pre_snapshot'])
+        restore_breakout_env(agent_env, entry['pre_snapshot'])
+
+        human_frames = deque(entry['pre_stacked_state'], maxlen=4)
+        agent_frames = deque(entry['pre_stacked_state'], maxlen=4)
+        human_reward_steps = []
+        agent_reward_steps = []
+        human_first_reward_step = None
+        agent_first_reward_step = None
+        human_score = 0.0
+        agent_score = 0.0
+        rendered_frames = []
+        human_actions_log = []
+        agent_actions_log = []
+        human_done = False
+        agent_done = False
+        human_frame = entry['pre_rgb'].copy()
+        agent_frame = entry['pre_rgb'].copy()
+
+        for offset in range(replay_horizon):
+            human_action = bo_valid_entries[entry_index + offset]['action'] if entry_index + offset < len(bo_valid_entries) else 0
+            agent_action = best_action if offset == 0 else greedy_bo_action_from_state(np.array(agent_frames, dtype=np.uint8))[0]
+            human_actions_log.append(int(human_action))
+            agent_actions_log.append(int(agent_action))
+
+            if not human_done:
+                obs_h, reward_h, term_h, trunc_h, _ = human_env.step(human_action)
+                human_frame = obs_h
+                human_frames.append(_preprocess(obs_h))
+                human_score += float(reward_h)
+                if reward_h > 0:
+                    human_reward_steps.append(offset + 1)
+                    if human_first_reward_step is None:
+                        human_first_reward_step = offset + 1
+                human_done = term_h or trunc_h
+
+            if not agent_done:
+                obs_a, reward_a, term_a, trunc_a, _ = agent_env.step(agent_action)
+                agent_frame = obs_a
+                agent_frames.append(_preprocess(obs_a))
+                agent_score += float(reward_a)
+                if reward_a > 0:
+                    agent_reward_steps.append(offset + 1)
+                    if agent_first_reward_step is None:
+                        agent_first_reward_step = offset + 1
+                agent_done = term_a or trunc_a
+
+            rendered_frames.append(compose_space_compare_frame(human_frame, agent_frame, {}))
+
+        summary = {
+            'step': entry['step'],
+            'loss': round(float(q_vals[best_action] - q_vals[entry['action']]), 3),
+            'human_action_name': BO_ACTION_NAMES.get(entry['action'], str(entry['action'])),
+            'agent_action_name': BO_ACTION_NAMES.get(best_action, str(best_action)),
+            'human_q': round(float(q_vals[entry['action']]), 4),
+            'agent_q': round(float(q_vals[best_action]), 4),
+            'gap': round(float(q_vals[best_action] - q_vals[entry['action']]), 4),
+            'human_reward_steps': human_reward_steps,
+            'agent_reward_steps': agent_reward_steps,
+            'human_first_reward_step': human_first_reward_step,
+            'agent_first_reward_step': agent_first_reward_step,
+            'human_score_delta': round(human_score, 1),
+            'agent_score_delta': round(agent_score, 1),
+            'human_done': human_done,
+            'agent_done': agent_done,
+            'replay_horizon': replay_horizon,
+        }
+        feedback, feedback_source, feedback_model, feedback_route = generate_feedback("breakout", summary)
+        payload = {
+            'frames': encode_frames(rendered_frames),
+            'human_actions': human_actions_log,
+            'agent_actions': agent_actions_log,
+            'summary': summary,
+            'feedback': feedback,
+            'feedback_source': feedback_source,
+            'feedback_model': feedback_model,
+            'feedback_route': feedback_route,
+            'session_id': request_session_id,
+            'entry_index': entry_index,
+        }
+    finally:
+        human_env.close()
+        agent_env.close()
+    bo_counterfactual_cache[cache_key] = payload
+    emit('bo_counterfactual_ready', payload)
+
+
+# ── Gomoku Game ──────────────────────────────────────────────
 
 def board_to_dict(board):
     cells = [int(board.states.get(r * BOARD_W + c, 0))

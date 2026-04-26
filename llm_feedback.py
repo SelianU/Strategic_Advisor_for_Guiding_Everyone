@@ -23,6 +23,7 @@ MAX_LLM_ATTEMPTS = 4
 RETRY_DELAYS = [2.0, 4.0, 6.0]
 
 ACTION_NAME_KO = {
+    # Space Invaders
     "NOOP": "아무것도 하지 않기",
     "FIRE": "발사",
     "LEFT": "왼쪽 이동",
@@ -31,6 +32,12 @@ ACTION_NAME_KO = {
     "RIGHTFIRE": "오른쪽으로 이동하며 발사",
 }
 
+BO_ACTION_NAME_KO = {
+    "NOOP": "아무것도 하지 않기",
+    "FIRE": "공 발사",
+    "RIGHT": "오른쪽 이동",
+    "LEFT": "왼쪽 이동",
+}
 
 SPACE_INVADERS_CONTEXT = """당신은 Space Invaders 플레이를 설명해주는 친절한 게임 코치입니다.
 
@@ -52,6 +59,26 @@ SPACE_INVADERS_CONTEXT = """당신은 Space Invaders 플레이를 설명해주�
 - 영어 표현을 섞지 마세요.
 """
 
+BREAKOUT_CONTEXT = """당신은 Breakout 플레이를 설명해주는 친절한 게임 코치입니다.
+
+게임 정보:
+- 플레이어는 화면 아래의 패들을 좌우로 움직여 공을 튕기고, 위쪽의 벽돌을 모두 부수는 것이 목표입니다.
+- 주요 행동은 NOOP(대기), FIRE(공 발사), RIGHT(오른쪽), LEFT(왼쪽) 입니다.
+- 공을 놓치면 목숨을 잃고, 벽돌을 빠르게 부술수록 높은 점수를 얻을 수 있습니다.
+- 패들의 위치를 공의 궤도에 미리 맞추는 것이 핵심 기술입니다.
+- 좋은 설명은 "무슨 버튼을 눌렀는가"보다 "그 선택이 이후 공의 궤도와 점수에 어떤 영향을 미쳤는가"를 자연스럽게 연결해줘야 합니다.
+
+프로젝트 정보:
+- 이 프로젝트는 강화학습 기반의 explainable AI 코칭 시스템입니다.
+- D3QN 에이전트는 비교 기준이 되는 강한 정책입니다.
+- 같은 게임 상태에서 인간의 행동과 에이전트가 더 선호하는 행동을 비교합니다.
+- 선택된 장면은 가치 차이가 큰 장면으로, 에이전트 행동이 인간 행동보다 더 유리하다고 평가된 순간입니다.
+
+설명 원칙:
+- 연구 보고서처럼 쓰지 말고, 실제 플레이어에게 말해주듯 자연스럽고 따뜻한 한국어로 설명하세요.
+- 패들 위치와 공의 궤도, 득점 타이밍, 목숨 유지 가능성 같은 눈에 보이는 변화를 중심으로 설명하세요.
+- 영어 표현을 섞지 마세요.
+"""
 
 GOMOKU_CONTEXT = """당신은 오목 플레이를 설명해주는 친절한 게임 코치입니다.
 
@@ -190,6 +217,44 @@ def build_space_messages(summary: dict[str, Any], summary_lines: list[str]) -> l
     ]
 
 
+def build_breakout_messages(summary: dict[str, Any], summary_lines: list[str]) -> list[dict[str, str]]:
+    human_action_ko = BO_ACTION_NAME_KO.get(summary["human_action_name"], summary["human_action_name"])
+    agent_action_ko = BO_ACTION_NAME_KO.get(summary["agent_action_name"], summary["agent_action_name"])
+    user_prompt = f"""다음은 Breakout 코칭 사례입니다. 아래 정보를 바탕으로 플레이어에게 자연스러운 한국어 피드백을 작성해주세요.
+
+상황 정보:
+- 스텝: {summary['step']}
+- 인간 플레이어 행동: {human_action_ko}
+- 에이전트 행동: {agent_action_ko}
+- 인간 행동의 Q값: {summary.get('human_q', 0):.4f}
+- 에이전트 행동의 Q값: {summary.get('agent_q', 0):.4f}
+- 가치 차이: {summary.get('gap', 0):.4f}
+- 인간 경로의 점수 변화: {summary.get('human_score_delta', 0):.1f}
+- 에이전트 경로의 점수 변화: {summary.get('agent_score_delta', 0):.1f}
+- 인간 쪽 첫 득점 시점: {summary.get('human_first_reward_step', '득점 없음')}
+- 에이전트 쪽 첫 득점 시점: {summary.get('agent_first_reward_step', '득점 없음')}
+- 인간 쪽 득점이 발생한 프레임들: {summary.get('human_reward_steps') or '없음'}
+- 에이전트 쪽 득점이 발생한 프레임들: {summary.get('agent_reward_steps') or '없음'}
+
+관찰 요약:
+{chr(10).join(f"- {line}" for line in summary_lines)}
+
+작성 방식:
+- 실제 플레이어에게 바로 조언해주는 말투로 써주세요.
+- 인간 행동과 에이전트 행동을 꼭 비교해서 설명하세요.
+- 패들 위치, 공의 궤도 예측, 득점 타이밍, 목숨 유지 가능성을 중심으로 설명하세요.
+- 숫자를 그대로 반복하기보다, 그 숫자가 의미하는 바를 풀어서 설명하세요.
+- 영어 표현은 쓰지 마세요.
+- 말투는 "했습니다", "좋았습니다", "유리했습니다"처럼 단정한 존댓말을 사용하세요.
+- 인삿말, 이모티콘, 과한 감탄사는 넣지 마세요.
+- 2~3문단 허용, 자세한 설명도 괜찮지만 문단을 나눠 가독성 있게 작성하세요.
+"""
+    return [
+        {"role": "system", "content": BREAKOUT_CONTEXT},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
 def build_gomoku_messages(summary: dict[str, Any], summary_lines: list[str]) -> list[dict[str, str]]:
     human_seq = ", ".join(summary.get("human_sequence_labels", [])[:8]) or "기록 없음"
     agent_seq = ", ".join(summary.get("agent_sequence_labels", [])[:8]) or "기록 없음"
@@ -241,6 +306,23 @@ def build_space_fallback_feedback(summary: dict[str, Any]) -> str:
     return format_feedback_text(text)
 
 
+def build_breakout_fallback_feedback(summary: dict[str, Any]) -> str:
+    human_action_ko = BO_ACTION_NAME_KO.get(summary["human_action_name"], summary["human_action_name"])
+    agent_action_ko = BO_ACTION_NAME_KO.get(summary["agent_action_name"], summary["agent_action_name"])
+    human_steps = summary.get("human_reward_steps", [])
+    agent_steps = summary.get("agent_reward_steps", [])
+    human_steps_text = ", ".join(f"{s}프레임" for s in human_steps[:5]) if human_steps else "득점이 없었습니다"
+    agent_steps_text = ", ".join(f"{s}프레임" for s in agent_steps[:5]) if agent_steps else "득점이 없었습니다"
+    text = (
+        f"이 상황에서는 인간 플레이어가 {human_action_ko}을 선택했지만, 에이전트의 {agent_action_ko}가 더 유리했습니다. "
+        f"공의 궤도에 먼저 패들을 맞춰두는 에이전트의 움직임이 벽돌에 더 빠르게 공을 보내는 데 효과적이었습니다. "
+        f"인간 쪽은 공을 놓치지 않는 데는 성공했지만, 득점 기회를 확보하는 타이밍이 늦었습니다.\n\n"
+        f"인간 쪽 득점은 {human_steps_text}에 나왔고, 에이전트 쪽 득점은 {agent_steps_text}에 이어졌습니다. "
+        f"이번 장면에서 중요한 점은 패들 이동의 방향과 타이밍이 공의 반사 각도와 벽돌 도달 속도를 크게 바꾼다는 것입니다."
+    )
+    return format_feedback_text(text)
+
+
 def build_gomoku_fallback_feedback(summary: dict[str, Any]) -> str:
     actual = f"({summary['actual_row']}, {summary['actual_col']})"
     best = f"({summary['best_row']}, {summary['best_col']})"
@@ -278,7 +360,15 @@ def generate_feedback(game_type: str, summary: dict[str, Any]) -> tuple[str, str
         ]
         fallback_text = build_space_fallback_feedback(summary)
         messages = build_space_messages(summary, summary_lines)
-    else:
+    elif game_type == "breakout":
+        summary_lines = [
+            f"인간 행동은 {summary['human_action_name']}이고, 에이전트 행동은 {summary['agent_action_name']}입니다.",
+            f"인간 쪽 득점 프레임은 {summary.get('human_reward_steps') or '없음'}입니다.",
+            f"에이전트 쪽 득점 프레임은 {summary.get('agent_reward_steps') or '없음'}입니다.",
+        ]
+        fallback_text = build_breakout_fallback_feedback(summary)
+        messages = build_breakout_messages(summary, summary_lines)
+    else:  # gomoku
         summary_lines = [
             f"인간 착수는 ({summary['actual_row']}, {summary['actual_col']})입니다.",
             f"에이전트 권장 착수는 ({summary['best_row']}, {summary['best_col']})입니다.",
