@@ -12,11 +12,7 @@ torchrl==0.6.0
 gymnasium==1.2.3
 ale-py==0.11.2
 
-# Bowling Environment
-gym==0.26.2
-mujoco==3.6.0
-mujoco-py==2.1.2.14
-mjrl==1.0.0
+# Gomoku PPO config
 omegaconf==2.3.0
 
 # Image Processing

@@ -1,5 +1,3 @@
-import sys
-import os
 import copy
 import numpy as np
 import torch
@@ -15,10 +13,6 @@ except ImportError:
     from torchrl.data.tensor_specs import UnboundedContinuousTensorSpec as _ObsSpec
     from torchrl.data.tensor_specs import BinaryDiscreteTensorSpec as _MaskSpec
 from omegaconf import OmegaConf
-
-GOMOKU_RL_DIR = os.path.join(os.path.dirname(__file__), "gomoku_rl")
-if GOMOKU_RL_DIR not in sys.path:
-    sys.path.insert(0, GOMOKU_RL_DIR)
 
 from gomoku_rl.core import Gomoku
 from gomoku_rl.policy import get_policy
