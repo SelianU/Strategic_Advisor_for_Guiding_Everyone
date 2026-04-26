@@ -1,4 +1,5 @@
 import copy
+import os
 import numpy as np
 import torch
 from tensordict import TensorDict
@@ -13,6 +14,9 @@ except ImportError:
     from torchrl.data.tensor_specs import UnboundedContinuousTensorSpec as _ObsSpec
     from torchrl.data.tensor_specs import BinaryDiscreteTensorSpec as _MaskSpec
 from omegaconf import OmegaConf
+
+import gomoku_rl as _gomoku_rl_pkg
+GOMOKU_RL_DIR = os.path.dirname(_gomoku_rl_pkg.__file__)
 
 from gomoku_rl.core import Gomoku
 from gomoku_rl.policy import get_policy
