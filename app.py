@@ -14,6 +14,11 @@ import torch
 
 from ai_agents.gomoku import GomokuRLBoard, GomokuPPOEngine, load_gomoku_ppo
 from ai_agents.space_invaders import load_d3qn, get_q_values, ACTION_NAMES
+from ai_agents.breakout import (
+    load_breakout_d3qn,
+    get_q_values as bo_get_q_values,
+    ACTION_NAMES as BO_ACTION_NAMES,
+)
 from llm_feedback import generate_feedback, test_openrouter_connection, DEFAULT_MODEL, FALLBACK_MODELS
 
 app = Flask(__name__)
@@ -52,8 +57,12 @@ load_config()
 
 from collections import deque
 _si_env = gym.make('ALE/SpaceInvaders-v5', render_mode='rgb_array',
-                   frameskip=1, repeat_action_probability=0.0)
+                   frameskip=2, repeat_action_probability=0.0)
 _si_frames = deque(maxlen=4)
+
+_bo_env = gym.make('ALE/Breakout-v5', render_mode='rgb_array',
+                   frameskip=2, repeat_action_probability=0.0)
+_bo_frames = deque(maxlen=4)
 
 def _preprocess(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
@@ -61,6 +70,9 @@ def _preprocess(frame):
 
 def _get_stacked():
     return np.array(_si_frames, dtype=np.uint8)
+
+def _get_stacked_bo():
+    return np.array(_bo_frames, dtype=np.uint8)
 
 
 def compute_q_values(board, policy_value_net, n_playout=80):
@@ -102,6 +114,15 @@ _GOMOKU_PPO_PATH = os.path.join(
 gomoku_net = load_gomoku_ppo(_GOMOKU_PPO_PATH, board_size=BOARD_W, device=DEVICE)
 print("✅ Gomoku PPO 모델 로드 완료 (15×15)")
 
+BREAKOUT_MODEL_PATH = os.path.join(
+    os.path.dirname(__file__), 'ai_agents', 'breakout', 'checkpoints', 'best_model.pth'
+)
+breakout_net = None
+if os.path.exists(BREAKOUT_MODEL_PATH):
+    breakout_net, _ = load_breakout_d3qn(BREAKOUT_MODEL_PATH, DEVICE)
+else:
+    print(f"⚠️  Breakout 모델 없음: {BREAKOUT_MODEL_PATH}")
+
 si_episode_data  = []
 si_env_ready     = False
 si_stacked_state = None
@@ -110,6 +131,11 @@ si_valid_entries = []
 si_analysis_results = []
 si_counterfactual_cache = {}
 si_session_id = 0
+
+bo_episode_data  = []
+bo_env_ready     = False
+bo_last_rgb      = None
+bo_session_id    = 0
 
 gomoku_board  = None
 gomoku_history = []
@@ -295,7 +321,7 @@ def make_space_env():
     return gym.make(
         'ALE/SpaceInvaders-v5',
         render_mode='rgb_array',
-        frameskip=1,
+        frameskip=2,
         repeat_action_probability=0.0,
     )
 
@@ -494,6 +520,17 @@ def space_invaders_page():
         openrouter_fallback=", ".join(FALLBACK_MODELS),
         saved_sessions=list_saved_sessions('space_invaders'),
     )
+
+@app.route('/breakout')
+def breakout_page():
+    return render_template(
+        'breakout.html',
+        has_breakout=(breakout_net is not None),
+        has_openrouter=bool(os.getenv("OPENROUTER_API_KEY")),
+        openrouter_model=os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL),
+        openrouter_fallback=", ".join(FALLBACK_MODELS),
+    )
+
 
 @app.route('/gomoku')
 def gomoku_page():
@@ -955,6 +992,98 @@ def handle_si_counterfactual(data):
         agent_env.close()
     si_counterfactual_cache[cache_key] = payload
     emit('si_counterfactual_ready', payload)
+
+
+def basic_analyze_bo(data):
+    acts = [d['action'] for d in data if d['action'] is not None]
+    total = len(acts) or 1
+    reward = sum(d['reward'] for d in data)
+    noop, fire, right, left = acts.count(0), acts.count(1), acts.count(2), acts.count(3)
+    move_total = right + left
+    fire_ratio = fire / total * 100
+    move_ratio = move_total / total * 100
+    if move_ratio > 60:
+        style, advice = '적극형', '패들 이동이 활발합니다. 공의 궤도를 예측해 미리 자리잡으면 좋습니다.'
+    elif move_ratio < 25:
+        style, advice = '관망형', '패들 이동이 적습니다. 공이 가장자리로 가기 전에 적극적으로 따라가세요.'
+    else:
+        style, advice = '균형형', '이동과 대기의 균형이 좋습니다.'
+    bias = '좌편향' if left > right * 1.3 else ('우편향' if right > left * 1.3 else '균형')
+    return {
+        'play_style': style, 'total_reward': int(reward), 'total_steps': total,
+        'left_ratio': f'{left/total*100:.1f}%', 'right_ratio': f'{right/total*100:.1f}%',
+        'noop_ratio': f'{noop/total*100:.1f}%', 'fire_ratio': f'{fire_ratio:.1f}%',
+        'move_bias': bias, 'ai_feedback': advice,
+    }
+
+
+@socketio.on('bo_start')
+def handle_bo_start():
+    global bo_episode_data, bo_env_ready, bo_last_rgb, bo_session_id
+    bo_session_id += 1
+    bo_env_ready = False
+    bo_episode_data = []
+
+    obs_raw, _ = _bo_env.reset()
+    proc = _preprocess(obs_raw)
+    _bo_frames.clear()
+    for _ in range(4):
+        _bo_frames.append(proc)
+    bo_last_rgb = obs_raw.copy()
+
+    bo_episode_data.append({
+        'step': 0, 'rgb': obs_raw,
+        'stacked_state': _get_stacked_bo().copy(),
+        'action': None, 'reward': 0.0, 'done': False
+    })
+    bo_env_ready = True
+    emit('bo_frame', {'image': encode_frame(obs_raw), 'done': False, 'score': 0.0,
+                      'session_id': bo_session_id})
+
+
+@socketio.on('bo_action')
+def handle_bo_action(data):
+    global bo_episode_data, bo_env_ready, bo_last_rgb
+    if not bo_env_ready:
+        return
+    action = int(data.get('action', 0))
+    obs_raw, reward, terminated, truncated, _ = _bo_env.step(action)
+    done = terminated or truncated
+    bo_last_rgb = obs_raw.copy()
+    current_score = float(sum(d['reward'] for d in bo_episode_data if d.get('action') is not None) + float(reward))
+    _bo_frames.append(_preprocess(obs_raw))
+
+    bo_episode_data.append({
+        'step': len(bo_episode_data),
+        'rgb': obs_raw,
+        'stacked_state': _get_stacked_bo().copy(),
+        'action': action,
+        'reward': float(reward),
+        'done': done,
+    })
+
+    if done:
+        bo_env_ready = False
+        basic = basic_analyze_bo(bo_episode_data)
+        emit('bo_over', {**basic, 'has_breakout': (breakout_net is not None)})
+    else:
+        emit('bo_frame', {'image': encode_frame(obs_raw), 'done': False, 'score': current_score})
+
+
+@socketio.on('bo_request_ai_action')
+def handle_bo_request_ai_action(data):
+    if breakout_net is None:
+        emit('bo_ai_action_result', {'ok': False, 'message': 'Breakout AI 모델이 로드되지 않았습니다.'})
+        return
+    state = _get_stacked_bo()
+    q_vals = bo_get_q_values(breakout_net, state, DEVICE)
+    best = int(np.argmax(q_vals))
+    emit('bo_ai_action_result', {
+        'ok': True,
+        'best_action': best,
+        'best_action_name': BO_ACTION_NAMES.get(best, str(best)),
+        'q_values': [round(float(v), 3) for v in q_vals],
+    })
 
 
 def board_to_dict(board):
