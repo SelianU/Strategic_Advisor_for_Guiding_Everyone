@@ -16,11 +16,19 @@ except Exception:  # pragma: no cover - optional dependency
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 FALLBACK_MODELS = [
-    "arcee-ai/trinity-large-preview:free",
-    "openrouter/free",
+    # ── 1순위: 대형 모델 (429 가능하지만 품질 우수) ──────────────────
+    "nousresearch/hermes-3-llama-3.1-405b:free",  # Llama 3.1 405B 기반
+    "google/gemma-4-31b-it:free",                 # Gemma 4 31B
+    # ── 2순위: 실제 작동 확인된 중형 모델 ────────────────────────────
+    "openai/gpt-oss-120b:free",                   # 120B, 안정적
+    "openai/gpt-oss-20b:free",                    # 20B, 안정적
+    "google/gemma-3-27b-it:free",                 # 27B, 안정적
+    "nvidia/nemotron-3-super-120b-a12b:free",     # 120B Nvidia
+    # ── 3순위: 최후 보루 ──────────────────────────────────────────────
+    "google/gemma-3-12b-it:free",                 # 12B, 거의 항상 응답
 ]
-MAX_LLM_ATTEMPTS = 4
-RETRY_DELAYS = [2.0, 4.0, 6.0]
+MAX_LLM_ATTEMPTS = 2
+RETRY_DELAYS = [2.0, 4.0]
 
 ACTION_NAME_KO = {
     # Space Invaders
@@ -39,71 +47,72 @@ BO_ACTION_NAME_KO = {
     "LEFT": "왼쪽 이동",
 }
 
-SPACE_INVADERS_CONTEXT = """당신은 Space Invaders 플레이를 설명해주는 친절한 게임 코치입니다.
+SPACE_INVADERS_CONTEXT = """당신은 Space Invaders 플레이어님에게 1:1 코칭을 해주는 게임 코치입니다.
+
+역할:
+- 플레이어님이 한 행동과 AI 에이전트가 선택한 행동을 비교하고, 에이전트의 선택이 왜 더 좋은 판단이었는지 설명합니다.
+- 그 상황에서 어떻게 행동해야 했는지 플레이어님이 다음 판에 바로 써먹을 수 있는 조언을 줍니다.
+- 분석 보고서가 아니라, 옆에서 직접 말해주는 코치처럼 자연스럽게 설명하세요.
 
 게임 정보:
-- 플레이어는 화면 아래의 캐릭터를 좌우로 움직이며 적을 맞춥니다.
-- 주요 행동은 NOOP, FIRE, LEFT, RIGHT, LEFTFIRE, RIGHTFIRE 입니다.
-- 목표는 적을 맞혀 점수를 얻고, 위험한 탄이나 적의 공격을 피하면서 오래 살아남는 것입니다.
-- 좋은 설명은 "무슨 버튼을 눌렀는가"보다 "그 선택이 이후 몇 프레임에서 어떤 결과를 만들었는가"를 자연스럽게 연결해줘야 합니다.
+- 플레이어님은 화면 아래에서 좌우로 움직이며 위쪽 적들을 쏴 맞춥니다.
+- 적이 줄수록 이동 속도가 빨라집니다. 방패는 탄을 막아주며 점차 소모됩니다.
+- 모든 적을 처치하면 스테이지가 클리어되고 다음 스테이지로 넘어갑니다(게임오버가 아닙니다).
+- 주요 행동: NOOP(대기), FIRE(발사), LEFT(왼쪽), RIGHT(오른쪽), LEFTFIRE(왼쪽+발사), RIGHTFIRE(오른쪽+발사)
 
-프로젝트 정보:
-- 이 프로젝트는 강화학습 기반의 explainable AI 코칭 시스템입니다.
-- D3QN 에이전트는 비교 기준이 되는 강한 정책입니다.
-- 같은 게임 상태에서 인간의 행동과 에이전트가 더 선호하는 행동을 비교합니다.
-- 선택된 장면은 가치 차이가 큰 장면으로, 에이전트 행동이 인간 행동보다 더 유리하다고 평가된 순간입니다.
-
-설명 원칙:
-- 연구 보고서처럼 쓰지 말고, 실제 플레이어에게 말해주듯 자연스럽고 따뜻한 한국어로 설명하세요.
-- 점수 상승, 공격 기회, 위치 안정성, 생존 가능성 같은 눈에 보이는 변화를 중심으로 설명하세요.
+코칭 원칙:
+- 플레이어님의 행동과 에이전트 행동을 반드시 대비해서 설명하세요.
+- "에이전트가 왜 더 좋은 선택이었는가"를 그 상황의 맥락으로 설명하세요.
+- 마지막은 반드시 "다음에 이런 상황이라면..." 스타일의 실천 조언으로 마무리하세요.
 - 영어 표현을 섞지 마세요.
 """
 
-BREAKOUT_CONTEXT = """당신은 Breakout 플레이를 설명해주는 친절한 게임 코치입니다.
+BREAKOUT_CONTEXT = """당신은 Breakout 플레이어님에게 1:1 코칭을 해주는 게임 코치입니다.
+
+역할:
+- 플레이어님이 한 행동과 AI 에이전트가 선택한 행동을 비교하고, 에이전트의 선택이 왜 더 좋은 판단이었는지 설명합니다.
+- 그 상황에서 어떻게 했어야 하는지 플레이어님이 다음 판에 바로 써먹을 수 있는 조언을 줍니다.
+- 분석 보고서가 아니라, 옆에서 직접 말해주는 코치처럼 자연스럽게 설명하세요.
 
 게임 정보:
-- 플레이어는 화면 아래의 패들을 좌우로 움직여 공을 튕기고, 위쪽의 벽돌을 모두 부수는 것이 목표입니다.
-- 주요 행동은 NOOP(대기), FIRE(공 발사), RIGHT(오른쪽), LEFT(왼쪽) 입니다.
-- 공을 놓치면 목숨을 잃고, 벽돌을 빠르게 부술수록 높은 점수를 얻을 수 있습니다.
-- 패들의 위치를 공의 궤도에 미리 맞추는 것이 핵심 기술입니다.
-- 좋은 설명은 "무슨 버튼을 눌렀는가"보다 "그 선택이 이후 공의 궤도와 점수에 어떤 영향을 미쳤는가"를 자연스럽게 연결해줘야 합니다.
+- 플레이어님은 화면 아래 패들을 좌우로 움직여 공을 튕기고, 위쪽 벽돌을 모두 부수면 됩니다.
+- 공을 놓치면 목숨을 잃습니다. 패들을 공 궤도에 미리 맞추는 것이 핵심입니다.
+- 주요 행동: NOOP(대기), FIRE(공 발사), RIGHT(오른쪽), LEFT(왼쪽)
 
-프로젝트 정보:
-- 이 프로젝트는 강화학습 기반의 explainable AI 코칭 시스템입니다.
-- D3QN 에이전트는 비교 기준이 되는 강한 정책입니다.
-- 같은 게임 상태에서 인간의 행동과 에이전트가 더 선호하는 행동을 비교합니다.
-- 선택된 장면은 가치 차이가 큰 장면으로, 에이전트 행동이 인간 행동보다 더 유리하다고 평가된 순간입니다.
-
-설명 원칙:
-- 연구 보고서처럼 쓰지 말고, 실제 플레이어에게 말해주듯 자연스럽고 따뜻한 한국어로 설명하세요.
-- 패들 위치와 공의 궤도, 득점 타이밍, 목숨 유지 가능성 같은 눈에 보이는 변화를 중심으로 설명하세요.
+코칭 원칙:
+- 플레이어님의 행동과 에이전트 행동을 반드시 대비해서 설명하세요.
+- "에이전트가 왜 더 좋은 선택이었는가"를 공의 궤도, 득점 타이밍, 목숨 유지 관점에서 설명하세요.
+- 마지막은 반드시 "다음에 이런 상황이라면..." 스타일의 실천 조언으로 마무리하세요.
 - 영어 표현을 섞지 마세요.
 """
 
-GOMOKU_CONTEXT = """당신은 오목 플레이를 설명해주는 친절한 게임 코치입니다.
+GOMOKU_CONTEXT = """당신은 오목 플레이어님에게 1:1 코칭을 해주는 게임 코치입니다.
+
+역할:
+- 플레이어님이 둔 수와 AI 에이전트가 권장한 수를 비교하고, 에이전트의 수가 왜 더 좋은 판단이었는지 설명합니다.
+- 그 상황에서 어떤 수를 뒀어야 하는지 플레이어님이 다음 판에 바로 적용할 수 있는 조언을 줍니다.
+- 분석 보고서가 아니라, 옆에서 직접 말해주는 코치처럼 자연스럽게 설명하세요.
 
 게임 정보:
-- 이 환경은 15×15 오목이며 5목을 먼저 만들면 승리합니다.
-- 플레이어는 흑돌, 에이전트는 백돌 또는 반대로 같은 상태에서 더 좋은 한 수를 비교할 수 있습니다.
-- 좋은 설명은 좌표 자체보다, 왜 그 자리가 더 좋은지와 이후 수순이 어떻게 달라지는지를 자연스럽게 알려주는 것입니다.
+- 15×15 오목, 5목을 먼저 만들면 승리합니다.
+- 핵심 개념: 열린 3목·4목, 양방향 확장, 핵심 자리 선점, 상대 4목 차단, 공격과 수비의 균형, 이후 수순 주도권.
 
-프로젝트 정보:
-- 이 프로젝트는 강화학습 기반의 explainable AI 코칭 시스템입니다.
-- PPO 정책이 비교 기준이 되는 강한 정책입니다.
-- 같은 판 상태에서 인간 착수와 에이전트 권장 착수를 비교합니다.
-
-설명 원칙:
-- 연구 보고서처럼 쓰지 말고, 실제 플레이어에게 말해주듯 자연스럽고 따뜻한 한국어로 설명하세요.
-- 돌의 연결 가능성, 열린 3목과 4목으로 이어질 가능성, 양방향 확장 가능성, 핵심 자리 선점, 상대 위협 차단, 공격과 수비의 균형 같은 내용을 중심으로 설명하세요.
-- 가능하면 이 한 수가 공격을 만드는 수인지, 상대의 4를 막는 수인지, 다음 수를 강제하는 수인지까지 짚어주세요.
+코칭 원칙:
+- 플레이어님이 둔 수와 에이전트 권장 수를 반드시 대비해서 설명하세요.
+- "에이전트의 수가 왜 더 좋은가"를 그 자리의 전략적 가치(연결성, 확장성, 주도권)로 설명하세요.
+- 마지막은 반드시 "다음에 이런 상황이라면..." 스타일의 실천 조언으로 마무리하세요.
+- 좌표 숫자 나열보다 그 위치가 가진 의미를 설명하는 데 집중하세요.
 - 영어 표현을 섞지 마세요.
 """
 
 
 def sanitize_feedback_text(text: str) -> str:
     text = text.strip()
+    # R1 등 reasoning 모델이 <think>...</think> 블록을 섞어 보낼 경우 제거
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = text.strip()
     text = re.sub(r"^(안녕하세요[!！.\s]*)", "", text)
-    text = re.sub(r"[^\w\s.,!?()\-\u3131-\u318E\uAC00-\uD7A3:\n]", "", text)
+    text = re.sub(r"[^a-zA-Z0-9\s.,!?()\-\u3131-\u318E\uAC00-\uD7A3:\n]", "", text)
     replacements = {
         "거예요": "것입니다",
         "거에요": "것입니다",
@@ -147,13 +156,9 @@ def format_feedback_text(text: str) -> str:
     sentences = deduped
     if len(sentences) <= 2:
         return "\n\n".join(sentences)
-    if len(sentences) <= 4:
-        return f"{' '.join(sentences[:2])}\n\n{' '.join(sentences[2:])}".strip()
-    return (
-        f"{' '.join(sentences[:2])}\n\n"
-        f"{' '.join(sentences[2:4])}\n\n"
-        f"{' '.join(sentences[4:])}"
-    ).strip()
+    # 두 문단으로 균등하게 분배 (4→2+2, 5→2+3, 6→3+3, 7→3+4 ...)
+    mid = len(sentences) // 2
+    return f"{' '.join(sentences[:mid])}\n\n{' '.join(sentences[mid:])}".strip()
 
 
 def summarize_error(status_code: int | None, data: dict[str, Any] | None = None, exc: Exception | None = None) -> str:
@@ -179,37 +184,114 @@ def summarize_error(status_code: int | None, data: dict[str, Any] | None = None,
     return "외부 LLM이 현재 응답하지 않습니다."
 
 
+def _format_game_state_section(gs: dict[str, Any]) -> str:
+    """game_state에서 주목할 조건만 골라 한 줄 요약으로 반환합니다.
+    정상 범위(적 다수·방패 온전·탄환 멀리)는 출력하지 않습니다."""
+    if not gs:
+        return ""
+
+    flags: list[str] = []
+
+    # 적 수 / 이동 속도 (빨라진 경우만)
+    phase = gs.get('enemy_speed_phase', 'normal')
+    ec = gs.get('enemy_count', 55)
+    if phase == 'critical':
+        flags.append(f"적 {ec}마리로 이동 속도 최고 단계")
+    elif phase == 'fast':
+        flags.append(f"적 {ec}마리로 이동 속도 빠름")
+
+    # 게임오버 위협 (여유 35px 미만만)
+    danger = gs.get('danger_distance', 999)
+    if danger < 20:
+        flags.append("적이 게임오버 직전까지 내려온 상태")
+    elif danger < 35:
+        flags.append(f"적이 {danger}px까지 근접")
+
+    # 방패 (손상 또는 소실된 경우만)
+    shields = gs.get('shield_integrity', [])
+    meaningful = [p for p in shields if p >= 10]
+    if shields and not meaningful:
+        flags.append("방패 완전 소실")
+    elif meaningful:
+        avg = sum(meaningful) / len(meaningful)
+        if avg < 40:
+            flags.append("방패 심각 손상")
+        elif avg < 70:
+            flags.append("방패 일부 손상")
+        # 70% 이상이면 정상 → 언급 생략
+
+    # 적 탄환 근접 (8px 미만만)
+    prox = gs.get('incoming_proximity', 23)
+    if prox < 8:
+        flags.append(f"적 탄환 {prox}px 근접")
+
+    if not flags:
+        return ""
+
+    return f"\n주목할 상황: {' / '.join(flags)}."
+
+
 def build_space_messages(summary: dict[str, Any], summary_lines: list[str]) -> list[dict[str, str]]:
     human_action_ko = ACTION_NAME_KO.get(summary["human_action_name"], summary["human_action_name"])
     agent_action_ko = ACTION_NAME_KO.get(summary["agent_action_name"], summary["agent_action_name"])
-    user_prompt = f"""다음은 Space Invaders 코칭 사례입니다. 아래 정보를 바탕으로 플레이어에게 자연스러운 한국어 피드백을 작성해주세요.
+    gs_section = _format_game_state_section(summary.get('game_state', {}))
+
+    # 스테이지 클리어 감지: 적이 극소수이고 첫 득점이 매우 빠른 경우
+    gs = summary.get('game_state', {}) or {}
+    ec = gs.get('enemy_count', 55)
+    a_first = summary.get('agent_first_reward_step')
+    if ec <= 3 and isinstance(a_first, (int, float)) and a_first <= 15:
+        stage_note = (
+            "\n※ 이 순간 남은 적이 극소수이고 에이전트 쪽 첫 득점이 매우 빠릅니다. "
+            "이는 스테이지 마지막 적을 처치하며 스테이지가 클리어된 상황일 수 있습니다. "
+            "득점을 '즉시 획득'처럼 표현하기보다, 스테이지 종료 시점의 위치 선택과 행동의 전략적 차이를 설명하세요."
+        )
+    else:
+        stage_note = ""
+    h_score = summary.get('human_score_delta', 0)
+    a_score = summary.get('agent_score_delta', 0)
+    if a_score > h_score:
+        outcome_guidance = (
+            f"이후 약 60프레임 비교 구간에서 에이전트({a_score:.0f}점)가 플레이어님({h_score:.0f}점)보다 높은 점수를 기록했습니다. "
+            f"이후 득점 프레임 데이터를 활용해 두 경로가 어떻게 달라졌는지 구체적으로 묘사하세요."
+        )
+    else:
+        outcome_guidance = (
+            f"이후 약 60프레임 비교 구간에서는 플레이어님({h_score:.0f}점)의 점수가 에이전트({a_score:.0f}점)와 비슷하거나 더 높습니다. "
+            f"이 구간 결과를 직접 비교 근거로 쓰지 마세요. "
+            f"대신 이 순간의 Q값 차이({summary.get('gap', 0):.4f})가 의미하는 전략적 판단 차이에 집중하세요. "
+            f"필요하다면 '짧은 구간의 결과와 무관하게 이 순간의 선택 자체가 더 유리한 위치를 만드는 판단이었다'는 점을 자연스럽게 인정해도 좋습니다."
+        )
+    user_prompt = f"""다음은 Space Invaders 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
 
 상황 정보:
 - 스텝: {summary['step']}
-- 인간 플레이어 행동: {human_action_ko}
+- 플레이어님 행동: {human_action_ko}
 - 에이전트 행동: {agent_action_ko}
-- 인간 행동의 Q값: {summary.get('human_q', 0):.4f}
+- 플레이어님 행동의 Q값: {summary.get('human_q', 0):.4f}
 - 에이전트 행동의 Q값: {summary.get('agent_q', 0):.4f}
 - 가치 차이: {summary.get('gap', 0):.4f}
-- 인간 경로의 점수 변화: {summary.get('human_score_delta', 0):.1f}
-- 에이전트 경로의 점수 변화: {summary.get('agent_score_delta', 0):.1f}
-- 인간 쪽 첫 득점 시점: {summary.get('human_first_reward_step', '득점 없음')}
+- 이후 60프레임 비교 구간 플레이어님 점수: {h_score:.1f}
+- 이후 60프레임 비교 구간 에이전트 점수: {a_score:.1f}
+- 플레이어님 쪽 첫 득점 시점: {summary.get('human_first_reward_step', '득점 없음')}
 - 에이전트 쪽 첫 득점 시점: {summary.get('agent_first_reward_step', '득점 없음')}
-- 인간 쪽 득점이 발생한 프레임들: {summary.get('human_reward_steps') or '없음'}
-- 에이전트 쪽 득점이 발생한 프레임들: {summary.get('agent_reward_steps') or '없음'}
-
+- 플레이어님 쪽 득점 프레임들: {summary.get('human_reward_steps') or '없음'}
+- 에이전트 쪽 득점 프레임들: {summary.get('agent_reward_steps') or '없음'}
+{gs_section}
 관찰 요약:
 {chr(10).join(f"- {line}" for line in summary_lines)}
 
+이후 경로 활용 지침: {outcome_guidance}{stage_note}
+
 작성 방식:
-- 실제 플레이어에게 바로 조언해주는 말투로 써주세요.
-- 인간 행동과 에이전트 행동을 꼭 비교해서 설명하세요.
-- 점수가 더 빨리 올랐는지, 공격 기회를 더 잘 살렸는지, 더 안전했는지를 중심으로 설명하세요.
-- 숫자를 그대로 반복하기보다, 그 숫자가 의미하는 바를 풀어서 설명하세요.
-- "momentarily", "branch", "replay" 같은 영어 표현은 쓰지 마세요.
-- 말투는 "했습니다", "좋았습니다", "유리했습니다"처럼 단정한 존댓말을 사용하세요.
+- 반드시 정확히 두 문단으로 작성하세요. 빈 줄 하나로 구분하세요.
+- 문단 제목, 레이블, 번호(예: "첫째 문단", "분석", "1." 등)는 절대 쓰지 마세요. 바로 본문으로 시작하세요.
+- 첫 번째 문단 (3~4문장): 먼저 플레이어님이 한 행동을 언급하고 에이전트 행동과 명확히 대비하세요. 위의 "이후 경로 활용 지침"에 따라 이후 전개를 설명하세요. "주목할 상황"이 제공된 경우, 그 조건들을 억지로 나열하지 말고 상황을 이해하는 배경으로만 자연스럽게 활용하세요.
+- 두 번째 문단 (2~3문장): "다음에 이런 상황이라면" 또는 그와 비슷한 뉘앙스로 시작해 구체적인 실천 조언을 주세요. 플레이어님이 바로 실천할 수 있게 안내하세요. 첫 번째 문단 내용을 반복하지 마세요.
+- 점수와 득점 프레임은 전체 게임이 아닌 이 순간 이후 약 60프레임 비교 구간의 수치입니다. 점수를 언급할 때는 반드시 "이 구간에서" 또는 "비교 구간에서"라는 표현을 써서 전체 게임 점수로 오해하지 않도록 하세요.
+- 한국어로만 쓰세요. 영어·일본어 등 외국어 표현은 쓰지 마세요.
+- 말투는 "했습니다", "좋았습니다", "유리했습니다"처럼 단정한 존댓말로 쓰세요.
 - 인삿말, 이모티콘, 과한 감탄사는 넣지 마세요.
-- 2~3문단 허용, 자세한 설명도 괜찮지만 문단을 나눠 가독성 있게 작성하세요.
 """
     return [
         {"role": "system", "content": SPACE_INVADERS_CONTEXT},
@@ -220,34 +302,50 @@ def build_space_messages(summary: dict[str, Any], summary_lines: list[str]) -> l
 def build_breakout_messages(summary: dict[str, Any], summary_lines: list[str]) -> list[dict[str, str]]:
     human_action_ko = BO_ACTION_NAME_KO.get(summary["human_action_name"], summary["human_action_name"])
     agent_action_ko = BO_ACTION_NAME_KO.get(summary["agent_action_name"], summary["agent_action_name"])
-    user_prompt = f"""다음은 Breakout 코칭 사례입니다. 아래 정보를 바탕으로 플레이어에게 자연스러운 한국어 피드백을 작성해주세요.
+    h_score = summary.get('human_score_delta', 0)
+    a_score = summary.get('agent_score_delta', 0)
+    if a_score > h_score:
+        outcome_guidance = (
+            f"이후 약 60프레임 비교 구간에서 에이전트({a_score:.0f}점)가 플레이어님({h_score:.0f}점)보다 높은 점수를 기록했습니다. "
+            f"이후 득점 프레임 데이터를 활용해 두 경로가 어떻게 달라졌는지 구체적으로 묘사하세요."
+        )
+    else:
+        outcome_guidance = (
+            f"이후 약 60프레임 비교 구간에서는 플레이어님({h_score:.0f}점)의 점수가 에이전트({a_score:.0f}점)와 비슷하거나 더 높습니다. "
+            f"이 구간 결과를 직접 비교 근거로 쓰지 마세요. "
+            f"대신 이 순간의 Q값 차이({summary.get('gap', 0):.4f})가 의미하는 전략적 판단 차이에 집중하세요. "
+            f"필요하다면 '짧은 구간의 결과와 무관하게 이 순간의 선택 자체가 더 유리한 위치를 만드는 판단이었다'는 점을 자연스럽게 인정해도 좋습니다."
+        )
+    user_prompt = f"""다음은 Breakout 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
 
 상황 정보:
 - 스텝: {summary['step']}
-- 인간 플레이어 행동: {human_action_ko}
+- 플레이어님 행동: {human_action_ko}
 - 에이전트 행동: {agent_action_ko}
-- 인간 행동의 Q값: {summary.get('human_q', 0):.4f}
+- 플레이어님 행동의 Q값: {summary.get('human_q', 0):.4f}
 - 에이전트 행동의 Q값: {summary.get('agent_q', 0):.4f}
 - 가치 차이: {summary.get('gap', 0):.4f}
-- 인간 경로의 점수 변화: {summary.get('human_score_delta', 0):.1f}
-- 에이전트 경로의 점수 변화: {summary.get('agent_score_delta', 0):.1f}
-- 인간 쪽 첫 득점 시점: {summary.get('human_first_reward_step', '득점 없음')}
+- 이후 60프레임 비교 구간 플레이어님 점수: {h_score:.1f}
+- 이후 60프레임 비교 구간 에이전트 점수: {a_score:.1f}
+- 플레이어님 쪽 첫 득점 시점: {summary.get('human_first_reward_step', '득점 없음')}
 - 에이전트 쪽 첫 득점 시점: {summary.get('agent_first_reward_step', '득점 없음')}
-- 인간 쪽 득점이 발생한 프레임들: {summary.get('human_reward_steps') or '없음'}
-- 에이전트 쪽 득점이 발생한 프레임들: {summary.get('agent_reward_steps') or '없음'}
+- 플레이어님 쪽 득점 프레임들: {summary.get('human_reward_steps') or '없음'}
+- 에이전트 쪽 득점 프레임들: {summary.get('agent_reward_steps') or '없음'}
 
 관찰 요약:
 {chr(10).join(f"- {line}" for line in summary_lines)}
 
+이후 경로 활용 지침: {outcome_guidance}
+
 작성 방식:
-- 실제 플레이어에게 바로 조언해주는 말투로 써주세요.
-- 인간 행동과 에이전트 행동을 꼭 비교해서 설명하세요.
-- 패들 위치, 공의 궤도 예측, 득점 타이밍, 목숨 유지 가능성을 중심으로 설명하세요.
-- 숫자를 그대로 반복하기보다, 그 숫자가 의미하는 바를 풀어서 설명하세요.
-- 영어 표현은 쓰지 마세요.
+- 반드시 정확히 두 문단으로 작성하세요. 빈 줄 하나로 구분하세요.
+- 문단 제목, 레이블, 번호는 절대 쓰지 마세요. 바로 본문으로 시작하세요.
+- 첫 번째 문단 (3~4문장): 먼저 플레이어님이 한 행동을 언급하고 에이전트 행동과 명확히 대비하세요. 위의 "이후 경로 활용 지침"에 따라 이후 전개를 설명하세요. Q값 차이도 맥락으로 자연스럽게 녹이세요.
+- 두 번째 문단 (2~3문장): "다음에 이런 상황이라면" 또는 그와 비슷한 뉘앙스로 시작해 구체적인 실천 조언을 주세요. 패들 위치, 공의 궤도 예측, 득점 타이밍 관점에서 플레이어님이 바로 실천할 수 있게 안내하세요. 첫 번째 문단 내용을 반복하지 마세요.
+- 점수와 득점 프레임은 전체 게임이 아닌 이 순간 이후 약 60프레임 비교 구간의 수치입니다. 점수를 언급할 때는 반드시 "이 구간에서" 또는 "비교 구간에서"라는 표현을 써서 전체 게임 점수로 오해하지 않도록 하세요.
+- 한국어로만 쓰세요. 영어 표현은 쓰지 마세요.
 - 말투는 "했습니다", "좋았습니다", "유리했습니다"처럼 단정한 존댓말을 사용하세요.
 - 인삿말, 이모티콘, 과한 감탄사는 넣지 마세요.
-- 2~3문단 허용, 자세한 설명도 괜찮지만 문단을 나눠 가독성 있게 작성하세요.
 """
     return [
         {"role": "system", "content": BREAKOUT_CONTEXT},
@@ -258,30 +356,45 @@ def build_breakout_messages(summary: dict[str, Any], summary_lines: list[str]) -
 def build_gomoku_messages(summary: dict[str, Any], summary_lines: list[str]) -> list[dict[str, str]]:
     human_seq = ", ".join(summary.get("human_sequence_labels", [])[:8]) or "기록 없음"
     agent_seq = ", ".join(summary.get("agent_sequence_labels", [])[:8]) or "기록 없음"
-    user_prompt = f"""다음은 오목 코칭 사례입니다. 아래 정보를 바탕으로 플레이어에게 자연스러운 한국어 피드백을 작성해주세요.
+    best_q = summary.get('best_q', 0)
+    actual_q = summary.get('actual_q', 0)
+    if best_q < 0.12:
+        position_guidance = (
+            f"권장 착수의 Q값도 {best_q:.4f}로 이 국면 자체가 이미 매우 불리한 상황입니다. "
+            f"'에이전트가 이겼을 것이다'처럼 오해를 줄 수 있는 표현은 피하세요. "
+            f"대신 그 어려운 상황에서 왜 에이전트의 수가 그나마 더 나은 선택이었는지 "
+            f"(더 오래 버티기, 상대 실수 유도, 최소한의 확장성 유지)를 솔직하게 설명하세요. "
+            f"상황의 어려움을 인정하면서도 그 안에서의 최선이 무엇인지 전달하세요."
+        )
+    else:
+        position_guidance = (
+            f"이후 수순 데이터를 활용해 두 경로가 실제로 어떻게 달라졌는지 묘사하세요. "
+            f"인간 수순에서는 어떤 전개가 펼쳐졌고, 에이전트 수순에서는 어떤 이점이 생겼는지 구체적으로 보여주세요."
+        )
+    user_prompt = f"""다음은 오목 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
 
 상황 정보:
-- 인간 플레이어 착수: ({summary['actual_row']}, {summary['actual_col']})
+- 플레이어님 착수: ({summary['actual_row']}, {summary['actual_col']})
 - 에이전트 권장 착수: ({summary['best_row']}, {summary['best_col']})
-- 실제 착수의 Q값: {summary.get('actual_q', 0):.4f}
-- 권장 착수의 Q값: {summary.get('best_q', 0):.4f}
+- 플레이어님 착수의 Q값: {actual_q:.4f}
+- 권장 착수의 Q값: {best_q:.4f}
 - 가치 차이: {summary.get('loss', 0):.4f}
-- 인간 쪽 이후 수순: {human_seq}
-- 에이전트 쪽 이후 수순: {agent_seq}
+- 플레이어님 쪽 이후 수순 (이 수를 둔 뒤 실제로 이어진 수들): {human_seq}
+- 에이전트 쪽 이후 수순 (권장 수를 뒀을 때 시뮬레이션된 수들): {agent_seq}
 
 관찰 요약:
 {chr(10).join(f"- {line}" for line in summary_lines)}
 
+이후 경로 활용 지침: {position_guidance}
+
 작성 방식:
-- 실제 플레이어에게 바로 조언해주는 말투로 써주세요.
-- 인간 착수와 에이전트 권장 착수를 꼭 비교해서 설명하세요.
-- 돌의 연결 가능성, 열린 3목과 4목으로 이어질 가능성, 양방향 확장 가능성, 핵심 자리 선점, 상대 위협 차단, 공격과 수비의 균형, 이후 수순에서의 주도권 변화를 중심으로 설명하세요.
-- 가능하면 이 수가 공격을 만드는 수인지, 상대의 4를 막는 수인지, 다음 수를 강제하는 수인지, 중앙과 변 중 어느 쪽의 주도권을 잡는 수인지까지 설명하세요.
-- 숫자를 그대로 반복하기보다, 그 숫자가 의미하는 바를 풀어서 설명하세요.
-- 영어 표현은 쓰지 마세요.
+- 반드시 정확히 두 문단으로 작성하세요. 빈 줄 하나로 구분하세요.
+- 문단 제목, 레이블, 번호는 절대 쓰지 마세요. 바로 본문으로 시작하세요.
+- 첫 번째 문단 (3~4문장): 먼저 플레이어님이 둔 수를 언급하고 에이전트 권장 수와 명확히 대비하세요. 위의 "이후 경로 활용 지침"에 따라 이후 전개를 설명하세요. Q값 차이도 맥락으로 자연스럽게 녹이세요.
+- 두 번째 문단 (2~3문장): "다음에 이런 상황이라면" 또는 그와 비슷한 뉘앙스로 시작해 구체적인 실천 조언을 주세요. 어떤 상황에서 어떤 자리를 우선 선택해야 하는지 플레이어님이 바로 실천할 수 있게 안내하세요. 첫 번째 문단 내용을 반복하지 마세요.
+- 한국어로만 쓰세요. 영어 표현은 쓰지 마세요.
 - 말투는 "했습니다", "좋았습니다", "유리했습니다"처럼 단정한 존댓말을 사용하세요.
 - 인삿말, 이모티콘, 과한 감탄사는 넣지 마세요.
-- 2~3문단 허용, 자세한 설명도 괜찮지만 문단을 나눠 가독성 있게 작성하세요.
 """
     return [
         {"role": "system", "content": GOMOKU_CONTEXT},
@@ -353,11 +466,14 @@ def generate_feedback(game_type: str, summary: dict[str, Any]) -> tuple[str, str
     model = os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL)
 
     if game_type == "space_invaders":
+        gs = summary.get('game_state', {})
         summary_lines = [
             f"인간 행동은 {summary['human_action_name']}이고, 에이전트 행동은 {summary['agent_action_name']}입니다.",
             f"인간 쪽 득점 프레임은 {summary.get('human_reward_steps') or '없음'}입니다.",
             f"에이전트 쪽 득점 프레임은 {summary.get('agent_reward_steps') or '없음'}입니다.",
         ]
+        # 게임 상태는 _format_game_state_section이 주목할 조건만 추려 gs_section으로 전달하므로
+        # summary_lines에는 중복 포함하지 않음
         fallback_text = build_space_fallback_feedback(summary)
         messages = build_space_messages(summary, summary_lines)
     elif game_type == "breakout":
@@ -392,13 +508,17 @@ def generate_feedback(game_type: str, summary: dict[str, Any]) -> tuple[str, str
     models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
     errors: list[str] = []
     for candidate_model in models_to_try:
-        body = {
+        # reasoning 모델(DeepSeek R1 등)은 기본적으로 thinking 블록을 출력하므로
+        # exclude:true 로 비활성화. 지원 안 하는 모델은 OpenRouter가 무시함.
+        is_reasoning_model = any(x in candidate_model for x in ("r1", "r2", "qwq", "thinking"))
+        body: dict[str, Any] = {
             "model": candidate_model,
             "messages": messages,
             "temperature": 0.2,
             "max_tokens": 1100,
-            "reasoning": {"enabled": False},
         }
+        if is_reasoning_model:
+            body["reasoning"] = {"exclude": True}
         for attempt in range(MAX_LLM_ATTEMPTS):
             try:
                 if requests is not None:
@@ -476,7 +596,8 @@ def test_openrouter_connection() -> tuple[bool, dict[str, Any]]:
     models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
     results: list[dict[str, str]] = []
     for candidate_model in models_to_try:
-        body = {
+        is_reasoning_model = any(x in candidate_model for x in ("r1", "r2", "qwq", "thinking"))
+        body: dict[str, Any] = {
             "model": candidate_model,
             "messages": [
                 {"role": "system", "content": "당신은 한국어로 짧게 답하는 도우미입니다."},
@@ -484,8 +605,9 @@ def test_openrouter_connection() -> tuple[bool, dict[str, Any]]:
             ],
             "temperature": 0,
             "max_tokens": 40,
-            "reasoning": {"enabled": False},
         }
+        if is_reasoning_model:
+            body["reasoning"] = {"exclude": True}
         for attempt in range(MAX_LLM_ATTEMPTS):
             try:
                 if requests is not None:

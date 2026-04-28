@@ -47,12 +47,28 @@
   .topbar-brand {
     display:flex; align-items:center; gap:14px; margin-right:auto;
   }
-  .topbar-hex {
-    width:34px; height:34px; border:1px solid var(--cyan);
+  .topbar-pulse {
+    position:relative; width:28px; height:28px;
     display:flex; align-items:center; justify-content:center;
-    color:var(--cyan); font-size:1.1rem;
-    box-shadow:0 0 12px rgba(0,245,255,.25), inset 0 0 8px rgba(0,245,255,.06);
     flex-shrink:0;
+  }
+  .topbar-pulse::before,
+  .topbar-pulse::after {
+    content:''; position:absolute; inset:0; border-radius:50%;
+    border:1px solid var(--cyan);
+    animation:pulse-ring 2s ease-out infinite;
+  }
+  .topbar-pulse::after { animation-delay:.9s; }
+  .topbar-pulse-core {
+    width:10px; height:10px; border-radius:50%;
+    background:var(--cyan);
+    box-shadow:0 0 8px var(--cyan), 0 0 18px rgba(0,245,255,.5);
+    position:relative; z-index:1;
+  }
+  @keyframes pulse-ring {
+    0%   { transform:scale(.55); opacity:.9; }
+    80%  { transform:scale(1.15); opacity:0; }
+    100% { transform:scale(1.15); opacity:0; }
   }
   .topbar-logo {
     font-family:'Press Start 2P',monospace; font-size:.82rem;
@@ -78,16 +94,19 @@
   .settings-btn {
     margin-left:14px; background:transparent;
     border:1px solid var(--border-a); color:var(--amber);
-    font-size:1.1rem; width:44px; height:44px; flex-shrink:0;
-    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:0.72rem; font-family:'Share Tech Mono', monospace;
+    letter-spacing:.04em;
+    padding:0 14px; height:44px; flex-shrink:0;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
     transition:background .2s, box-shadow .2s;
+    white-space:nowrap;
   }
   .settings-btn:hover { background:rgba(255,170,0,.08); box-shadow:0 0 14px rgba(255,170,0,.25); }
 
   /* ────── MAIN GRID ────── */
   .main {
     position:relative; z-index:1;
-    display:grid; grid-template-columns:290px 1fr;
+    display:grid; grid-template-columns:310px 1fr;
     height:calc(100vh - 52px); overflow:hidden;
   }
 
@@ -153,7 +172,7 @@
     transition:border-color .2s;
   }
   .data-row:hover { border-left-color:rgba(0,245,255,.3); }
-  .data-v { color:var(--cyan); }
+  .data-v { color:var(--cyan); text-align:right; }
 
   /* Step flow */
   .steps-flow { display:flex; flex-direction:column; gap:6px; }
@@ -380,10 +399,8 @@
 <!-- ────── TOP BAR ────── -->
 <div class="topbar">
   <div class="topbar-brand">
-    <div class="topbar-hex">⬡</div>
+    <div class="topbar-pulse"><div class="topbar-pulse-core"></div></div>
     <div class="topbar-logo">AI ARCADE</div>
-    <div class="topbar-divider"></div>
-    <div class="topbar-sys">SAGE</div>
   </div>
   <div class="topbar-pills">
     <div class="topbar-pill">
@@ -391,7 +408,7 @@
       <span id="llmBadgeText">LLM</span>
     </div>
   </div>
-  <button class="settings-btn" id="settingsBtn" title="API 설정">⚙</button>
+  <button class="settings-btn" id="settingsBtn">⚙ API 설정</button>
 </div>
 
 <!-- ────── MAIN ────── -->
@@ -404,7 +421,7 @@
       <div class="sensei-tag">▶ AI COACH SYSTEM</div>
       <div class="sensei-name">SAGE</div>
       <div class="sensei-desc" style="font-size:0.55rem;color:var(--amber);margin-top:2px;letter-spacing:0.03em">Strategic Advisor for Guiding Everyone</div>
-      <div class="sensei-desc">강화학습 에이전트가 당신의 플레이를 분석하고, AI 코치가 맞춤형 전략 피드백을 제공합니다.</div>
+      <div class="sensei-desc">강화학습 에이전트가 당신의 플레이를 분석하고,<br>AI가 맞춤형 전략 피드백을 제공합니다!</div>
     </div>
 
     <div class="sec-label">SYSTEM STATUS</div>
@@ -440,15 +457,6 @@
       <div class="game-count">3 ACTIVE &nbsp;·&nbsp; 1 COMING SOON</div>
     </div>
 
-    <div class="coach-bar">
-      <div class="coach-bar-icon">🎓</div>
-      <div>
-        <strong>SAGE</strong>: 게임 후 AI 코치가 전략을 분석합니다.
-        <strong>LLM API</strong>를 설정하면 자연어 맞춤 피드백을 받을 수 있습니다.
-        &nbsp;<a href="#" id="settingsBtnInline">⚙ API 설정</a>
-      </div>
-    </div>
-
     <div class="game-grid">
 
       <!-- ── SPACE INVADERS ── -->
@@ -475,18 +483,6 @@
         </div>
       </a>
 
-      <!-- ── COMING SOON: CHESS ── -->
-      <div class="game-card card-soon">
-        <div class="card-inner">
-          <span class="card-badge">SOON</span>
-          <div class="card-icon">♟</div>
-          <div class="card-title">CHESS<br>VS AI</div>
-          <div class="card-ai-tag">MCTS · CLASSIC</div>
-          <p class="card-desc">MCTS 기반 AI와 체스 대결. 포지션 평가와 전술 분석을 제공합니다.</p>
-          <span class="card-btn">COMING SOON</span>
-        </div>
-      </div>
-
       <!-- ── BREAKOUT ── -->
       <a href="/breakout" class="game-card card-breakout">
         <div class="card-inner">
@@ -498,6 +494,18 @@
           <span class="card-btn">PLAY NOW</span>
         </div>
       </a>
+
+      <!-- ── COMING SOON: CHESS ── -->
+      <div class="game-card card-soon">
+        <div class="card-inner">
+          <span class="card-badge">SOON</span>
+          <div class="card-icon">♟</div>
+          <div class="card-title">CHESS<br>VS AI</div>
+          <div class="card-ai-tag">MCTS · CLASSIC</div>
+          <p class="card-desc">MCTS 기반 AI와 체스 대결. 포지션 평가와 전술 분석을 제공합니다.</p>
+          <span class="card-btn">COMING SOON</span>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -551,7 +559,6 @@ function openModal() { apiKeyInput.value = ''; clearStatus(); loadSettings(); ov
 function closeModal() { overlay.classList.remove('open'); }
 
 settingsBtn.addEventListener('click', openModal);
-if (settingsBtnInline) settingsBtnInline.addEventListener('click', e => { e.preventDefault(); openModal(); });
 cancelBtn.addEventListener('click', closeModal);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 

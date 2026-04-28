@@ -104,17 +104,17 @@
   .llm-dot.on { background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
   .llm-dot.off { background:var(--red); box-shadow:0 0 8px var(--red); }
   .llm-sub { font-size:.66rem; color:var(--sub); margin-top:8px; line-height:1.5; word-break:break-all; }
-  .session-panel { background:var(--dim); border:1px solid var(--border-a); padding:12px; }
+  .session-panel { background:var(--dim); border:1px solid rgba(255,230,0,.18); padding:12px; }
   .session-input,.session-select {
     width:100%; background:#0b1118; border:1px solid #1f2b33; color:var(--text);
     padding:9px 10px; font-family:'Share Tech Mono',monospace; font-size:.72rem; margin-top:8px;
   }
   .session-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
   .session-btn {
-    flex:1; min-width:60px; background:transparent; border:1px solid rgba(255,170,0,.28); color:var(--amber);
+    flex:1; min-width:60px; background:transparent; border:1px solid rgba(255,230,0,.28); color:var(--yellow);
     padding:8px 8px; font-size:.68rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
   }
-  .session-btn:hover { background:rgba(255,170,0,.08); }
+  .session-btn:hover { background:rgba(255,230,0,.08); }
   .session-status { margin-top:8px; font-size:.67rem; line-height:1.5; color:var(--sub); white-space:pre-wrap; }
 
   .msg-box {
@@ -349,12 +349,12 @@
   .summary-item { background:#0b1118; border:1px solid #1f2b33; padding:10px 12px; }
   .summary-k { font-size:.70rem; color:var(--sub); margin-bottom:4px; }
   .summary-v { font-size:.96rem; color:#fff; }
-  .feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:12px; font-size:.80rem; line-height:1.85; white-space:pre-wrap; margin-top:10px; }
+  .feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--amber); padding:12px; font-size:.80rem; line-height:1.85; white-space:pre-wrap; margin-top:10px; }
   .summary-top-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:12px; }
   .qvalue-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .qvalue-card { background:#0b1118; border:1px solid #1f2b33; padding:14px; }
   .qvalue-card.full { grid-column:1 / -1; }
-  .center-feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--yellow); padding:14px; font-size:.84rem; line-height:1.85; white-space:pre-wrap; }
+  .center-feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--amber); padding:14px; font-size:.84rem; line-height:1.85; white-space:pre-wrap; }
   .feedback-tab {
     background:#0b1118; border:1px solid rgba(255,230,0,.18); color:var(--sub);
     padding:12px 10px; font-size:.70rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
@@ -383,11 +383,6 @@
   <a href="/" class="topbar-back">◀ MENU</a>
   <div class="topbar-game-name">⚫ GOMOKU</div>
   <div class="topbar-flex"></div>
-  <div class="topbar-sensei">🎓 SAGE</div>
-  <div class="topbar-pill">
-    <div class="tpill-dot {{ 'on' if has_openrouter else 'off' }}"></div>
-    <span>{{ 'LLM ON' if has_openrouter else 'LLM OFF' }}</span>
-  </div>
 </div>
 
 <div class="layout">
@@ -423,7 +418,7 @@
       <div class="info-row"><span>세션</span><span class="info-val" id="gomokuSessionLabel">LIVE</span></div>
     </div>
 
-    <div class="msg-box" id="msgBox">게임 시작을 눌러주세요.</div>
+    <div class="msg-box" id="msgBox" style="display:none"></div>
     <div class="llm-status">
       <div class="panel-title" style="color:var(--cyan)">LLM STATUS</div>
       <div class="llm-status-row">
@@ -442,7 +437,7 @@
       </div>
     </div>
     <div class="session-panel">
-      <div class="panel-title" style="color:var(--amber)">SESSIONS</div>
+      <div class="panel-title" style="color:var(--yellow)">SESSIONS</div>
       <input class="session-input" id="gomokuSessionTitle" placeholder="기록 이름">
       <div class="session-actions">
         <button class="session-btn" id="gomokuSaveBtn">저장</button>
