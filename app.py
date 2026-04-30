@@ -21,7 +21,9 @@ import numpy as np
 import torch
 
 from ai_agents.gomoku import GomokuRLBoard, GomokuPPOEngine, load_gomoku_ppo
-from llm_feedback import generate_feedback, test_openrouter_connection, DEFAULT_MODEL, FALLBACK_MODELS
+from llm_feedback import (generate_feedback, test_openrouter_connection,
+                          DEFAULT_MODEL, FALLBACK_MODELS,
+                          FALLBACK_PRIORITY, FALLBACK_POOL, short_model_name)
 
 app      = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
@@ -299,10 +301,13 @@ def index():
 
 @app.route('/gomoku')
 def gomoku_page():
+    primary = os.getenv('OPENROUTER_MODEL', DEFAULT_MODEL)
     return render_template('gomoku.html',
         has_openrouter=bool(os.getenv('OPENROUTER_API_KEY')),
-        openrouter_model=os.getenv('OPENROUTER_MODEL', DEFAULT_MODEL),
-        openrouter_fallback=', '.join(FALLBACK_MODELS),
+        openrouter_model=primary,
+        primary_short=short_model_name(primary),
+        priority_models=[(m, short_model_name(m)) for m in FALLBACK_PRIORITY],
+        pool_models=[(m, short_model_name(m)) for m in FALLBACK_POOL],
         saved_sessions=list_saved_sessions('gomoku'),
     )
 
@@ -435,7 +440,7 @@ def _process_gomoku_ai_opening(session_id, sid):
         ai_r, ai_c = int(ai_move // BOARD_W), int(ai_move % BOARD_W)
         gomoku_board.do_move(ai_move); gomoku_state_seq += 1
         socketio.emit('gomoku_state', {**board_to_dict(gomoku_board),
-            'message': f'AI 선착: ({ai_r},{ai_c}) — 당신의 차례입니다.',
+            'message': f'AI 선착: ({BOARD_H - ai_r},{ai_c + 1}) — 당신의 차례입니다.',
             'human_color': gomoku_human_color, 'session_id': session_id, 'state_seq': gomoku_state_seq},
             room=sid, namespace='/')
     except Exception as exc: print(f'AI 선착 오류: {exc}')
@@ -466,7 +471,7 @@ def handle_gomoku_move(data):
         gomoku_state_seq += 1; schedule_gomoku_analysis(gomoku_session_id); return
     gomoku_state_seq += 1
     emit('gomoku_state', {**board_to_dict(gomoku_board),
-        'message': f'당신의 착수: ({row},{col}) — AI 생각 중...',
+        'message': f'당신의 착수: ({BOARD_H - row},{col + 1}) — AI 생각 중...',
         'human_color': gomoku_human_color, 'session_id': gomoku_session_id, 'state_seq': gomoku_state_seq}, to=sid)
     eventlet.sleep(0); eventlet.sleep(0.55)
     process_gomoku_ai_turn(gomoku_session_id, len(gomoku_history)-1, sid)
@@ -483,14 +488,14 @@ def process_gomoku_ai_turn(session_id, history_index, sid):
             gomoku_active = False
             r = '흑(●) 승리!' if winner2==1 else ('백(○) 승리!' if winner2==2 else '무승부')
             wl, _ = find_gomoku_winning_line(gomoku_board) if winner2 in (1,2) else (None,-1)
-            emit_gomoku_terminal_state({**board_to_dict(gomoku_board), 'message': f'AI 착수: ({ai_r},{ai_c}) — {r}',
+            emit_gomoku_terminal_state({**board_to_dict(gomoku_board), 'message': f'AI 착수: ({BOARD_H - ai_r},{ai_c + 1}) — {r}',
                 'game_over': True, 'winner': int(winner2), 'winning_line': wl,
                 'outcome_text': human_perspective_outcome_text(winner2),
                 'human_color': gomoku_human_color, 'session_id': session_id,
                 'state_seq': gomoku_state_seq+1}, sid)
             gomoku_state_seq += 1; schedule_gomoku_analysis(session_id); return
         gomoku_state_seq += 1
-        socketio.emit('gomoku_state', {**board_to_dict(gomoku_board), 'message': f'AI 착수: ({ai_r},{ai_c})',
+        socketio.emit('gomoku_state', {**board_to_dict(gomoku_board), 'message': f'AI 착수: ({BOARD_H - ai_r},{ai_c + 1})',
             'human_color': gomoku_human_color, 'session_id': session_id, 'state_seq': gomoku_state_seq},
             room=sid, namespace='/')
     except Exception as exc: print(f'오목 AI 턴 처리 오류: {exc}')
@@ -505,7 +510,7 @@ def run_gomoku_analysis(expected_session_id=None):
     for i, entry in enumerate(gomoku_history):
         if sid != gomoku_session_id: return
         socketio.emit('gomoku_analysis_progress', {'current': i+1, 'total': total,
-            'move': f"({entry['row']},{entry['col']})", 'session_id': sid})
+            'move': f"({BOARD_H - entry['row']},{entry['col'] + 1})", 'session_id': sid})
         try:
             res = compute_q_values(entry['board_before'], gomoku_net, n_playout=300)
             ba  = res['best_action']; br, bc = ba // BOARD_W, ba % BOARD_W
@@ -564,7 +569,7 @@ def handle_gomoku_counterfactual(data):
         if end_h or h_turns >= LIMIT: break
         if te['move'] in human_board.availables:
             human_board.do_move(te['move'])
-            h_labels.append(f"({te['row']},{te['col']})")
+            h_labels.append(f"({BOARD_H - te['row']},{te['col'] + 1})")
             hf.append(render_gomoku_board(human_board, highlight_move=te['move'])); h_turns += 1
         end_h, win_h = human_board.game_end()
         if end_h or h_turns >= LIMIT:
@@ -572,7 +577,7 @@ def handle_gomoku_counterfactual(data):
         ai_m = te.get('ai_move')
         if ai_m is not None and ai_m in human_board.availables:
             ar, ac = divmod(ai_m, BOARD_W)
-            human_board.do_move(ai_m); h_labels.append(f"({ar},{ac})")
+            human_board.do_move(ai_m); h_labels.append(f"({BOARD_H - ar},{ac + 1})")
             hf.append(render_gomoku_board(human_board, highlight_move=ai_m)); h_turns += 1
             end_h, win_h = human_board.game_end()
             if end_h: h_outcome = human_perspective_outcome_text(win_h); break
@@ -581,7 +586,7 @@ def handle_gomoku_counterfactual(data):
     best_move = candidate['best_row'] * BOARD_W + candidate['best_col']
     if best_move in agent_board.availables:
         agent_board.do_move(best_move)
-        a_labels.append(f"({candidate['best_row']},{candidate['best_col']})")
+        a_labels.append(f"({BOARD_H - candidate['best_row']},{candidate['best_col'] + 1})")
         af.append(render_gomoku_board(agent_board, highlight_move=best_move))
         end_a, win_a = agent_board.game_end()
         if end_a: a_outcome = human_perspective_outcome_text(win_a)
@@ -593,7 +598,7 @@ def handle_gomoku_counterfactual(data):
         na, _ = choose_gomoku_best_move(agent_board, n_playout=80)
         if na not in agent_board.availables: break
         nr, nc = divmod(na, BOARD_W)
-        agent_board.do_move(na); a_labels.append(f"({nr},{nc})"); a_turns += 1
+        agent_board.do_move(na); a_labels.append(f"({BOARD_H - nr},{nc + 1})"); a_turns += 1
         end_a, win_a = agent_board.game_end()
         if end_a:
             a_outcome = human_perspective_outcome_text(win_a)
@@ -608,9 +613,9 @@ def handle_gomoku_counterfactual(data):
     while len(af) < length: af.append(af[-1].copy())
 
     summary = {'move_num': move_num, 'loss': candidate['loss'],
-               'actual_row': history_entry['row'], 'actual_col': history_entry['col'],
+               'actual_row': BOARD_H - history_entry['row'], 'actual_col': history_entry['col'] + 1,
                'actual_q': candidate.get('actual_q'), 'best_q': candidate.get('best_q'),
-               'best_row': candidate['best_row'], 'best_col': candidate['best_col'],
+               'best_row': BOARD_H - candidate['best_row'], 'best_col': candidate['best_col'] + 1,
                'human_sequence_labels': h_labels, 'agent_sequence_labels': a_labels,
                'human_outcome': h_outcome, 'agent_outcome': a_outcome}
     feedback, fb_src, fb_model, fb_route = generate_feedback('gomoku', summary)

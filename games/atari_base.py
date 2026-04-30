@@ -42,7 +42,8 @@ import numpy as np
 import gymnasium as gym
 from flask_socketio import emit
 
-from llm_feedback import generate_feedback, DEFAULT_MODEL, FALLBACK_MODELS
+from llm_feedback import (generate_feedback, DEFAULT_MODEL, FALLBACK_MODELS,
+                          FALLBACK_PRIORITY, FALLBACK_POOL, short_model_name)
 
 
 # ── 공유 유틸리티 ─────────────────────────────────────────────────────────────
@@ -165,6 +166,10 @@ class AtariGame(ABC):
         """4-프레임 스택 상태로 Q-value 배열 반환."""
         ...
 
+    def _extra_summary(self, entry: dict) -> dict:
+        """게임별 추가 summary 필드. 서브클래스에서 필요 시 override."""
+        return {}
+
     # ── 환경 관련 ─────────────────────────────────────────────────────────────
 
     def _make_env(self):
@@ -278,8 +283,10 @@ class AtariGame(ABC):
                 key_combos   = game.key_combos,
                 has_openrouter   = bool(os.getenv('OPENROUTER_API_KEY')),
                 openrouter_model = os.getenv('OPENROUTER_MODEL', DEFAULT_MODEL),
-                openrouter_fallback = ', '.join(FALLBACK_MODELS),
-                saved_sessions = game._list_sessions(),
+                primary_short    = short_model_name(os.getenv('OPENROUTER_MODEL', DEFAULT_MODEL)),
+                priority_models  = [(m, short_model_name(m)) for m in FALLBACK_PRIORITY],
+                pool_models      = [(m, short_model_name(m)) for m in FALLBACK_POOL],
+                saved_sessions   = game._list_sessions(),
             )
 
         self.app.add_url_rule(
@@ -472,6 +479,8 @@ class AtariGame(ABC):
             a_stack = deque(entry['pre_stacked_state'], maxlen=4)
             h_score = a_score = 0.0
             h_first = a_first = None
+            h_steps: list[int] = []
+            a_steps: list[int] = []
             rendered, h_log, a_log = [], [], []
             h_done = a_done = False
             h_frame = a_frame = entry['pre_rgb'].copy()
@@ -492,8 +501,10 @@ class AtariGame(ABC):
                     h_frame = obs_h
                     h_stack.append(_preprocess(obs_h))
                     h_score += float(rew_h)
-                    if rew_h > 0 and h_first is None:
-                        h_first = offset + 1
+                    if rew_h > 0:
+                        h_steps.append(offset + 1)
+                        if h_first is None:
+                            h_first = offset + 1
                     h_done = t_h or tr_h
 
                 if not a_done:
@@ -501,26 +512,33 @@ class AtariGame(ABC):
                     a_frame = obs_a
                     a_stack.append(_preprocess(obs_a))
                     a_score += float(rew_a)
-                    if rew_a > 0 and a_first is None:
-                        a_first = offset + 1
+                    if rew_a > 0:
+                        a_steps.append(offset + 1)
+                        if a_first is None:
+                            a_first = offset + 1
                     a_done = t_a or tr_a
 
                 rendered.append(compose_compare_frame(h_frame, a_frame))
 
+            gap = float(q_vals[best_action] - q_vals[entry['action']])
             summary = {
-                'step':                 entry['step'],
-                'loss':                 round(float(q_vals[best_action] - q_vals[entry['action']]), 3),
-                'human_action_name':    self.action_names.get(entry['action'],   str(entry['action'])),
-                'agent_action_name':    self.action_names.get(best_action,       str(best_action)),
-                'human_q':             round(float(q_vals[entry['action']]), 4),
-                'agent_q':             round(float(q_vals[best_action]), 4),
-                'human_score_delta':    round(h_score, 1),
-                'agent_score_delta':    round(a_score, 1),
-                'human_first_reward_step': h_first,
-                'agent_first_reward_step': a_first,
-                'human_done':          h_done,
-                'agent_done':          a_done,
-                'replay_horizon':      replay_horizon,
+                'step':                     entry['step'],
+                'loss':                     round(gap, 3),
+                'gap':                      round(gap, 4),
+                'human_action_name':        self.action_names.get(entry['action'], str(entry['action'])),
+                'agent_action_name':        self.action_names.get(best_action,     str(best_action)),
+                'human_q':                  round(float(q_vals[entry['action']]), 4),
+                'agent_q':                  round(float(q_vals[best_action]), 4),
+                'human_score_delta':        round(h_score, 1),
+                'agent_score_delta':        round(a_score, 1),
+                'human_first_reward_step':  h_first,
+                'agent_first_reward_step':  a_first,
+                'human_reward_steps':       h_steps,
+                'agent_reward_steps':       a_steps,
+                'human_done':               h_done,
+                'agent_done':               a_done,
+                'replay_horizon':           replay_horizon,
+                **self._extra_summary(entry),
             }
             feedback, fb_source, fb_model, fb_route = generate_feedback(self.game_id, summary)
             payload = {

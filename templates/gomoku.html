@@ -104,6 +104,15 @@
   .llm-dot.on { background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
   .llm-dot.off { background:var(--red); box-shadow:0 0 8px var(--red); }
   .llm-sub { font-size:.66rem; color:var(--sub); margin-top:8px; line-height:1.5; word-break:break-all; }
+  .llm-rank-list { margin-top:8px; display:flex; flex-direction:column; gap:5px; }
+  .llm-rank-row { display:flex; align-items:flex-start; gap:6px; }
+  .llm-rank-num { color:var(--cyan); font-size:.6rem; min-width:14px; padding-top:2px; }
+  .llm-rank-content { flex:1; min-width:0; }
+  .llm-rank-label { font-size:.6rem; color:#667; margin-bottom:2px; display:flex; align-items:center; gap:4px; }
+  .llm-rank-model { font-size:.68rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.4; }
+  .llm-pool-toggle { background:none; border:none; color:var(--cyan); font-size:.58rem; cursor:pointer; padding:0 2px; line-height:1; }
+  .llm-pool-list { display:none; margin-top:3px; padding-left:6px; border-left:1px solid rgba(0,245,255,.2); }
+  .llm-pool-list.open { display:block; }
   .session-panel { background:var(--dim); border:1px solid rgba(255,230,0,.18); padding:12px; }
   .session-input,.session-select {
     width:100%; background:#0b1118; border:1px solid #1f2b33; color:var(--text);
@@ -425,15 +434,44 @@
         <span class="llm-dot {{ 'on' if has_openrouter else 'off' }}"></span>
         <span>{{ 'API KEY 설정됨' if has_openrouter else 'API KEY 미설정' }}</span>
       </div>
-      <div class="llm-sub">
-        {% if has_openrouter %}
-        기본 모델: {{ openrouter_model }}<br>예비 모델: {{ openrouter_fallback }}
-        {% else %}
-        OPENROUTER_API_KEY가 없어 현재는 로컬 데이터 기반 코칭 피드백을 사용합니다.
-        {% endif %}
+      {% if has_openrouter %}
+      <div class="llm-rank-list">
+        <div class="llm-rank-row">
+          <span class="llm-rank-num">①</span>
+          <div class="llm-rank-content">
+            <div class="llm-rank-label">주 모델</div>
+            <div class="llm-rank-model" title="{{ openrouter_model }}">{{ primary_short }}</div>
+          </div>
+        </div>
+        <div class="llm-rank-row">
+          <span class="llm-rank-num">②</span>
+          <div class="llm-rank-content">
+            <div class="llm-rank-label">예비 (대형)</div>
+            {% for full, short in priority_models %}
+            <div class="llm-rank-model" title="{{ full }}">{{ short }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="llm-rank-row">
+          <span class="llm-rank-num">③</span>
+          <div class="llm-rank-content">
+            <div class="llm-rank-label">
+              자동 예비풀 ({{ pool_models|length }}개)
+              <button class="llm-pool-toggle" onclick="var l=this.closest('.llm-rank-content').querySelector('.llm-pool-list');l.classList.toggle('open');this.textContent=l.classList.contains('open')?'▲':'▼'">▼</button>
+            </div>
+            <div class="llm-pool-list">
+              {% for full, short in pool_models %}
+              <div class="llm-rank-model" title="{{ full }}">{{ short }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
       </div>
+      {% else %}
+      <div class="llm-sub">로컬 데이터 기반 코칭 피드백을 사용합니다.</div>
+      {% endif %}
       <div class="llm-sub" id="gomokuLlmCurrentStatus">
-        현재 선택: {% if has_openrouter %}대기 중{% else %}로컬{% endif %}
+        현재: {% if has_openrouter %}대기 중{% else %}로컬{% endif %}
       </div>
     </div>
     <div class="session-panel">
@@ -778,8 +816,8 @@ function requestGomokuReplay(moveNum) {
   document.getElementById('gomokuHumanImage').src = '';
   document.getElementById('gomokuAgentImage').src = '';
   document.getElementById('gomokuCenterFeedback').classList.add('visible');
-  document.getElementById('gomokuFeedbackSourceCenter').textContent = HAS_LLM ? '비교 리플레이 생성 및 외부 LLM 코칭 요청 중...' : '비교 리플레이 생성 중...';
-  document.getElementById('gomokuFeedbackTextCenter').textContent = HAS_LLM ? '외부 LLM 응답을 기다리는 중입니다. 무료 모델 혼잡 시 로컬 코칭 피드백으로 대체될 수 있습니다.' : '';
+  document.getElementById('gomokuFeedbackSourceCenter').textContent = HAS_LLM ? '비교 리플레이 생성 및 코칭 요청 중...' : '비교 리플레이 생성 중...';
+  document.getElementById('gomokuFeedbackTextCenter').textContent = '';
   document.getElementById('gomokuFeedbackLoading').classList.toggle('active', HAS_LLM);
   document.getElementById('gomokuLlmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 외부 LLM 확인 중' : '현재 선택: 로컬';
   updateGomokuSummaryFromPayload(moveNum, {});

@@ -46,6 +46,15 @@ def extract_si_game_state(rgb_frame: np.ndarray) -> dict:
     bullet_rows = np.where(bullet_zone.any(axis=1))[0]
     incoming_proximity = (168 - (int(bullet_rows.max()) + 145)) if len(bullet_rows) > 0 else 23
 
+    # 탄환이 실제로 방패 X범위 위에 있는지 확인 (단순 Y근접과 구분)
+    bullet_over_shield = False
+    if len(bullet_rows) > 0:
+        bullet_cols = np.where(bullet_zone.any(axis=0))[0]
+        for bx in bullet_cols:
+            if any(sx <= bx <= sx + shield_width for sx in shield_starts):
+                bullet_over_shield = True
+                break
+
     if enemy_count <= 3:
         speed_phase = 'critical'
     elif enemy_count <= 9:
@@ -69,7 +78,8 @@ def extract_si_game_state(rgb_frame: np.ndarray) -> dict:
         'player_under_shield': player_under_shield,
         'enemy_speed_phase':   speed_phase,
         'cleared_columns':     cleared_columns,
-        'incoming_proximity':  incoming_proximity,
+        'incoming_proximity':   incoming_proximity,
+        'bullet_over_shield':   bullet_over_shield,
     }
 
 

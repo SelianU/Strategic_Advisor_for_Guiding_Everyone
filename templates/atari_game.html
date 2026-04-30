@@ -50,6 +50,15 @@
   .llm-dot.on{background:var(--theme);box-shadow:0 0 8px var(--theme);}
   .llm-dot.off{background:var(--red);box-shadow:0 0 8px var(--red);}
   .llm-sub{font-size:.66rem;color:var(--sub);margin-top:8px;line-height:1.5;word-break:break-all;}
+  .llm-rank-list{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+  .llm-rank-row{display:flex;align-items:flex-start;gap:6px;}
+  .llm-rank-num{color:var(--theme);font-size:.6rem;min-width:14px;padding-top:2px;}
+  .llm-rank-content{flex:1;min-width:0;}
+  .llm-rank-label{font-size:.6rem;color:#667;margin-bottom:2px;display:flex;align-items:center;gap:4px;}
+  .llm-rank-model{font-size:.68rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
+  .llm-pool-toggle{background:none;border:none;color:var(--theme);font-size:.58rem;cursor:pointer;padding:0 2px;line-height:1;}
+  .llm-pool-list{display:none;margin-top:3px;padding-left:6px;border-left:1px solid rgba(var(--theme-rgb),.25);}
+  .llm-pool-list.open{display:block;}
   .session-panel{background:var(--dim);border:1px solid rgba(255,230,0,.18);padding:12px;}
   .session-input,.session-select{width:100%;background:#0b1118;border:1px solid #1f2b33;color:var(--text);padding:9px 10px;font-family:'Share Tech Mono',monospace;font-size:.72rem;margin-top:8px;}
   .session-actions{display:flex;gap:6px;margin-top:10px;}
@@ -208,7 +217,38 @@
           <span>{{ 'API KEY 설정됨' if has_openrouter else 'API KEY 미설정' }}</span>
         </div>
         {% if has_openrouter %}
-        <div class="llm-sub">기본: {{ openrouter_model }}<br>예비: {{ openrouter_fallback }}</div>
+        <div class="llm-rank-list">
+          <div class="llm-rank-row">
+            <span class="llm-rank-num">①</span>
+            <div class="llm-rank-content">
+              <div class="llm-rank-label">주 모델</div>
+              <div class="llm-rank-model" title="{{ openrouter_model }}">{{ primary_short }}</div>
+            </div>
+          </div>
+          <div class="llm-rank-row">
+            <span class="llm-rank-num">②</span>
+            <div class="llm-rank-content">
+              <div class="llm-rank-label">예비 (대형)</div>
+              {% for full, short in priority_models %}
+              <div class="llm-rank-model" title="{{ full }}">{{ short }}</div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="llm-rank-row">
+            <span class="llm-rank-num">③</span>
+            <div class="llm-rank-content">
+              <div class="llm-rank-label">
+                자동 예비풀 ({{ pool_models|length }}개)
+                <button class="llm-pool-toggle" onclick="var l=this.closest('.llm-rank-content').querySelector('.llm-pool-list');l.classList.toggle('open');this.textContent=l.classList.contains('open')?'▲':'▼'">▼</button>
+              </div>
+              <div class="llm-pool-list">
+                {% for full, short in pool_models %}
+                <div class="llm-rank-model" title="{{ full }}">{{ short }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
         {% else %}
         <div class="llm-sub">로컬 데이터 기반 코칭 피드백을 사용합니다.</div>
         {% endif %}
@@ -327,7 +367,7 @@
             <button type="button" class="feedback-tab" data-fb-tab="summary">📊 비교 요약</button>
           </div>
           <div class="fb-loading" id="fbLoading">
-            <div class="fb-loading-label">외부 LLM 응답을 기다리는 중입니다...</div>
+            <div class="fb-loading-label">SAGE가 분석 중입니다...</div>
             <div class="fb-loading-track"><div class="fb-loading-bar"></div></div>
           </div>
           <div class="fb-text" id="fbText">후보를 선택하면 코칭 피드백이 여기에 표시됩니다.</div>
@@ -521,8 +561,8 @@ function requestCf(ei) {
   clearInterval(cfTimer); cfFrames = []; cfHActs = []; cfAActs = [];
   updateVkbd(0, 0);
   document.getElementById('compareStage').classList.remove('visible');
-  document.getElementById('fbSource').textContent = HAS_LLM ? '비교 리플레이 생성 및 LLM 코칭 요청 중...' : '비교 리플레이 생성 중...';
-  document.getElementById('fbText').textContent   = HAS_LLM ? '외부 LLM 응답을 기다리는 중입니다...' : '';
+  document.getElementById('fbSource').textContent = HAS_LLM ? '비교 리플레이 생성 및 코칭 요청 중...' : '비교 리플레이 생성 중...';
+  document.getElementById('fbText').textContent = '';
   document.getElementById('centerFeedback').classList.add('visible');
   document.getElementById('fbLoading').classList.toggle('active', HAS_LLM);
   document.getElementById('llmStatus').textContent = HAS_LLM ? '현재: 외부 LLM 확인 중' : '현재: 로컬';
