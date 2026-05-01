@@ -62,17 +62,19 @@ def save_config(api_key: str, model: str):
 load_config()
 
 # ── Atari 게임 등록 ──────────────────────────────────────────────────────────
-# 새 게임 추가 시: import 후 리스트에 추가하면 끝.
 
 import ale_py  # noqa  (ALE 환경 등록)
 from games.space_invaders import SpaceInvadersGame
 from games.breakout import BreakoutGame
-# from games.pong import PongGame  # ← 예시: Pong 추가 시 이 줄 활성화
+from games.enduro import EnduroGame
+from games.alien import AlienGame
+# from games.pong import PongGame  # ← 예시: 새 게임 추가 시 이 줄 활성화
 
 ATARI_GAMES = [
     SpaceInvadersGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
     BreakoutGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
-    # PongGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    EnduroGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    AlienGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
 ]
 
 # ── Gomoku 모델 ──────────────────────────────────────────────────────────────
@@ -295,9 +297,26 @@ def list_saved_sessions(game_name):
 
 # ── Flask Routes ──────────────────────────────────────────────────────────────
 
+def _hex_to_rgb(hex_color: str) -> str:
+    h = hex_color.lstrip('#')
+    return ','.join(str(int(h[i:i+2], 16)) for i in (0, 2, 4))
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # ATARI_GAMES 메타를 Jinja에 전달 → 카드 자동 생성
+    games_meta = [
+        {
+            'url':         g.url_path,
+            'game_id':     g.game_id,
+            'game_title':  g.game_title,
+            'game_icon':   g.game_icon,
+            'theme_color': g.theme_color,
+            'theme_rgb':   _hex_to_rgb(g.theme_color),
+            'has_model':   g.net is not None,
+        }
+        for g in ATARI_GAMES
+    ]
+    return render_template('index.html', atari_games=games_meta)
 
 @app.route('/gomoku')
 def gomoku_page():
@@ -561,7 +580,6 @@ def handle_gomoku_counterfactual(data):
     h_outcome = a_outcome = None
     LIMIT = 10
 
-    # Human 시퀀스
     remaining = gomoku_history[move_num-1:]
     h_turns = 0
     for te in remaining:
@@ -582,7 +600,6 @@ def handle_gomoku_counterfactual(data):
             end_h, win_h = human_board.game_end()
             if end_h: h_outcome = human_perspective_outcome_text(win_h); break
 
-    # Agent 시퀀스
     best_move = candidate['best_row'] * BOARD_W + candidate['best_col']
     if best_move in agent_board.availables:
         agent_board.do_move(best_move)
@@ -618,9 +635,11 @@ def handle_gomoku_counterfactual(data):
                'best_row': BOARD_H - candidate['best_row'], 'best_col': candidate['best_col'] + 1,
                'human_sequence_labels': h_labels, 'agent_sequence_labels': a_labels,
                'human_outcome': h_outcome, 'agent_outcome': a_outcome}
-    feedback, fb_src, fb_model, fb_route = generate_feedback('gomoku', summary)
+    feedback, fb_structured, fb_src, fb_model, fb_route = generate_feedback('gomoku', summary)
     payload = {'human_frames': encode_frames(hf), 'agent_frames': encode_frames(af),
-               'summary': summary, 'feedback': feedback, 'feedback_source': fb_src,
+               'summary': summary, 'feedback': feedback,
+               'feedback_structured': fb_structured,
+               'feedback_source': fb_src,
                'feedback_model': fb_model, 'feedback_route': fb_route,
                'session_id': req_sid, 'move_num': move_num}
     gomoku_counterfactual_cache[cache_key] = payload

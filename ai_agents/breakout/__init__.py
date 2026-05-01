@@ -1,21 +1,37 @@
-from .d3qn_helper import (
-    ACTION_NAMES,
-    AtariWrapper,
-    Config,
+"""
+ai_agents/breakout/__init__.py
+────────────────────────────────
+하위 호환 shim — 기존 import 경로를 유지하면서 공통 d3qn_helper로 위임합니다.
+
+기존 코드:
+    from ai_agents.breakout import load_breakout_d3qn, get_q_values
+"""
+
+from ai_agents.d3qn_helper import (
     DuelingDQN,
+    AtariWrapper,
     GradRescale,
-    analyze_episode,
     get_q_values,
-    load_breakout_d3qn,
+    analyze_episode,
+    GAME_CONFIGS,
+    load_d3qn as _load,
 )
+
+_GAME_ID     = "breakout"
+ACTION_NAMES = GAME_CONFIGS[_GAME_ID]["action_names"]
+
+
+def load_breakout_d3qn(model_path: str, device: str = 'cpu'):
+    """Breakout D3QN 모델을 로드합니다."""
+    return _load(_GAME_ID, model_path, device)
+
 
 __all__ = [
     "ACTION_NAMES",
-    "AtariWrapper",
-    "Config",
     "DuelingDQN",
+    "AtariWrapper",
     "GradRescale",
-    "analyze_episode",
-    "get_q_values",
     "load_breakout_d3qn",
+    "get_q_values",
+    "analyze_episode",
 ]

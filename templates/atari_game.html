@@ -25,7 +25,6 @@
   .topbar-back:hover{background:rgba(var(--theme-rgb),.08);}
   .topbar-name{font-family:'Press Start 2P',monospace;font-size:.62rem;color:var(--text);letter-spacing:3px;padding:0 20px;}
   .topbar-flex{flex:1;}
-  .topbar-sensei{font-size:.56rem;color:var(--amber);letter-spacing:2px;padding:4px 10px;border:1px solid rgba(255,170,0,.28);margin-right:12px;}
   .topbar-pill{display:flex;align-items:center;gap:8px;padding:0 18px;border-left:1px solid var(--border-c);font-size:.65rem;color:var(--sub);height:48px;}
   .tpill-dot{width:8px;height:8px;border-radius:50%;}
   .tpill-dot.on{background:var(--theme);box-shadow:0 0 7px var(--theme);}
@@ -112,7 +111,7 @@
   .vkbd-side{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;}
   .vkbd-label{font-size:.7rem;color:var(--sub);}
   .vkbd-label.agent{color:var(--theme);}
-  .vkbd-keys{display:flex;gap:6px;align-items:center;}
+  .vkbd-keys{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;}
   .vkey{display:flex;align-items:center;justify-content:center;background:#0a0f14;border:1px solid #1e2830;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:.74rem;color:#3a4a55;transition:.06s;user-select:none;height:32px;}
   .vkey.narrow{width:32px;}
   .vkey.wide{width:56px;font-size:.62rem;}
@@ -132,6 +131,17 @@
   .fb-loading-track{height:4px;background:#1a1a2e;border-radius:999px;overflow:hidden;}
   .fb-loading-bar{width:35%;height:100%;background:linear-gradient(90deg,var(--amber),var(--cyan));animation:fb-loading 1.2s ease-in-out infinite;}
   @keyframes fb-loading{0%{transform:translateX(-120%);}100%{transform:translateX(320%);}}
+  /* 구조화 피드백 섹션 */
+  .fb-structured{padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px;}
+  .fb-section{border-radius:2px;overflow:hidden;}
+  .fb-section-label{font-family:'Press Start 2P',monospace;font-size:.46rem;letter-spacing:1px;padding:6px 10px;}
+  .fb-section-body{font-size:.80rem;line-height:1.85;padding:8px 10px 10px;color:var(--text);white-space:pre-wrap;}
+  .fb-section--situation{background:rgba(0,245,255,.04);border-left:3px solid rgba(0,245,255,.5);}
+  .fb-section--situation .fb-section-label{color:var(--cyan);}
+  .fb-section--comparison{background:rgba(255,230,0,.04);border-left:3px solid rgba(255,230,0,.5);}
+  .fb-section--comparison .fb-section-label{color:var(--yellow);}
+  .fb-section--advice{background:rgba(57,255,20,.04);border-left:3px solid rgba(57,255,20,.5);}
+  .fb-section--advice .fb-section-label{color:#39ff14;}
   .fb-text{padding:14px;font-size:.80rem;line-height:1.85;white-space:pre-wrap;color:var(--text);}
   .fb-summary{display:none;background:rgba(255,255,255,.03);border-left:3px solid var(--amber);padding:12px;}
   .fb-summary.visible{display:block;}
@@ -175,6 +185,44 @@
   @media(max-width:1380px){.top-row{grid-template-columns:minmax(0,1fr) 400px;}}
   @media(max-width:1100px){.top-row{grid-template-columns:minmax(0,1fr) 320px;}}
   @media(max-width:900px){html,body{overflow:auto;}.layout,.top-row{flex-direction:column;height:auto;overflow:visible;}.left{width:100%;}.center,.side-column{height:auto;overflow-y:visible;}canvas{max-height:60vh;}}
+
+  /* ── Grad-CAM 뷰 ── */
+  .gcam-controls{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+  .gcam-btn{
+    background:transparent;border:1px solid rgba(var(--theme-rgb),.3);
+    color:var(--sub);font-family:'Share Tech Mono',monospace;font-size:.68rem;
+    padding:5px 11px;cursor:pointer;transition:.15s;
+    display:flex;align-items:center;gap:5px;
+  }
+  .gcam-btn:hover{background:rgba(var(--theme-rgb),.08);color:var(--text);}
+  .gcam-btn.active{
+    background:rgba(var(--theme-rgb),.15);border-color:var(--theme);
+    color:var(--theme);box-shadow:0 0 8px rgba(var(--theme-rgb),.2);
+  }
+  .gcam-btn .gcam-dot{width:6px;height:6px;border-radius:50%;background:var(--sub);transition:.15s;}
+  .gcam-btn.active .gcam-dot{background:var(--theme);box-shadow:0 0 5px var(--theme);}
+  .gcam-no-support{font-size:.63rem;color:var(--sub);text-align:center;padding:2px 0;display:none;}
+  .gcam-no-support.visible{display:block;}
+  /* 분할 뷰 */
+  .gcam-split-row{display:flex;gap:6px;width:100%;margin-bottom:6px;}
+  .gcam-split-cell{flex:1;display:flex;flex-direction:column;gap:3px;}
+  .gcam-split-label{font-size:.58rem;color:var(--sub);text-align:center;letter-spacing:1px;}
+  .gcam-split-label.human{color:#aaa;}
+  .gcam-split-label.agent{color:var(--theme);}
+  .gcam-split-label .gcam-tag{
+    font-size:.52rem;color:rgba(var(--theme-rgb),.6);
+    border:1px solid rgba(var(--theme-rgb),.2);padding:1px 5px;
+    border-radius:2px;margin-left:3px;display:inline-block;
+  }
+  .gcam-frame{width:100%;display:block;background:#000;object-fit:contain;border:1px solid rgba(var(--theme-rgb),.12);}
+  /* 범례 */
+  .gcam-legend{display:none;align-items:center;gap:8px;justify-content:center;margin-top:4px;flex-wrap:wrap;}
+  .gcam-legend.visible{display:flex;}
+  .gcam-legend-item{display:flex;align-items:center;gap:3px;font-size:.58rem;color:var(--sub);}
+  .gcam-swatch{width:20px;height:5px;border-radius:1px;}
+  .swatch-cold{background:linear-gradient(90deg,#00f,#0ff);}
+  .swatch-warm{background:linear-gradient(90deg,#0f0,#ff0);}
+  .swatch-hot{background:linear-gradient(90deg,#ff0,#f00);}
 </style>
 </head>
 <body data-has-llm="{{ 'true' if has_openrouter else 'false' }}">
@@ -198,11 +246,7 @@
       </div>
       <div class="panel">
         <div class="panel-title">CONTROLS</div>
-        <div class="controls-list">
-          <span class="key">←</span> 왼쪽<br>
-          <span class="key">→</span> 오른쪽<br>
-          <span class="key">SPACE</span> 발사
-        </div>
+        <div class="controls-list" id="controlsList"></div>
       </div>
       {% if not has_model %}
       <div class="no-model-warn">
@@ -283,8 +327,65 @@
 
         <!-- 카운터팩추얼 리플레이 -->
         <div class="compare-stage" id="compareStage">
-          <img id="compareImg" alt="counterfactual replay">
-          <div class="compare-caption"><span>LEFT: HUMAN</span><span>RIGHT: AGENT</span></div>
+
+          <!-- Grad-CAM 토글 버튼 -->
+          <div class="gcam-controls">
+            <button class="gcam-btn active" id="gcamNormalBtn"><span class="gcam-dot"></span>NORMAL</button>
+            <button class="gcam-btn" id="gcamHumanBtn"><span class="gcam-dot"></span>HUMAN CAM</button>
+            <button class="gcam-btn" id="gcamAgentBtn"><span class="gcam-dot"></span>AGENT CAM</button>
+            <button class="gcam-btn" id="gcamSplitBtn"><span class="gcam-dot"></span>SPLIT CAM</button>
+          </div>
+          <div class="gcam-no-support" id="gcamNoSupport">⚠ 이 모델은 Grad-CAM을 지원하지 않습니다</div>
+
+          <!-- NORMAL 뷰: 기존 side-by-side -->
+          <div id="viewNormal">
+            <img id="compareImg" alt="counterfactual replay" style="width:100%;display:block;background:#000;object-fit:contain;min-height:180px;max-height:470px;">
+            <div class="compare-caption"><span>LEFT: HUMAN</span><span>RIGHT: AGENT</span></div>
+          </div>
+
+          <!-- HUMAN CAM 뷰: 인간 Grad-CAM 풀사이즈 -->
+          <div id="viewHumanCam" style="display:none">
+            <div class="gcam-split-label human" style="margin-bottom:4px">HUMAN&nbsp;<span class="gcam-tag">GRAD-CAM · ADVANTAGE</span></div>
+            <img class="gcam-frame" id="imgHumanCamFull" alt="" style="max-height:420px;">
+          </div>
+
+          <!-- AGENT CAM 뷰: 에이전트 Grad-CAM 풀사이즈 -->
+          <div id="viewAgentCam" style="display:none">
+            <div class="gcam-split-label agent" style="margin-bottom:4px">AGENT&nbsp;<span class="gcam-tag">GRAD-CAM · ADVANTAGE</span></div>
+            <img class="gcam-frame" id="imgAgentCamFull" alt="" style="max-height:420px;">
+          </div>
+
+          <!-- SPLIT CAM 뷰: 인간 일반 + Grad-CAM / 에이전트 일반 + Grad-CAM -->
+          <div id="viewSplit" style="display:none">
+            <div class="gcam-split-row">
+              <div class="gcam-split-cell">
+                <div class="gcam-split-label human">HUMAN · NORMAL</div>
+                <img class="gcam-frame" id="imgHumanNormal" alt="">
+              </div>
+              <div class="gcam-split-cell">
+                <div class="gcam-split-label human">HUMAN&nbsp;<span class="gcam-tag">CAM</span></div>
+                <img class="gcam-frame" id="imgHumanCam" alt="">
+              </div>
+            </div>
+            <div class="gcam-split-row">
+              <div class="gcam-split-cell">
+                <div class="gcam-split-label agent">AGENT · NORMAL</div>
+                <img class="gcam-frame" id="imgAgentNormal" alt="">
+              </div>
+              <div class="gcam-split-cell">
+                <div class="gcam-split-label agent">AGENT&nbsp;<span class="gcam-tag">CAM</span></div>
+                <img class="gcam-frame" id="imgAgentCam" alt="">
+              </div>
+            </div>
+          </div>
+
+          <!-- Grad-CAM 범례 -->
+          <div class="gcam-legend" id="gcamLegend">
+            <span class="gcam-legend-item"><span class="gcam-swatch swatch-cold"></span>낮은 활성화</span>
+            <span class="gcam-legend-item"><span class="gcam-swatch swatch-warm"></span>중간</span>
+            <span class="gcam-legend-item"><span class="gcam-swatch swatch-hot"></span>높은 활성화</span>
+          </div>
+
           <div class="speed-controls">
             <button class="speed-btn speed-seek" id="seekBack">◀◀ −1s</button>
             <button class="speed-btn" data-speed="0.25">×¼</button>
@@ -370,7 +471,23 @@
             <div class="fb-loading-label">SAGE가 분석 중입니다...</div>
             <div class="fb-loading-track"><div class="fb-loading-bar"></div></div>
           </div>
-          <div class="fb-text" id="fbText">후보를 선택하면 코칭 피드백이 여기에 표시됩니다.</div>
+          <!-- 구조화 피드백: 3섹션 -->
+          <div class="fb-structured" id="fbStructured">
+            <div class="fb-section fb-section--situation" id="fbSituation" style="display:none">
+              <div class="fb-section-label">📍 상황</div>
+              <div class="fb-section-body" id="fbSituationText"></div>
+            </div>
+            <div class="fb-section fb-section--comparison" id="fbComparison" style="display:none">
+              <div class="fb-section-label">⚡ 비교</div>
+              <div class="fb-section-body" id="fbComparisonText"></div>
+            </div>
+            <div class="fb-section fb-section--advice" id="fbAdvice" style="display:none">
+              <div class="fb-section-label">💡 조언</div>
+              <div class="fb-section-body" id="fbAdviceText"></div>
+            </div>
+            <!-- 구조 없을 때 fallback -->
+            <div class="fb-text" id="fbText" style="display:none">후보를 선택하면 코칭 피드백이 여기에 표시됩니다.</div>
+          </div>
           <div class="fb-summary" id="fbSummary">
             <div class="summary-grid">
               <div class="summary-item"><div class="summary-k">STEP</div><div class="summary-v" id="sumStep">—</div></div>
@@ -391,31 +508,71 @@
 
 <script>
 // ── 게임별 설정 (Jinja 주입) ─────────────────────────────────────────────────
-const GAME_ID      = '{{ game_id }}';
-const P            = '{{ prefix }}';         // 소켓 이벤트 접두사
-const HAS_LLM      = {{ 'true' if has_openrouter else 'false' }};
-const HAS_MODEL    = {{ 'true' if has_model else 'false' }};
-const ACTION_NAMES = {{ action_names | tojson }};
+const GAME_ID       = '{{ game_id }}';
+const P             = '{{ prefix }}';
+const HAS_LLM       = {{ 'true' if has_openrouter else 'false' }};
+const HAS_MODEL     = {{ 'true' if has_model else 'false' }};
+const ACTION_NAMES  = {{ action_names | tojson }};
 const KEYBOARD_KEYS = {{ keyboard_keys | tojson }};
-const KEY_COMBOS   = {{ key_combos | tojson }};
-const REPLAY_FPS   = 60;
+const KEY_COMBOS    = {{ key_combos | tojson }};
+const REPLAY_FPS    = 60;
 const REPLAY_HORIZON = REPLAY_FPS * 20;
 const STATUS_LABELS = { waiting:'대기 중', generating:'생성 중', ready:'준비됨', error:'실패' };
 
-// ── 상태 ─────────────────────────────────────────────────────────────────────
+// ── 소켓 / 캔버스 ────────────────────────────────────────────────────────────
 const socket  = io({ transports: ['websocket'] });
 const canvas  = document.getElementById('gameCanvas');
 const ctx     = canvas.getContext('2d');
 let gameActive = false, totalSteps = 0;
-let sessionId  = 0, sessionLabel = 'LIVE';
-const keys = { left: false, right: false, fire: false };
+let sessionId  = 0;
 let currentAction = 0;
 
-let cfFrames = [], cfHActs = [], cfAActs = [];
-let cfIdx = 0, cfSpeed = 1, cfTimer = null;
-let candidates = [], pendingEI = null, prefetchStarted = false;
-const cfCache = new Map(), candidateStatus = new Map();
-let rightTab = 'qvalue', fbTab = 'feedback';
+// ── 키 상태: KEYBOARD_KEYS의 id를 키로 하는 동적 맵 ────────────────────────
+// 예) { left: false, right: false, fire: false, accel: false, brake: false }
+const keys = Object.fromEntries(KEYBOARD_KEYS.map(k => [k.id, false]));
+
+// KEYBOARD_KEYS에서 각 키가 반응할 물리 키 코드 매핑 (설정 기반 자동 생성)
+// key_combos의 키 이름을 분석해 물리 키와 연결
+//   left  → ArrowLeft
+//   right → ArrowRight
+//   fire  → Space
+//   accel → Space  (fire와 동일 or 'z')
+//   brake → ArrowDown
+// games/*.py에서 key_combos의 키 이름을 기반으로 매핑 추론
+const KEY_MAP = (() => {
+  // KEYBOARD_KEYS의 id마다 물리 키를 자동 추론
+  const map = {};
+  for (const k of KEYBOARD_KEYS) {
+    const id = k.id.toLowerCase();
+    if (id === 'left')        map[k.id] = ['ArrowLeft', 'a'];
+    else if (id === 'right')  map[k.id] = ['ArrowRight', 'd'];
+    else if (id === 'fire')   map[k.id] = [' ', 'c', 'z'];
+    else if (id === 'accel')  map[k.id] = [' ', 'z', 'x'];
+    else if (id === 'brake')  map[k.id] = ['ArrowDown', 's'];
+    else if (id === 'up')     map[k.id] = ['ArrowUp', 'w'];
+    else if (id === 'down')   map[k.id] = ['ArrowDown', 's'];
+    else                      map[k.id] = [];  // 알 수 없는 키는 빈 배열
+  }
+  return map;
+})();
+
+// ── CONTROLS 패널 자동 생성 ───────────────────────────────────────────────────
+(function buildControlsList() {
+  const el = document.getElementById('controlsList');
+  const labels = {
+    left:  ['←', '왼쪽'],
+    right: ['→', '오른쪽'],
+    fire:  ['SPACE', '발사'],
+    accel: ['SPACE', '가속'],
+    brake: ['↓', '브레이크'],
+    up:    ['↑', '위쪽'],
+    down:  ['↓', '아래쪽'],
+  };
+  el.innerHTML = KEYBOARD_KEYS.map(k => {
+    const [keyLabel, desc] = labels[k.id] || [k.label, k.id];
+    return `<span class="key">${keyLabel}</span> ${desc}<br>`;
+  }).join('');
+})();
 
 // ── 가상 키보드 빌드 ─────────────────────────────────────────────────────────
 (function buildVkbd() {
@@ -424,43 +581,141 @@ let rightTab = 'qvalue', fbTab = 'feedback';
     const div = document.createElement('div');
     div.className = 'vkbd-side';
     div.innerHTML = `<div class="vkbd-label ${side === 'agent' ? 'agent' : ''}">${side.toUpperCase()}</div>`;
-    const keys_div = document.createElement('div');
-    keys_div.className = 'vkbd-keys';
+    const keysDiv = document.createElement('div');
+    keysDiv.className = 'vkbd-keys';
     KEYBOARD_KEYS.forEach(k => {
       const el = document.createElement('div');
       el.className = 'vkey ' + (k.label.length <= 2 ? 'narrow' : 'wide');
       el.id = `vkey_${side}_${k.id}`;
       el.textContent = k.label;
-      keys_div.appendChild(el);
+      keysDiv.appendChild(el);
     });
-    div.appendChild(keys_div);
+    div.appendChild(keysDiv);
     vkbd.appendChild(div);
   });
 })();
 
-// ── 키 → 액션 ────────────────────────────────────────────────────────────────
+// ── 키 → 액션 변환 ───────────────────────────────────────────────────────────
 function getAction() {
-  const parts = [];
-  if (keys.fire)  parts.push('fire');
-  if (keys.left)  parts.push('left');
-  if (keys.right) parts.push('right');
-  parts.sort();
-  const combo = parts.join('+');
+  // 현재 눌린 키 id들을 알파벳 순으로 정렬해 조합 문자열 생성
+  const pressed = KEYBOARD_KEYS.map(k => k.id).filter(id => keys[id]);
+  pressed.sort();
+  const combo = pressed.join('+');
+  // KEY_COMBOS에서 정확히 매칭되는 조합 찾기, 없으면 NOOP(0)
   return KEY_COMBOS[combo] ?? KEY_COMBOS[''] ?? 0;
 }
 
+// ── 가상 키보드 업데이트 ─────────────────────────────────────────────────────
 function updateVkbd(humanAction, agentAction) {
   KEYBOARD_KEYS.forEach(k => {
-    document.getElementById(`vkey_human_${k.id}`)?.classList.toggle('pressed', k.actions.includes(humanAction ?? 0));
-    document.getElementById(`vkey_agent_${k.id}`)?.classList.toggle('pressed', k.actions.includes(agentAction ?? 0));
+    const hEl = document.getElementById(`vkey_human_${k.id}`);
+    const aEl = document.getElementById(`vkey_agent_${k.id}`);
+    const hPressed = k.actions.includes(humanAction ?? 0);
+    const aPressed = k.actions.includes(agentAction ?? 0);
+    if (hEl) hEl.classList.toggle('pressed', hPressed);
+    if (aEl) aEl.classList.toggle('pressed', aPressed);
   });
 }
 
-// ── 카운터팩추얼 리플레이 ────────────────────────────────────────────────────
+// 게임에서 사용하는 모든 물리 키 집합 (preventDefault 대상)
+const GAME_KEYS = new Set(
+  Object.values(KEY_MAP).flat()
+);
+
+// ── 키보드 이벤트 ─────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // 게임 키는 브라우저 기본 동작(스크롤 등) 전부 차단
+  if (GAME_KEYS.has(e.key)) e.preventDefault();
+  let changed = false;
+  for (const k of KEYBOARD_KEYS) {
+    if ((KEY_MAP[k.id] || []).includes(e.key)) {
+      if (!keys[k.id]) { keys[k.id] = true; changed = true; }
+    }
+  }
+  if (changed) currentAction = getAction();
+});
+
+document.addEventListener('keyup', e => {
+  if (GAME_KEYS.has(e.key)) e.preventDefault();
+  let changed = false;
+  for (const k of KEYBOARD_KEYS) {
+    if ((KEY_MAP[k.id] || []).includes(e.key)) {
+      if (keys[k.id]) { keys[k.id] = false; changed = true; }
+    }
+  }
+  if (changed) currentAction = getAction();
+});
+
+// ── 카운터팩추얼 리플레이 ─────────────────────────────────────────────────────
+let cfFrames = [], cfHActs = [], cfAActs = [];
+// Grad-CAM 프레임 (인간/에이전트 각각, 서버에서 오버레이 완성본)
+let cfGcamHuman = [], cfGcamAgent = [];
+let hasGradCam = false;
+let gcamMode = 'normal';  // 'normal' | 'human' | 'agent' | 'split'
+let cfIdx = 0, cfSpeed = 1, cfTimer = null;
+let candidates = [], pendingEI = null, prefetchStarted = false;
+const cfCache = new Map(), candidateStatus = new Map();
+let rightTab = 'qvalue', fbTab = 'feedback';
+
+// ── Grad-CAM 뷰 전환 ─────────────────────────────────────────────────────────
+function setGcamMode(mode) {
+  if (!hasGradCam && mode !== 'normal') {
+    document.getElementById('gcamNoSupport').classList.add('visible');
+    return;
+  }
+  document.getElementById('gcamNoSupport').classList.remove('visible');
+  gcamMode = mode;
+
+  document.getElementById('gcamNormalBtn').classList.toggle('active', mode === 'normal');
+  document.getElementById('gcamHumanBtn').classList.toggle('active', mode === 'human');
+  document.getElementById('gcamAgentBtn').classList.toggle('active', mode === 'agent');
+  document.getElementById('gcamSplitBtn').classList.toggle('active', mode === 'split');
+
+  document.getElementById('viewNormal').style.display   = mode === 'normal' ? '' : 'none';
+  document.getElementById('viewHumanCam').style.display = mode === 'human'  ? '' : 'none';
+  document.getElementById('viewAgentCam').style.display = mode === 'agent'  ? '' : 'none';
+  document.getElementById('viewSplit').style.display    = mode === 'split'  ? '' : 'none';
+
+  document.getElementById('gcamLegend').classList.toggle('visible', mode !== 'normal');
+
+  if (cfFrames.length) renderCfFrame(cfIdx);
+}
+
+document.getElementById('gcamNormalBtn').addEventListener('click', () => setGcamMode('normal'));
+document.getElementById('gcamHumanBtn').addEventListener('click', () => setGcamMode('human'));
+document.getElementById('gcamAgentBtn').addEventListener('click', () => setGcamMode('agent'));
+document.getElementById('gcamSplitBtn').addEventListener('click', () => setGcamMode('split'));
+
+// ── 프레임 렌더 ───────────────────────────────────────────────────────────────
+function b64src(b64) { return b64 ? 'data:image/jpeg;base64,' + b64 : ''; }
+
 function renderCfFrame(idx) {
   if (!cfFrames.length) return;
   cfIdx = Math.max(0, Math.min(idx, cfFrames.length - 1));
-  document.getElementById('compareImg').src = 'data:image/jpeg;base64,' + cfFrames[cfIdx];
+
+  // NORMAL: 기존 side-by-side
+  document.getElementById('compareImg').src = b64src(cfFrames[cfIdx]);
+
+  // Grad-CAM 뷰들 (데이터 있을 때만)
+  if (hasGradCam) {
+    const hCam = cfGcamHuman[cfIdx];
+    const aCam = cfGcamAgent[cfIdx];
+    // HUMAN CAM
+    document.getElementById('imgHumanCamFull').src = b64src(hCam);
+    // AGENT CAM
+    document.getElementById('imgAgentCamFull').src = b64src(aCam);
+    // SPLIT: 각 셀에 일반 + Grad-CAM
+    // 일반 프레임은 side-by-side에서 각각 분리할 수 없으므로
+    // Grad-CAM 오버레이(50% 투명도)와 원본 side-by-side 교대 표시
+    // → 별도 저장된 hCam/aCam으로 채움, 일반 쪽은 side-by-side 원본 대신
+    //   서버에서 보낸 frames[idx] 좌/우 절반을 canvas로 분리하는 대신
+    //   frames와 gcam을 같이 표시 (좌=frames, 우=gcam)
+    document.getElementById('imgHumanNormal').src = b64src(cfFrames[cfIdx]);  // side-by-side 전체
+    document.getElementById('imgHumanCam').src    = b64src(hCam);
+    document.getElementById('imgAgentNormal').src = b64src(cfFrames[cfIdx]);
+    document.getElementById('imgAgentCam').src    = b64src(aCam);
+  }
+
   updateVkbd(cfHActs[cfIdx], cfAActs[cfIdx]);
 }
 
@@ -475,12 +730,25 @@ function startCfTimer() {
   return setInterval(() => { cfIdx = (cfIdx + 1) % cfFrames.length; renderCfFrame(cfIdx); }, 1000 / (REPLAY_FPS * cfSpeed));
 }
 
-function playCfFrames(frames, hActs, aActs) {
+function playCfFrames(data) {
   clearInterval(cfTimer);
-  cfFrames = frames || []; cfHActs = hActs || []; cfAActs = aActs || [];
+  cfFrames    = data.frames        || [];
+  cfGcamHuman = data.gradcam_human || [];
+  cfGcamAgent = data.gradcam_agent || [];
+  cfHActs     = data.human_actions || [];
+  cfAActs     = data.agent_actions || [];
+  hasGradCam  = !!data.has_gradcam;
   cfIdx = 0;
+
+  // Grad-CAM 미지원 시 버튼 반투명 처리
+  ['gcamHumanBtn','gcamAgentBtn','gcamSplitBtn'].forEach(id => {
+    document.getElementById(id).style.opacity = hasGradCam ? '' : '0.35';
+  });
+
   if (!cfFrames.length) return;
   document.getElementById('compareStage').classList.add('visible');
+  // 뷰 전환 (모드 재적용)
+  setGcamMode(hasGradCam ? gcamMode : 'normal');
   renderCfFrame(0);
   cfTimer = startCfTimer();
 }
@@ -496,8 +764,9 @@ function setRightTab(tab) {
 function setFbTab(tab) {
   fbTab = tab;
   document.querySelectorAll('[data-fb-tab]').forEach(b => b.classList.toggle('active', b.dataset.fbTab === tab));
-  document.getElementById('fbText').style.display    = tab === 'feedback' ? 'block' : 'none';
-  document.getElementById('fbSummary').classList.toggle('visible', tab === 'summary');
+  const showFeedback = tab === 'feedback';
+  document.getElementById('fbStructured').style.display = showFeedback ? '' : 'none';
+  document.getElementById('fbSummary').classList.toggle('visible', !showFeedback);
 }
 
 // ── 후보 목록 ────────────────────────────────────────────────────────────────
@@ -553,7 +822,7 @@ function requestCf(ei) {
   if (cfCache.has(ei)) {
     const cached = cfCache.get(ei);
     setCandidateStatus(ei, 'ready');
-    playCfFrames(cached.frames, cached.human_actions, cached.agent_actions);
+    playCfFrames(cached);
     showFeedback(cached);
     return;
   }
@@ -578,7 +847,35 @@ function showFeedback(data) {
   document.getElementById('llmStatus').textContent =
     `현재: ${data.feedback_route || (data.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
     (data.feedback_model ? ` (${data.feedback_model})` : '');
-  document.getElementById('fbText').textContent = data.feedback || '';
+
+  // 구조화 피드백 렌더링
+  const fb = data.feedback_structured || {};
+  const situation  = fb.situation  || '';
+  const comparison = fb.comparison || '';
+  const advice     = fb.advice     || '';
+  const hasStructure = situation || comparison || advice;
+
+  const sitEl  = document.getElementById('fbSituation');
+  const cmpEl  = document.getElementById('fbComparison');
+  const advEl  = document.getElementById('fbAdvice');
+  const txtEl  = document.getElementById('fbText');
+
+  if (hasStructure) {
+    txtEl.style.display = 'none';
+    sitEl.style.display  = situation  ? '' : 'none';
+    cmpEl.style.display  = comparison ? '' : 'none';
+    advEl.style.display  = advice     ? '' : 'none';
+    document.getElementById('fbSituationText').textContent  = situation;
+    document.getElementById('fbComparisonText').textContent = comparison;
+    document.getElementById('fbAdviceText').textContent     = advice;
+  } else {
+    // 구조 없음: fallback 단일 텍스트
+    sitEl.style.display = cmpEl.style.display = advEl.style.display = 'none';
+    txtEl.style.display = 'block';
+    txtEl.textContent   = data.feedback || '';
+  }
+
+  // 비교 요약 탭
   const s = data.summary || {};
   const c = candidates.find(x => parseInt(x.entry_index) === pendingEI);
   document.getElementById('sumStep').textContent   = c?.step ?? s.step ?? '—';
@@ -591,7 +888,7 @@ function showFeedback(data) {
   document.getElementById('sumAFirst').textContent  = s.agent_first_reward_step ?? '—';
 }
 
-// ── 분석 결과 적용 ───────────────────────────────────────────────────────────
+// ── 분석 결과 적용 ────────────────────────────────────────────────────────────
 function applyAnalysis(data) {
   document.getElementById('resultPanel').classList.add('visible');
   document.getElementById('worstPanel').classList.add('visible');
@@ -636,7 +933,7 @@ function applyAnalysis(data) {
   if (candidates.length) requestCf(parseInt(candidates[0].entry_index));
 }
 
-// ── 세션 목록 렌더 ───────────────────────────────────────────────────────────
+// ── 세션 목록 렌더 ────────────────────────────────────────────────────────────
 function renderSessions(sessions) {
   const sel  = document.getElementById('sessionSelect');
   const prev = sel.value;
@@ -659,12 +956,30 @@ function resetUI() {
   cfCache.clear(); candidateStatus.clear(); pendingEI = null; prefetchStarted = false;
   rightTab = 'qvalue'; setRightTab('qvalue'); setFbTab('feedback');
   document.getElementById('fbSource').textContent = '';
-  document.getElementById('fbText').textContent   = '후보를 선택하면 코칭 피드백이 여기에 표시됩니다.';
+  // 구조화 섹션 숨기고 placeholder 텍스트 표시
+  ['fbSituation','fbComparison','fbAdvice'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  const ftEl = document.getElementById('fbText');
+  ftEl.style.display = 'block';
+  ftEl.textContent   = '후보를 선택하면 코칭 피드백이 여기에 표시됩니다.';
   document.getElementById('fbLoading').classList.remove('active');
   document.getElementById('score').textContent = '0';
   document.getElementById('steps').textContent = '0';
   document.getElementById('sessionLabel').textContent = 'LIVE';
   totalSteps = 0;
+  // Grad-CAM 상태 초기화
+  hasGradCam = false;
+  gcamMode = 'normal';
+  cfGcamHuman = []; cfGcamAgent = [];
+  document.getElementById('gcamNoSupport').classList.remove('visible');
+  document.getElementById('gcamLegend').classList.remove('visible');
+  ['gcamNormalBtn','gcamHumanBtn','gcamAgentBtn','gcamSplitBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    btn.classList.toggle('active', id === 'gcamNormalBtn');
+    btn.style.opacity = '';
+  });
+  ['viewNormal','viewHumanCam','viewAgentCam','viewSplit'].forEach(id => {
+    document.getElementById(id).style.display = id === 'viewNormal' ? '' : 'none';
+  });
 }
 
 // ── 버튼 이벤트 ──────────────────────────────────────────────────────────────
@@ -673,7 +988,9 @@ document.getElementById('startBtn').addEventListener('click', () => {
   resetUI();
   document.getElementById('status').textContent = 'PLAYING...';
   document.getElementById('startBtn').disabled  = true;
-  currentAction = 1;  // 시작 시 FIRE
+  // 시작 시 FIRE/ACCEL 키가 있으면 눌린 상태로 시작
+  const hasFireKey = KEYBOARD_KEYS.some(k => k.id === 'fire' || k.id === 'accel');
+  currentAction = hasFireKey ? (KEY_COMBOS['fire'] ?? KEY_COMBOS['accel'] ?? 1) : 0;
   socket.emit(P + 'start');
 });
 
@@ -705,21 +1022,6 @@ document.querySelectorAll('#rightTabs .right-tab').forEach(b =>
 document.querySelectorAll('[data-fb-tab]').forEach(b =>
   b.addEventListener('click', () => setFbTab(b.dataset.fbTab)));
 
-// ── 키보드 입력 ───────────────────────────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft')        keys.left  = true;
-  if (e.key === 'ArrowRight')       keys.right = true;
-  if (e.key === ' ' || e.key==='c') keys.fire  = true;
-  currentAction = getAction();
-  if (e.key === ' ') e.preventDefault();
-});
-document.addEventListener('keyup', e => {
-  if (e.key === 'ArrowLeft')        keys.left  = false;
-  if (e.key === 'ArrowRight')       keys.right = false;
-  if (e.key === ' ' || e.key==='c') keys.fire  = false;
-  currentAction = getAction();
-});
-
 // ── 소켓 이벤트 ──────────────────────────────────────────────────────────────
 socket.emit(P + 'list_sessions');
 
@@ -734,11 +1036,7 @@ socket.on(P + 'frame', data => {
     document.getElementById('steps').textContent = totalSteps;
     if (data.score != null) document.getElementById('score').textContent = Math.round(data.score);
     setTimeout(() => {
-      if (gameActive) {
-        socket.emit(P + 'action', { action: currentAction });
-        // FIRE 순간 발사 후 NOOP으로 (fire 키가 떼어졌을 경우)
-        if (currentAction === 1 && !keys.fire) currentAction = 0;
-      }
+      if (gameActive) socket.emit(P + 'action', { action: currentAction });
     }, 1000 / 60);
   };
 });
@@ -773,7 +1071,7 @@ socket.on(P + 'counterfactual_ready', data => {
   cfCache.set(ei, data);
   setCandidateStatus(ei, 'ready');
   if (ei !== pendingEI) { maybePrefetch(); return; }
-  playCfFrames(data.frames, data.human_actions, data.agent_actions);
+  playCfFrames(data);
   showFeedback(data);
   maybePrefetch();
 });

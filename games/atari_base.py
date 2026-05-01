@@ -78,6 +78,140 @@ def _hex_to_rgb(hex_color: str) -> str:
     return ','.join(str(int(h[i:i+2], 16)) for i in (0, 2, 4))
 
 
+# ── Grad-CAM (Advantage Stream, DuelingDQN 전용) ─────────────────────────────
+
+class AtariGradCAM:
+    """
+    DuelingDQN의 Advantage stream에 Grad-CAM을 적용합니다.
+
+    지원 조건: net에 features / grad_rescale / value_stream / advantage_stream 속성 존재.
+    torch.compile로 래핑된 경우 _orig_mod를 통해 내부 모델에 접근합니다.
+
+    사용법:
+        gcam = AtariGradCAM(net, device)
+        heatmap, action, q_values = gcam(stacked_uint8)  # (4,84,84) uint8
+        gcam.remove()   # 훅 해제 (반드시 호출)
+
+    반환:
+        heatmap  : (84,84) float32 [0,1]
+        action   : int (argmax Q-value)
+        q_values : np.ndarray (n_actions,)
+    """
+
+    def __init__(self, net, device: str):
+        import torch.nn as nn
+        self.net    = net
+        self.device = device
+        self._grads = None
+        self._feats = None
+        self._hooks: list = []
+        self._enabled = False
+
+        # torch.compile 래핑 벗기기
+        inner = getattr(net, '_orig_mod', net)
+        if not all(hasattr(inner, a) for a in ('features', 'grad_rescale',
+                                                'value_stream', 'advantage_stream')):
+            return  # 지원 불가 모델 → _enabled=False
+
+        self._inner = inner
+        last_conv = None
+        for m in inner.features.modules():
+            if isinstance(m, nn.Conv2d):
+                last_conv = m
+
+        if last_conv is None:
+            return
+
+        def fwd(module, inp, out):
+            self._feats = out.detach()
+
+        def bwd(module, grad_in, grad_out):
+            self._grads = grad_out[0].detach()
+
+        self._hooks.append(last_conv.register_forward_hook(fwd))
+        self._hooks.append(last_conv.register_full_backward_hook(bwd))
+        self._enabled = True
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    def remove(self):
+        for h in self._hooks:
+            h.remove()
+        self._hooks.clear()
+
+    def __call__(self, state_uint8: np.ndarray):
+        """
+        state_uint8: (4, 84, 84) uint8
+        returns: (heatmap float32 84×84, chosen_action int, q_values ndarray)
+        """
+        import torch
+        import torch.nn.functional as F
+
+        if not self._enabled:
+            with torch.no_grad():
+                s = torch.from_numpy(state_uint8.astype(np.uint8)).unsqueeze(0).to(self.device)
+                q = self.net(s).squeeze(0).cpu().numpy()
+            return np.zeros((84, 84), dtype=np.float32), int(np.argmax(q)), q
+
+        inner = self._inner
+        inner.zero_grad()
+
+        s = torch.from_numpy(state_uint8.astype(np.float32)).unsqueeze(0).to(self.device)
+
+        # forward — advantage stream 기준
+        x        = s.contiguous().float().mul_(1.0 / 255.0)
+        features = inner.features(x).flatten(1)
+        features = inner.grad_rescale(features)
+        value     = inner.value_stream(features)
+        advantage = inner.advantage_stream(features)
+        q_values  = (value + advantage - advantage.mean(dim=1, keepdim=True))[0]
+
+        chosen = int(q_values.argmax().item())
+
+        # backward on chosen action's advantage
+        advantage[0, chosen].backward()
+
+        if self._grads is None or self._feats is None:
+            return np.zeros((84, 84), dtype=np.float32), chosen, q_values.detach().cpu().numpy()
+
+        grads   = self._grads[0]   # (C, H, W)
+        feats   = self._feats[0]   # (C, H, W)
+        weights = grads.mean(dim=(1, 2), keepdim=True)
+        cam     = F.relu((weights * feats).sum(dim=0)).cpu().numpy()
+
+        if cam.max() > 0:
+            cam = cam / cam.max()
+        heatmap = cv2.resize(cam.astype(np.float32), (84, 84),
+                             interpolation=cv2.INTER_LINEAR)
+
+        return heatmap, chosen, q_values.detach().cpu().numpy()
+
+
+def encode_frame_with_gradcam(
+    frame_rgb: np.ndarray,
+    heatmap_84: np.ndarray,
+    alpha: float = 0.50,
+) -> str:
+    """
+    frame_rgb  : (H, W, 3) uint8 RGB 원본 프레임
+    heatmap_84 : (84, 84) float32 [0,1] Grad-CAM heatmap
+    alpha      : heatmap 투명도 (기본 0.50)
+    반환       : base64 JPEG 문자열
+    """
+    H, W = frame_rgb.shape[:2]
+    hm_scaled = (heatmap_84 * 255).astype(np.uint8)
+    hm_color  = cv2.applyColorMap(
+        cv2.resize(hm_scaled, (W, H), interpolation=cv2.INTER_LINEAR),
+        cv2.COLORMAP_JET,
+    )  # BGR
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    overlay   = cv2.addWeighted(frame_bgr, 1.0 - alpha, hm_color, alpha, 0)
+    _, buf = cv2.imencode('.jpg', overlay, [cv2.IMWRITE_JPEG_QUALITY, 82])
+    return base64.b64encode(buf).decode('utf-8')
+
+
 # ── 베이스 클래스 ─────────────────────────────────────────────────────────────
 
 class AtariGame(ABC):
@@ -170,6 +304,17 @@ class AtariGame(ABC):
         """게임별 추가 summary 필드. 서브클래스에서 필요 시 override."""
         return {}
 
+    # ── Grad-CAM 헬퍼 ────────────────────────────────────────────────────────
+    # self.net이 DuelingDQN 구조일 때 자동으로 활성화됩니다.
+    # 다른 아키텍처를 쓰는 게임은 이 메서드를 override하세요.
+
+    def _make_gradcam(self) -> 'AtariGradCAM | None':
+        """Grad-CAM 인스턴스 생성. 지원 불가 모델이면 None 반환."""
+        if self.net is None:
+            return None
+        gcam = AtariGradCAM(self.net, self.device)
+        return gcam if gcam.enabled else None
+
     # ── 환경 관련 ─────────────────────────────────────────────────────────────
 
     def _make_env(self):
@@ -257,6 +402,9 @@ class AtariGame(ABC):
             if sid != self.session_id:
                 continue
             item = copy.deepcopy(payload)
+            # Grad-CAM 프레임(대용량)은 직렬화에서 제외
+            item.pop('gradcam_human', None)
+            item.pop('gradcam_agent', None)
             item['entry_index']    = ei
             item['replay_horizon'] = rh
             saved.append(item)
@@ -469,6 +617,9 @@ class AtariGame(ABC):
         q_vals      = self._get_q_values(entry['pre_stacked_state'])
         best_action = int(np.argmax(q_vals))
 
+        # Grad-CAM 인스턴스 (재생 전체에서 공유, 미지원 시 None)
+        gcam = self._make_gradcam()
+
         human_env = self._make_env()
         agent_env = self._make_env()
         try:
@@ -482,6 +633,9 @@ class AtariGame(ABC):
             h_steps: list[int] = []
             a_steps: list[int] = []
             rendered, h_log, a_log = [], [], []
+            # Grad-CAM 오버레이 프레임 (인간 / 에이전트 각각)
+            gcam_human_frames: list = []
+            gcam_agent_frames: list = []
             h_done = a_done = False
             h_frame = a_frame = entry['pre_rgb'].copy()
 
@@ -520,6 +674,13 @@ class AtariGame(ABC):
 
                 rendered.append(compose_compare_frame(h_frame, a_frame))
 
+                # ── Grad-CAM 오버레이 생성 ──────────────────────────────────
+                if gcam is not None:
+                    h_hm, _, _ = gcam(np.array(h_stack, dtype=np.uint8))
+                    a_hm, _, _ = gcam(np.array(a_stack, dtype=np.uint8))
+                    gcam_human_frames.append(encode_frame_with_gradcam(h_frame, h_hm))
+                    gcam_agent_frames.append(encode_frame_with_gradcam(a_frame, a_hm))
+
             gap = float(q_vals[best_action] - q_vals[entry['action']])
             summary = {
                 'step':                     entry['step'],
@@ -540,22 +701,28 @@ class AtariGame(ABC):
                 'replay_horizon':           replay_horizon,
                 **self._extra_summary(entry),
             }
-            feedback, fb_source, fb_model, fb_route = generate_feedback(self.game_id, summary)
+            feedback, fb_structured, fb_source, fb_model, fb_route = generate_feedback(self.game_id, summary)
             payload = {
-                'frames':          encode_frames(rendered),
-                'human_actions':   h_log,
-                'agent_actions':   a_log,
-                'summary':         summary,
-                'feedback':        feedback,
-                'feedback_source': fb_source,
-                'feedback_model':  fb_model,
-                'feedback_route':  fb_route,
-                'session_id':      req_sid,
-                'entry_index':     entry_index,
+                'frames':               encode_frames(rendered),
+                'gradcam_human':        gcam_human_frames,   # Grad-CAM 오버레이 (인간)
+                'gradcam_agent':        gcam_agent_frames,   # Grad-CAM 오버레이 (에이전트)
+                'has_gradcam':          gcam is not None,
+                'human_actions':        h_log,
+                'agent_actions':        a_log,
+                'summary':              summary,
+                'feedback':             feedback,
+                'feedback_structured':  fb_structured,
+                'feedback_source':      fb_source,
+                'feedback_model':       fb_model,
+                'feedback_route':       fb_route,
+                'session_id':           req_sid,
+                'entry_index':          entry_index,
             }
         finally:
             human_env.close()
             agent_env.close()
+            if gcam is not None:
+                gcam.remove()
 
         self.counterfactual_cache[cache_key] = payload
         emit(f'{self.prefix}counterfactual_ready', payload)

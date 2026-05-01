@@ -7,22 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #04050a;
-    --panel: #080b14;
-    --panel2: #0a0e1a;
-    --cyan: #00f5ff;
-    --green: #39ff14;
-    --amber: #ffaa00;
-    --magenta: #ff00aa;
-    --red: #ff3366;
-    --text: #c8d8e8;
-    --sub: #4a5a6a;
-    --border-c: rgba(0,245,255,.12);
-    --border-a: rgba(255,170,0,.15);
+    --bg: #04050a; --panel: #080b14; --panel2: #0a0e1a;
+    --cyan: #00f5ff; --green: #39ff14; --amber: #ffaa00;
+    --magenta: #ff00aa; --red: #ff3366;
+    --text: #c8d8e8; --sub: #4a5a6a;
+    --border-c: rgba(0,245,255,.12); --border-a: rgba(255,170,0,.15);
   }
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'Share Tech Mono',monospace; }
-
   body::before {
     content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
     background-image:
@@ -30,40 +22,30 @@
       linear-gradient(90deg,rgba(0,245,255,.025) 1px,transparent 1px);
     background-size:52px 52px;
   }
-  /* faint vignette */
   body::after {
     content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
-    background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%);
+    background:radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%);
   }
 
-  /* ────── TOP BAR ────── */
+  /* ── TOP BAR ── */
   .topbar {
-    position:relative; z-index:10;
-    height:52px; display:flex; align-items:center;
-    background:rgba(4,5,10,.98);
-    border-bottom:1px solid var(--border-c);
-    padding:0 20px;
+    position:relative; z-index:10; height:52px;
+    display:flex; align-items:center;
+    background:rgba(4,5,10,.98); border-bottom:1px solid var(--border-c); padding:0 20px;
   }
-  .topbar-brand {
-    display:flex; align-items:center; gap:14px; margin-right:auto;
-  }
+  .topbar-brand { display:flex; align-items:center; gap:14px; margin-right:auto; }
   .topbar-pulse {
     position:relative; width:28px; height:28px;
-    display:flex; align-items:center; justify-content:center;
-    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-  .topbar-pulse::before,
-  .topbar-pulse::after {
+  .topbar-pulse::before, .topbar-pulse::after {
     content:''; position:absolute; inset:0; border-radius:50%;
-    border:1px solid var(--cyan);
-    animation:pulse-ring 2s ease-out infinite;
+    border:1px solid var(--cyan); animation:pulse-ring 2s ease-out infinite;
   }
   .topbar-pulse::after { animation-delay:.9s; }
   .topbar-pulse-core {
-    width:10px; height:10px; border-radius:50%;
-    background:var(--cyan);
-    box-shadow:0 0 8px var(--cyan), 0 0 18px rgba(0,245,255,.5);
-    position:relative; z-index:1;
+    width:10px; height:10px; border-radius:50%; background:var(--cyan);
+    box-shadow:0 0 8px var(--cyan), 0 0 18px rgba(0,245,255,.5); position:relative; z-index:1;
   }
   @keyframes pulse-ring {
     0%   { transform:scale(.55); opacity:.9; }
@@ -74,15 +56,7 @@
     font-family:'Press Start 2P',monospace; font-size:.82rem;
     color:var(--cyan); text-shadow:0 0 12px var(--cyan); letter-spacing:3px;
   }
-  .topbar-divider {
-    width:1px; height:22px; background:rgba(255,170,0,.3); margin:0 2px;
-  }
-  .topbar-sys {
-    font-size:.6rem; color:var(--amber); letter-spacing:3px;
-    text-shadow:0 0 8px rgba(255,170,0,.4);
-  }
-
-  .topbar-pills { display:flex; align-items:center; height:100%; gap:0; }
+  .topbar-pills { display:flex; align-items:center; height:100%; }
   .topbar-pill {
     display:flex; align-items:center; gap:8px; height:100%;
     padding:0 18px; border-left:1px solid var(--border-c);
@@ -90,52 +64,37 @@
   }
   .llm-badge-dot { width:8px; height:8px; border-radius:50%; background:var(--sub); flex-shrink:0; }
   .llm-badge-dot.on { background:var(--green); box-shadow:0 0 7px var(--green); }
-
   .settings-btn {
-    margin-left:14px; background:transparent;
-    border:1px solid var(--border-a); color:var(--amber);
-    font-size:0.72rem; font-family:'Share Tech Mono', monospace;
-    letter-spacing:.04em;
+    margin-left:14px; background:transparent; border:1px solid var(--border-a); color:var(--amber);
+    font-size:.72rem; font-family:'Share Tech Mono',monospace;
     padding:0 14px; height:44px; flex-shrink:0;
-    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
-    transition:background .2s, box-shadow .2s;
-    white-space:nowrap;
+    cursor:pointer; display:flex; align-items:center; gap:6px; transition:background .2s, box-shadow .2s;
   }
   .settings-btn:hover { background:rgba(255,170,0,.08); box-shadow:0 0 14px rgba(255,170,0,.25); }
 
-  /* ────── MAIN GRID ────── */
+  /* ── MAIN GRID ── */
   .main {
     position:relative; z-index:1;
     display:grid; grid-template-columns:310px 1fr;
     height:calc(100vh - 52px); overflow:hidden;
   }
 
-  /* ────── LEFT · SENSEI PANEL ────── */
+  /* ── LEFT PANEL ── */
   .sensei-panel {
     border-right:1px solid var(--border-c);
-    background:linear-gradient(170deg, rgba(10,13,22,1) 0%, rgba(5,7,12,1) 100%);
-    display:flex; flex-direction:column; overflow-y:auto;
-    padding:22px 20px; gap:18px;
+    background:linear-gradient(170deg,rgba(10,13,22,1) 0%,rgba(5,7,12,1) 100%);
+    display:flex; flex-direction:column; overflow-y:auto; padding:22px 20px; gap:18px;
   }
   ::-webkit-scrollbar { width:3px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:rgba(0,245,255,.15); }
-
-  /* Identity block */
   .sensei-id {
     padding:16px; background:rgba(255,170,0,.05);
     border:1px solid var(--border-a); border-left:3px solid var(--amber);
   }
-  .sensei-tag {
-    font-size:.52rem; color:var(--amber); letter-spacing:3px; margin-bottom:8px;
-  }
-  .sensei-name {
-    font-family:'Press Start 2P',monospace; font-size:.75rem;
-    color:var(--text); letter-spacing:2px; margin-bottom:8px;
-  }
+  .sensei-tag { font-size:.52rem; color:var(--amber); letter-spacing:3px; margin-bottom:8px; }
+  .sensei-name { font-family:'Press Start 2P',monospace; font-size:.75rem; color:var(--text); letter-spacing:2px; margin-bottom:8px; }
   .sensei-desc { font-size:.68rem; color:var(--sub); line-height:1.75; }
-
-  /* Section label */
   .sec-label {
     font-size:.58rem; color:var(--sub); letter-spacing:2px;
     padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,.05);
@@ -143,11 +102,8 @@
   }
   .sec-label::before {
     content:''; width:16px; height:1px;
-    background:linear-gradient(90deg, var(--amber), transparent);
-    display:block; flex-shrink:0;
+    background:linear-gradient(90deg,var(--amber),transparent); display:block; flex-shrink:0;
   }
-
-  /* Terminal block */
   .terminal {
     background:rgba(0,0,0,.5); border:1px solid rgba(0,245,255,.1);
     padding:14px; font-size:.68rem; line-height:2;
@@ -157,185 +113,104 @@
   .t-text { color:var(--text); }
   .t-amber { color:var(--amber); }
   .t-cursor {
-    display:inline-block; width:8px; height:1em;
-    background:var(--cyan); animation:blink .85s step-end infinite;
-    vertical-align:text-bottom; margin-left:2px;
+    display:inline-block; width:8px; height:1em; background:var(--cyan);
+    animation:blink .85s step-end infinite; vertical-align:text-bottom; margin-left:2px;
   }
-
-  /* Data rows */
   .data-block { display:flex; flex-direction:column; gap:2px; }
   .data-row {
     display:flex; justify-content:space-between; align-items:center;
-    font-size:.72rem; padding:7px 10px;
-    background:rgba(255,255,255,.02);
-    border-left:2px solid transparent;
-    transition:border-color .2s;
+    font-size:.72rem; padding:7px 10px; background:rgba(255,255,255,.02);
+    border-left:2px solid transparent; transition:border-color .2s;
   }
   .data-row:hover { border-left-color:rgba(0,245,255,.3); }
   .data-v { color:var(--cyan); text-align:right; }
-
-  /* Step flow */
   .steps-flow { display:flex; flex-direction:column; gap:6px; }
   .step-item {
-    display:flex; align-items:center; gap:10px;
-    font-size:.70rem; padding:6px 10px;
+    display:flex; align-items:center; gap:10px; font-size:.70rem; padding:6px 10px;
     background:rgba(255,255,255,.02); border-left:2px solid rgba(0,245,255,.15);
   }
-  .step-num {
-    font-family:'Press Start 2P',monospace; font-size:.45rem;
-    color:var(--amber); min-width:16px; text-align:center;
-  }
+  .step-num { font-family:'Press Start 2P',monospace; font-size:.45rem; color:var(--amber); min-width:16px; text-align:center; }
   .step-label { color:var(--sub); flex:1; }
   .step-val { color:var(--cyan); font-size:.65rem; }
 
-  /* ────── RIGHT · GAME AREA ────── */
+  /* ── GAME AREA ── */
   .game-area {
-    display:flex; flex-direction:column;
-    padding:22px 28px 20px; gap:18px; overflow-y:auto;
+    display:flex; flex-direction:column; padding:22px 28px 20px; gap:18px; overflow-y:auto;
   }
-
-  .game-area-header {
-    display:flex; align-items:center; justify-content:space-between;
-    flex-shrink:0;
-  }
-  .game-area-title {
-    font-family:'Press Start 2P',monospace; font-size:.72rem;
-    color:var(--text); letter-spacing:2px;
-  }
+  .game-area-header { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .game-area-title { font-family:'Press Start 2P',monospace; font-size:.72rem; color:var(--text); letter-spacing:2px; }
   .game-count { font-size:.65rem; color:var(--sub); }
+  .game-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(195px,1fr)); gap:14px; }
 
-  /* Coach hint bar */
-  .coach-bar {
-    display:flex; align-items:center; gap:14px; flex-shrink:0;
-    padding:12px 18px;
-    background:rgba(255,170,0,.04); border:1px solid var(--border-a);
-    border-left:3px solid var(--amber);
-    font-size:.71rem; color:var(--text); line-height:1.65;
-  }
-  .coach-bar-icon { font-size:1.4rem; flex-shrink:0; }
-  .coach-bar strong { color:var(--amber); }
-  .coach-bar a {
-    color:var(--cyan); text-decoration:none; border-bottom:1px solid rgba(0,245,255,.3);
-  }
-
-  /* ────── GAME GRID ────── */
-  .game-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(195px, 1fr));
-    gap:14px;
-  }
-
+  /*
+   * ── GAME CARD ──
+   * 테마색을 CSS 변수(--card-color, --card-rgb)로 인라인에서 주입.
+   * 게임마다 별도 클래스 불필요.
+   */
   .game-card {
     position:relative; background:var(--panel);
-    border:1px solid rgba(255,255,255,.06); padding:0;
+    border:1px solid rgba(var(--card-rgb),.18); padding:0;
     text-decoration:none; overflow:hidden;
     display:flex; flex-direction:column;
     transition:transform .2s, box-shadow .2s;
   }
-  /* colored top stripe */
-  .game-card::before {
-    content:''; display:block; height:2px; flex-shrink:0;
+  .game-card::before { content:''; display:block; height:2px; flex-shrink:0; background:var(--card-color); }
+  .game-card:not(.card-soon):hover {
+    transform:translateY(-3px);
+    box-shadow:0 6px 28px rgba(var(--card-rgb),.18);
   }
-  .game-card:not(.card-soon):hover { transform:translateY(-3px); }
-
-  /* invaders */
-  .card-invaders { border-color:rgba(57,255,20,.18); }
-  .card-invaders::before { background:var(--green); }
-  .card-invaders:hover { box-shadow:0 6px 28px rgba(57,255,20,.14); }
-
-  /* gomoku */
-  .card-gomoku { border-color:rgba(0,245,255,.18); }
-  .card-gomoku::before { background:var(--cyan); }
-  .card-gomoku:hover { box-shadow:0 6px 28px rgba(0,245,255,.14); }
-
-  /* breakout */
-  .card-breakout { border-color:rgba(255,138,28,.22); }
-  .card-breakout::before { background:#ff8a1c; }
-  .card-breakout:hover { box-shadow:0 6px 28px rgba(255,138,28,.16); }
-  .card-breakout .card-badge { color:#ff8a1c; border-color:rgba(255,138,28,.4); }
-  .card-breakout .card-title { color:#ff8a1c; }
-  .card-breakout .card-ai-tag { color:var(--amber); border-color:rgba(255,170,0,.25); background:rgba(255,170,0,.06); }
-  .card-breakout .card-btn { background:#ff8a1c; color:#000; }
-  .card-breakout .card-btn:hover { box-shadow:0 0 18px #ff8a1c; }
-
-  /* coming soon */
   .card-soon { border-color:rgba(255,255,255,.04) !important; opacity:.38; cursor:not-allowed; }
-  .card-soon::before { background:var(--sub); }
+  .card-soon::before { background:var(--sub) !important; }
   .card-soon:hover { transform:none !important; box-shadow:none !important; }
-
-  /* card inner */
   .card-inner { padding:22px 18px 18px; display:flex; flex-direction:column; align-items:center; flex:1; }
-
   .card-badge {
-    position:absolute; top:10px; right:10px;
-    font-size:.5rem; padding:2px 7px; border:1px solid;
-    letter-spacing:1px; z-index:2;
+    position:absolute; top:10px; right:10px; font-size:.5rem; padding:2px 7px;
+    border:1px solid rgba(var(--card-rgb),.4); color:var(--card-color); letter-spacing:1px; z-index:2;
   }
-  .card-invaders .card-badge { color:var(--green); border-color:rgba(57,255,20,.4); }
-  .card-gomoku .card-badge { color:var(--cyan); border-color:rgba(0,245,255,.4); }
   .card-soon .card-badge { color:var(--sub); border-color:rgba(255,255,255,.1); }
-
   .card-icon { font-size:2.6rem; margin-bottom:12px; line-height:1; }
-
   .card-title {
-    font-family:'Press Start 2P',monospace; font-size:.65rem;
+    font-family:'Press Start 2P',monospace; font-size:.65rem; color:var(--card-color);
     letter-spacing:2px; line-height:1.6; margin-bottom:8px; text-align:center;
   }
-  .card-invaders .card-title { color:var(--green); }
-  .card-gomoku .card-title { color:var(--cyan); }
   .card-soon .card-title { color:var(--sub); }
-
   .card-ai-tag {
-    font-size:.6rem; padding:3px 8px; border:1px solid; margin-bottom:12px;
-    letter-spacing:1px;
+    font-size:.6rem; padding:3px 8px; margin-bottom:12px; letter-spacing:1px;
+    border:1px solid rgba(255,170,0,.25); background:rgba(255,170,0,.06); color:var(--amber);
   }
-  .card-invaders .card-ai-tag { color:var(--amber); border-color:rgba(255,170,0,.25); background:rgba(255,170,0,.06); }
-  .card-gomoku .card-ai-tag { color:var(--amber); border-color:rgba(255,170,0,.25); background:rgba(255,170,0,.06); }
   .card-soon .card-ai-tag { color:var(--sub); border-color:rgba(255,255,255,.08); background:none; }
-
   .card-desc { font-size:.67rem; color:var(--sub); line-height:1.7; text-align:center; margin-bottom:16px; flex:1; }
-
   .card-btn {
-    padding:9px 20px; font-family:'Press Start 2P',monospace;
-    font-size:.52rem; letter-spacing:1px; border:none; cursor:pointer;
+    padding:9px 20px; font-family:'Press Start 2P',monospace; font-size:.52rem; letter-spacing:1px;
+    border:none; cursor:pointer; background:var(--card-color); color:#000;
     transition:box-shadow .2s; display:block; text-align:center;
   }
-  .card-invaders .card-btn { background:var(--green); color:#000; }
-  .card-invaders .card-btn:hover { box-shadow:0 0 18px var(--green); }
-  .card-gomoku .card-btn { background:var(--cyan); color:#000; }
-  .card-gomoku .card-btn:hover { box-shadow:0 0 18px var(--cyan); }
-  .card-soon .card-btn { background:rgba(255,255,255,.05); color:var(--sub); cursor:not-allowed; }
+  .card-btn:hover { box-shadow:0 0 18px var(--card-color); }
+  .card-soon .card-btn { background:rgba(255,255,255,.05); color:var(--sub); cursor:not-allowed; box-shadow:none !important; }
 
-  /* ────── MODAL ────── */
+  /* ── MODAL ── */
   .modal-overlay {
-    display:none; position:fixed; inset:0;
-    background:rgba(0,0,0,.8); z-index:200;
-    align-items:center; justify-content:center;
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.8);
+    z-index:200; align-items:center; justify-content:center;
   }
   .modal-overlay.open { display:flex; }
   .modal {
     background:#080b16; border:1px solid rgba(255,170,0,.28);
     box-shadow:0 0 60px rgba(255,170,0,.08);
-    padding:36px 40px; width:min(560px,94vw);
-    display:flex; flex-direction:column; gap:22px;
+    padding:36px 40px; width:min(560px,94vw); display:flex; flex-direction:column; gap:22px;
   }
-  .modal-title {
-    font-family:'Press Start 2P',monospace; font-size:.72rem;
-    color:var(--amber); letter-spacing:2px;
-  }
+  .modal-title { font-family:'Press Start 2P',monospace; font-size:.72rem; color:var(--amber); letter-spacing:2px; }
   .modal-field { display:flex; flex-direction:column; gap:8px; }
   .modal-label { font-size:.72rem; color:var(--sub); }
   .modal-input-wrap { display:flex; gap:8px; }
   .modal-input {
-    flex:1; background:#06080b; border:1px solid #1f2b33;
-    color:var(--text); padding:12px 14px;
-    font-family:'Share Tech Mono',monospace; font-size:.82rem;
+    flex:1; background:#06080b; border:1px solid #1f2b33; color:var(--text);
+    padding:12px 14px; font-family:'Share Tech Mono',monospace; font-size:.82rem;
   }
   .modal-input:focus { outline:none; border-color:var(--amber); }
   .modal-show-btn {
     background:transparent; border:1px solid #1f2b33; color:var(--sub);
-    padding:0 14px; cursor:pointer; font-size:.76rem;
-    font-family:'Share Tech Mono',monospace; white-space:nowrap;
+    padding:0 14px; cursor:pointer; font-size:.76rem; font-family:'Share Tech Mono',monospace;
   }
   .modal-show-btn:hover { color:var(--text); border-color:#344; }
   .modal-hint { font-size:.68rem; color:#344; line-height:1.6; }
@@ -348,19 +223,14 @@
   .modal-status.err { border-color:var(--red); color:var(--red); }
   .modal-status.loading { border-color:var(--cyan); color:var(--cyan); }
   .modal-actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
-  .modal-btn {
-    font-family:'Share Tech Mono',monospace; font-size:.76rem;
-    padding:12px 22px; cursor:pointer; border:none; transition:box-shadow .15s;
-  }
+  .modal-btn { font-family:'Share Tech Mono',monospace; font-size:.76rem; padding:12px 22px; cursor:pointer; border:none; transition:box-shadow .15s; }
   .modal-btn-test { background:transparent; border:1px solid rgba(255,170,0,.3); color:var(--amber); }
   .modal-btn-test:hover { background:rgba(255,170,0,.08); }
   .modal-btn-save { background:var(--amber); color:#000; }
   .modal-btn-save:hover { box-shadow:0 0 18px var(--amber); }
   .modal-btn-cancel { background:transparent; border:1px solid #1f2b33; color:var(--sub); }
   .modal-btn-cancel:hover { border-color:#344; color:var(--text); }
-  .modal-btn-disconnect {
-    background:transparent; border:1px solid rgba(255,51,102,.3); color:var(--red); margin-right:auto;
-  }
+  .modal-btn-disconnect { background:transparent; border:1px solid rgba(255,51,102,.3); color:var(--red); margin-right:auto; }
   .modal-btn-disconnect:hover { background:rgba(255,51,102,.08); }
   .modal-btn-disconnect:disabled { opacity:.3; cursor:not-allowed; }
 
@@ -396,7 +266,7 @@
   </div>
 </div>
 
-<!-- ────── TOP BAR ────── -->
+<!-- TOP BAR -->
 <div class="topbar">
   <div class="topbar-brand">
     <div class="topbar-pulse"><div class="topbar-pulse-core"></div></div>
@@ -411,19 +281,17 @@
   <button class="settings-btn" id="settingsBtn">⚙ API 설정</button>
 </div>
 
-<!-- ────── MAIN ────── -->
+<!-- MAIN -->
 <div class="main">
 
-  <!-- LEFT: SENSEI PANEL -->
+  <!-- LEFT -->
   <div class="sensei-panel">
-
     <div class="sensei-id">
       <div class="sensei-tag">▶ AI COACH SYSTEM</div>
       <div class="sensei-name">SAGE</div>
-      <div class="sensei-desc" style="font-size:0.55rem;color:var(--amber);margin-top:2px;letter-spacing:0.03em">Strategic Advisor for Guiding Everyone</div>
+      <div class="sensei-desc" style="font-size:.55rem;color:var(--amber);margin-top:2px;letter-spacing:.03em">Strategic Advisor for Guiding Everyone</div>
       <div class="sensei-desc">강화학습 에이전트가 당신의 플레이를 분석하고,<br>AI가 맞춤형 전략 피드백을 제공합니다!</div>
     </div>
-
     <div class="sec-label">SYSTEM STATUS</div>
     <div class="data-block">
       <div class="data-row"><span>FRAMEWORK</span><span class="data-v">PyTorch RL</span></div>
@@ -431,14 +299,12 @@
       <div class="data-row"><span>AGENT B</span><span class="data-v">PPO</span></div>
       <div class="data-row"><span>COACH LLM</span><span class="data-v" id="llmBadgeText2">미설정</span></div>
     </div>
-
     <div class="sec-label">TERMINAL</div>
     <div class="terminal">
       <div class="t-line"><span class="t-prompt">SYS&gt;</span><span class="t-text">에이전트 로드 완료</span></div>
       <div class="t-line"><span class="t-prompt">SYS&gt;</span><span class="t-text">분석 모듈 준비됨</span></div>
       <div class="t-line"><span class="t-prompt">SYS&gt;</span><span class="t-amber">게임을 선택하세요<span class="t-cursor"></span></span></div>
     </div>
-
     <div class="sec-label">HOW TO USE</div>
     <div class="steps-flow">
       <div class="step-item"><div class="step-num">01</div><div class="step-label">게임 플레이</div><div class="step-val">실행</div></div>
@@ -446,33 +312,44 @@
       <div class="step-item"><div class="step-num">03</div><div class="step-label">AI 분석</div><div class="step-val">Q-Value</div></div>
       <div class="step-item"><div class="step-num">04</div><div class="step-label">SAGE 피드백</div><div class="step-val">LLM</div></div>
     </div>
-
   </div>
 
-  <!-- RIGHT: GAME AREA -->
+  <!-- RIGHT -->
   <div class="game-area">
-
     <div class="game-area-header">
       <div class="game-area-title">▶ SELECT GAME</div>
-      <div class="game-count">3 ACTIVE &nbsp;·&nbsp; 1 COMING SOON</div>
+      {# Atari 게임 수 + Gomoku 1 / COMING SOON 1 #}
+      <div class="game-count">{{ atari_games|length + 1 }} ACTIVE &nbsp;·&nbsp; 1 COMING SOON</div>
     </div>
 
     <div class="game-grid">
 
-      <!-- ── SPACE INVADERS ── -->
-      <a href="/space-invaders" class="game-card card-invaders">
+      {# ── Atari 게임 자동 루프 ── #}
+      {% for g in atari_games %}
+      <a href="{{ g.url }}"
+         class="game-card"
+         style="--card-color:{{ g.theme_color }};--card-rgb:{{ g.theme_rgb }};">
         <div class="card-inner">
           <span class="card-badge">D3QN</span>
-          <div class="card-icon">👾</div>
-          <div class="card-title">SPACE<br>INVADERS</div>
-          <div class="card-ai-tag">ATARI · ACTION</div>
-          <p class="card-desc">외계인을 처치하고 지구를 구하세요. 플레이 후 D3QN 에이전트가 전략을 분석합니다.</p>
+          <div class="card-icon">{{ g.game_icon }}</div>
+          <div class="card-title">{{ g.game_title }}</div>
+          <div class="card-ai-tag">ATARI · {{ g.game_id.upper().replace('_',' ') }}</div>
+          <p class="card-desc">
+            {%- if not g.has_model -%}
+              ⚠ 모델 미설치 — Q-value 분석 비활성화.
+            {%- else -%}
+              D3QN 에이전트가 플레이를 실시간 분석하고 SAGE가 전략 피드백을 제공합니다.
+            {%- endif -%}
+          </p>
           <span class="card-btn">PLAY NOW</span>
         </div>
       </a>
+      {% endfor %}
 
-      <!-- ── GOMOKU ── -->
-      <a href="/gomoku" class="game-card card-gomoku">
+      {# ── Gomoku 고정 카드 ── #}
+      <a href="/gomoku"
+         class="game-card"
+         style="--card-color:#00f5ff;--card-rgb:0,245,255;">
         <div class="card-inner">
           <span class="card-badge">PPO</span>
           <div class="card-icon">⚫</div>
@@ -483,20 +360,8 @@
         </div>
       </a>
 
-      <!-- ── BREAKOUT ── -->
-      <a href="/breakout" class="game-card card-breakout">
-        <div class="card-inner">
-          <span class="card-badge">D3QN</span>
-          <div class="card-icon">🎯</div>
-          <div class="card-title">BREAKOUT<br>AI</div>
-          <div class="card-ai-tag">ATARI · ARCADE</div>
-          <p class="card-desc">패들로 공을 받아 벽돌을 부수세요. D3QN 에이전트가 추천 액션을 보여줍니다.</p>
-          <span class="card-btn">PLAY NOW</span>
-        </div>
-      </a>
-
-      <!-- ── COMING SOON: CHESS ── -->
-      <div class="game-card card-soon">
+      {# ── COMING SOON ── #}
+      <div class="game-card card-soon" style="--card-color:#4a5a6a;--card-rgb:74,90,106;">
         <div class="card-inner">
           <span class="card-badge">SOON</span>
           <div class="card-icon">♟</div>
@@ -514,7 +379,6 @@
 <script>
 const overlay       = document.getElementById('modalOverlay');
 const settingsBtn   = document.getElementById('settingsBtn');
-const settingsBtnInline = document.getElementById('settingsBtnInline');
 const cancelBtn     = document.getElementById('modalCancelBtn');
 const saveBtn       = document.getElementById('saveBtn');
 const testBtn       = document.getElementById('testBtn');
@@ -528,10 +392,7 @@ const badgeDot      = document.getElementById('llmBadgeDot');
 const badgeText     = document.getElementById('llmBadgeText');
 const badgeText2    = document.getElementById('llmBadgeText2');
 
-function setStatus(msg, type) {
-  statusEl.textContent = msg;
-  statusEl.className = 'modal-status visible ' + (type || '');
-}
+function setStatus(msg, type) { statusEl.textContent = msg; statusEl.className = 'modal-status visible ' + (type || ''); }
 function clearStatus() { statusEl.className = 'modal-status'; }
 
 function updateBadge(hasKey, model) {
