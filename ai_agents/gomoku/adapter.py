@@ -40,8 +40,8 @@ def _resolve_gomoku_rl_dir() -> str:
 
 GOMOKU_RL_DIR = _resolve_gomoku_rl_dir()
 
-from gomoku_rl.core import Gomoku
-from gomoku_rl.policy import get_policy
+from ai_agents.gomoku.gomoku_rl.gomoku_rl.core import Gomoku
+from ai_agents.gomoku.gomoku_rl.gomoku_rl.policy import get_policy
 
 
 def _make_specs(board_size: int, device):

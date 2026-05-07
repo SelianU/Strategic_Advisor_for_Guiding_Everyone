@@ -125,6 +125,27 @@ def compute_q_values(board, policy_value_net, n_playout=80):
             'best_action': int(max(legal, key=lambda a: q_values[a])),
             'v_s': float(v_s)}
 
+def compute_human_winrate(board) -> float:
+    """
+    현재 보드 상태에서 '인간 플레이어' 관점의 승률(0~100)을 계산합니다.
+    
+    PPO critic의 v_s는 "다음에 둘 차례인 플레이어" 관점:
+      - 그 플레이어가 이길 것 같으면 +1에 가까움
+      - 그 플레이어가 질 것 같으면 -1에 가까움
+    
+    인간이 둘 차례면 v_s를 그대로 쓰고,
+    AI가 둘 차례면 부호를 뒤집어 인간 관점으로 변환합니다.
+    """
+    legal = list(board.availables)
+    if not legal:
+        return 50.0  # 둘 곳 없으면 중립
+    _, v_s = gomoku_net.policy_value_fn(board)
+    # board.current_player: 1=흑, 2=백 (다음에 둘 사람)
+    v_human = v_s if board.current_player == gomoku_human_color else -v_s
+    # v_human ∈ [-1, 1]을 [0, 100]으로 변환
+    win_rate = (v_human + 1.0) / 2.0 * 100.0
+    return round(float(win_rate), 1)
+
 def choose_gomoku_best_move(board, n_playout=80):
     res = compute_q_values(board, gomoku_net, n_playout=n_playout)
     return int(res['best_action']), res
@@ -446,7 +467,8 @@ def handle_gomoku_start(data=None):
     gomoku_state_seq = 1; gomoku_active = True; ai_player = gomoku_net
     color_text = '흑(●)' if gomoku_human_color == 1 else '백(○)'
     emit('gomoku_state', {**board_to_dict(gomoku_board), 'message': f'당신은 {color_text}입니다!',
-         'human_color': gomoku_human_color, 'session_id': gomoku_session_id, 'state_seq': gomoku_state_seq})
+        'human_color': gomoku_human_color, 'session_id': gomoku_session_id, 'state_seq': gomoku_state_seq,
+        'win_rate': compute_human_winrate(gomoku_board)})
     if gomoku_human_color == 2:
         sid = request.sid; eventlet.sleep(0); eventlet.sleep(0.4)
         _process_gomoku_ai_opening(gomoku_session_id, sid)
@@ -460,7 +482,8 @@ def _process_gomoku_ai_opening(session_id, sid):
         gomoku_board.do_move(ai_move); gomoku_state_seq += 1
         socketio.emit('gomoku_state', {**board_to_dict(gomoku_board),
             'message': f'AI 선착: ({BOARD_H - ai_r},{ai_c + 1}) — 당신의 차례입니다.',
-            'human_color': gomoku_human_color, 'session_id': session_id, 'state_seq': gomoku_state_seq},
+            'human_color': gomoku_human_color, 'session_id': session_id, 'state_seq': gomoku_state_seq,
+            'win_rate': compute_human_winrate(gomoku_board)},
             room=sid, namespace='/')
     except Exception as exc: print(f'AI 선착 오류: {exc}')
 
@@ -486,12 +509,14 @@ def handle_gomoku_move(data):
             'game_over': True, 'winner': int(winner), 'winning_line': wl,
             'outcome_text': human_perspective_outcome_text(winner),
             'human_color': gomoku_human_color, 'session_id': gomoku_session_id,
-            'state_seq': gomoku_state_seq+1}, sid)
+            'state_seq': gomoku_state_seq+1,
+            'win_rate': 100.0 if winner == gomoku_human_color else (50.0 if winner == -1 else 0.0)}, sid)
         gomoku_state_seq += 1; schedule_gomoku_analysis(gomoku_session_id); return
     gomoku_state_seq += 1
     emit('gomoku_state', {**board_to_dict(gomoku_board),
         'message': f'당신의 착수: ({BOARD_H - row},{col + 1}) — AI 생각 중...',
-        'human_color': gomoku_human_color, 'session_id': gomoku_session_id, 'state_seq': gomoku_state_seq}, to=sid)
+        'human_color': gomoku_human_color, 'session_id': gomoku_session_id, 'state_seq': gomoku_state_seq,
+        'win_rate': compute_human_winrate(gomoku_board)}, to=sid)
     eventlet.sleep(0); eventlet.sleep(0.55)
     process_gomoku_ai_turn(gomoku_session_id, len(gomoku_history)-1, sid)
 
@@ -511,11 +536,13 @@ def process_gomoku_ai_turn(session_id, history_index, sid):
                 'game_over': True, 'winner': int(winner2), 'winning_line': wl,
                 'outcome_text': human_perspective_outcome_text(winner2),
                 'human_color': gomoku_human_color, 'session_id': session_id,
-                'state_seq': gomoku_state_seq+1}, sid)
+                'state_seq': gomoku_state_seq+1,
+                'win_rate': 100.0 if winner2 == gomoku_human_color else (50.0 if winner2 == -1 else 0.0)}, sid)
             gomoku_state_seq += 1; schedule_gomoku_analysis(session_id); return
         gomoku_state_seq += 1
         socketio.emit('gomoku_state', {**board_to_dict(gomoku_board), 'message': f'AI 착수: ({BOARD_H - ai_r},{ai_c + 1})',
-            'human_color': gomoku_human_color, 'session_id': session_id, 'state_seq': gomoku_state_seq},
+            'human_color': gomoku_human_color, 'session_id': session_id, 'state_seq': gomoku_state_seq,
+            'win_rate': compute_human_winrate(gomoku_board)},
             room=sid, namespace='/')
     except Exception as exc: print(f'오목 AI 턴 처리 오류: {exc}')
 

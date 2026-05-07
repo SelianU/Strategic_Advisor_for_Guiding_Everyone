@@ -1,6 +1,6 @@
 """games/breakout.py — Breakout 게임 설정"""
 import os
-from games.atari_base import AtariGame
+from games.atari import AtariGame
 
 
 class BreakoutGame(AtariGame):

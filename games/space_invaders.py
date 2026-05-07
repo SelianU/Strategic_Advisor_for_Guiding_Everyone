@@ -1,7 +1,7 @@
 """games/space_invaders.py — Space Invaders 게임 설정"""
 import os
 import numpy as np
-from games.atari_base import AtariGame
+from games.atari import AtariGame
 
 
 def extract_si_game_state(rgb_frame: np.ndarray) -> dict:
