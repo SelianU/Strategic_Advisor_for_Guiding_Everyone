@@ -1,4 +1,4 @@
-# 🕹️ AI ARCADE — SAGE
+# AI ARCADE — SAGE
 
 **SAGE (Strategic Advisor for Guiding Everyone)**  
 강화학습 기반 분석과 상용 LLM 코칭을 결합한 레트로 아케이드 게임 플랫폼.  
@@ -6,40 +6,46 @@
 
 ---
 
-## 🎮 게임 목록
+## 게임 목록
 
-| 게임 | 에이전트 | URL |
-|---|---|---|
-| 👾 Space Invaders | D3QN | `/space-invaders` |
-| 🎯 Breakout | D3QN | `/breakout` |
-| ⚫ Gomoku 15×15 | PPO | `/gomoku` |
+### Atari 게임 (D3QN 에이전트)
 
-### 👾 Space Invaders
-- Atari Space Invaders를 직접 플레이
-- **D3QN (Dueling Double DQN)** 모델이 플레이어의 모든 행동을 분석
-- 게임 종료 후 Q-value 손실, 행동 일치율, 최악의 선택 TOP-5 등 상세 피드백 제공
-- TOP-5는 시간적 다양성 보장 (에피소드 5구간 분할 + 최소 3스텝 간격)
-- TOP-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
-- 비교 리플레이 중 **×¼~×4 배속 전환** 및 **±1초 시크** 컨트롤 제공
-- 리플레이 하단에 **가상 키보드(← → SPACE)** 표시: 프레임별 실제 액션에 따라 인간/에이전트 각각 실시간 점등
-- RGB 프레임에서 게임 상태를 자동 추출해 코칭에 반영: 방패 손상도(거의 온전/일부 손상/심각 손상), 적 밀집도·속도 페이즈, 탄환 근접도, 스테이지 클리어 vs 사망 자동 구분
+| 게임 | URL |
+|---|---|
+| Space Invaders | `/space-invaders` |
+| Breakout | `/breakout` |
+| Enduro | `/enduro` |
+| Alien | `/alien` |
+| Amidar | `/amidar` |
+| Assault | `/assault` |
+| Asterix | `/asterix` |
+| Asteroids | `/asteroids` |
+| Atlantis | `/atlantis` |
+| MarioBros | `/mariobros` |
 
-### 🎯 Breakout
-- Atari Breakout을 직접 플레이
-- **D3QN** 모델 기반 Q-value 분석 (Space Invaders와 동일한 분석 파이프라인)
-- 비교 리플레이, 가상 키보드 시각화, 세션 저장/불러오기 모두 지원
+### 보드 게임 (PPO 에이전트)
 
-### ⚫ Gomoku vs AI
-- **PPO** 기반 AI와 15×15 오목 대결
-- 게임 종료 후 각 착수의 Q-value와 최선 착수를 비교 분석
-- TOP-5 후보를 선택해 **Human vs Agent 비교 리플레이**와 코칭 피드백 확인 가능
-- 비교 리플레이에서 **Q-value 히트맵** 시각화 제공: 백돌 착수 프레임에 흑돌 후보 위치를 색상(파랑→초록→빨강)과 크기로 표시
-- 비교 리플레이는 인간/에이전트 화면을 **분리 출력**, 1회 자동재생 후 **◀/▶ 버튼 및 키보드 ←→**로 수동 프레임 탐색 가능
-- 좌표 표기는 **위에서 1번째 행, 왼쪽에서 1번째 열** 기준 (게임 메시지·분석 패널·LLM 피드백 전체 통일)
+| 게임 | URL |
+|---|---|
+| Gomoku 15×15 | `/gomoku` |
 
 ---
 
-## ⚙️ 설치 및 실행
+## 주요 기능
+
+- **게임 플레이 + D3QN/PPO 에이전트 실시간 분석**: 모든 스텝에서 에이전트와 인간의 행동을 비교
+- **TOP-5 핵심 순간 선택**: loss 기반 global top-5, 60프레임 간격 보장
+- **Human vs Agent 비교 리플레이**: 30초 타이머, ×¼~×4 배속, Grad-CAM 시각화
+- **연습 모드**: 핵심 순간부터 직접 플레이, 30초 타이머, AI 일치율 결과 카드
+- **도전과제 시스템**: 게임별 Bronze/Silver/Gold/Platinum 도전과제, 실시간 토스트 알림
+- **Rule Book**: 게임별 규칙/조작법/점수 조건
+- **LLM 코칭 피드백**: OpenRouter 연동, 자동 폴백 (주 모델 → 예비 대형 → 자동 예비풀)
+- **세션 저장/불러오기**: 분석 결과와 counterfactual 캐시 포함 저장
+- **Grad-CAM 시각화**: NORMAL / HUMAN CAM / AGENT CAM / SPLIT CAM 전환 지원
+
+---
+
+## 설치 및 실행
 
 ### 1. 저장소 클론
 
@@ -53,10 +59,7 @@ cd Strategic_Advisor_for_Guiding_Everyone
 Python 3.11 권장
 
 ```bash
-pip install flask flask-socketio eventlet
-pip install gymnasium[atari] ale-py
-pip install torch torchvision
-pip install opencv-python numpy requests
+pip install -r requirements.txt
 ```
 
 ### 3. 모델 파일 준비
@@ -65,6 +68,14 @@ pip install opencv-python numpy requests
 ai_agents/
 ├── space_invaders/checkpoints/best_model.pth
 ├── breakout/checkpoints/best_model.pth
+├── enduro/checkpoints/best_model.pth
+├── alien/checkpoints/best_model.pth
+├── amidar/checkpoints/best_model.pth
+├── assault/checkpoints/best_model.pth
+├── asterix/checkpoints/best_model.pth
+├── asteroids/checkpoints/best_model.pth
+├── atlantis/checkpoints/best_model.pth
+├── mariobros/checkpoints/best_model.pth
 └── gomoku/gomoku_rl/pretrained_models/15_15/ppo/0.pt
 ```
 
@@ -80,7 +91,7 @@ python app.py
 
 ### 5. OpenRouter 연동 (선택)
 
-서버 실행 후 브라우저에서 메인 화면 우상단 **⚙ 설정 버튼**을 눌러 API 키를 등록할 수 있습니다.  
+서버 실행 후 브라우저에서 메인 화면 우상단 **설정 버튼**을 눌러 API 키를 등록할 수 있습니다.  
 입력한 키는 `config.json`에 저장되어 서버 재시작 후에도 유지됩니다.
 
 ```bash
@@ -94,13 +105,12 @@ export OPENROUTER_MODEL='meta-llama/llama-3.3-70b-instruct:free'
 
 ---
 
-## 🧠 AI 모델 소개
+## AI 모델 소개
 
 ### D3QN (Dueling Double Deep Q-Network) — Atari 게임
-- **환경**: ALE/SpaceInvaders-v5, ALE/Breakout-v5
+- **환경**: ALE/SpaceInvaders-v5, ALE/Breakout-v5, ALE/Enduro-v5 등
 - **입력**: 4프레임 스택 (84×84 grayscale), `frameskip=1`
 - **아키텍처**: Dueling DQN (Value Stream + Advantage Stream)
-- **행동 공간**: Space Invaders 6가지 / Breakout 4가지
 
 ### PPO (Proximal Policy Optimization) — Gomoku
 - **환경**: 15×15 오목, 5목 승리 조건
@@ -108,48 +118,71 @@ export OPENROUTER_MODEL='meta-llama/llama-3.3-70b-instruct:free'
 
 ---
 
-## 🔍 분석 기능
+## 분석 기능
 
-| 항목 | Space Invaders | Breakout | Gomoku |
-|---|---|---|---|
-| 행동 분포 통계 | ✅ | ✅ | — |
-| Q-value 분석 | ✅ (D3QN) | ✅ (D3QN) | ✅ (PPO) |
-| 최악의 선택 TOP-5 | ✅ | ✅ | ✅ |
-| AI 권장 행동 비교 | ✅ | ✅ | ✅ |
-| Human vs Agent 비교 리플레이 | ✅ | ✅ | ✅ |
-| 비교 리플레이 배속 컨트롤 | ✅ (×¼~×4) | ✅ (×¼~×4) | — |
-| 비교 리플레이 수동 프레임 탐색 | — | — | ✅ (◀/▶) |
-| 비교 리플레이 Q-value 히트맵 | — | — | ✅ |
-| 리플레이 가상 키보드 시각화 | ✅ | ✅ | — |
-| 상용 LLM / 로컬 코칭 피드백 | ✅ | ✅ | ✅ |
-| 세션 저장 / 불러오기 | ✅ | ✅ | ✅ |
+| 항목 | Atari 게임 | Gomoku |
+|---|---|---|
+| 행동 분포 통계 | ✅ | — |
+| Q-value 분석 | ✅ (D3QN) | ✅ (PPO) |
+| 최악의 선택 TOP-5 | ✅ | ✅ |
+| AI 권장 행동 비교 | ✅ | ✅ |
+| Human vs Agent 비교 리플레이 | ✅ | ✅ |
+| 비교 리플레이 배속 컨트롤 | ✅ (×¼~×4) | — |
+| Grad-CAM 시각화 | ✅ | — |
+| 연습 모드 | ✅ | — |
+| 도전과제 시스템 | ✅ | — |
+| 상용 LLM / 로컬 코칭 피드백 | ✅ | ✅ |
+| 세션 저장 / 불러오기 | ✅ | ✅ |
 
 ---
 
-## 🏗️ 프로젝트 구조
+## 프로젝트 구조
 
 ```
-ai_arcade/
-├── app.py                      # 서버 진입점 (Gomoku 핸들러 + 게임 등록)
-├── llm_feedback.py             # LLM 코칭 피드백 생성기
-├── config.json                 # OpenRouter API 키 설정 (자동 생성)
+SAGE/
+├── app.py                          # 서버 진입점 (라우트 + Atari 게임 등록)
+├── extensions.py                   # Flask/SocketIO 공유 인스턴스
+├── llm_feedback.py                 # LLM 코칭 피드백 생성기
+├── config.json                     # OpenRouter API 키 설정 (자동 생성)
 │
-├── games/                      # ── Atari 게임 플러그인 ──────────
-│   ├── atari_base.py           #   AtariGame 베이스 클래스 (공통 로직)
-│   ├── space_invaders.py       #   SpaceInvadersGame (설정값 + 모델 로더)
-│   └── breakout.py             #   BreakoutGame      (설정값 + 모델 로더)
+├── games/                          # ── 게임 플러그인 ──────────────────
+│   ├── atari/                      #   AtariGame 공통 로직 (분석/counterfactual/연습 등)
+│   ├── space_invaders.py           #   SpaceInvadersGame
+│   ├── breakout.py                 #   BreakoutGame
+│   ├── enduro.py                   #   EnduroGame
+│   ├── alien.py / amidar.py / ...  #   나머지 Atari 게임들
+│   └── gomoku/                     #   Gomoku 패키지
+│       ├── handlers.py             #     SocketIO 핸들러 (게임/세션/분석/counterfactual)
+│       ├── state.py                #     게임 상태 싱글턴 + PPO 모델
+│       ├── engine.py               #     순수 로직 (Q-value / 승률 / 승리선)
+│       ├── render.py               #     보드 시각화
+│       └── sessions.py             #     세션 직렬화 / 디스크 영속화
 │
-├── ai_agents/                  # ── 학습된 모델 ──────────────────
+├── ai_agents/                      # ── 학습된 모델 ──────────────────
 │   ├── space_invaders/checkpoints/best_model.pth
 │   ├── breakout/checkpoints/best_model.pth
+│   ├── enduro/checkpoints/best_model.pth
+│   ├── alien/checkpoints/best_model.pth
+│   ├── amidar/checkpoints/best_model.pth
+│   ├── assault/checkpoints/best_model.pth
+│   ├── asterix/checkpoints/best_model.pth
+│   ├── asteroids/checkpoints/best_model.pth
+│   ├── atlantis/checkpoints/best_model.pth
+│   ├── mariobros/checkpoints/best_model.pth
 │   └── gomoku/gomoku_rl/pretrained_models/15_15/ppo/0.pt
 │
 ├── templates/
 │   ├── index.html
-│   ├── atari_game.html         # Atari 게임 통합 템플릿 (파라미터화)
+│   ├── atari_game.html             # Atari 게임 통합 템플릿
 │   └── gomoku.html
 │
-└── saved_sessions/             # 세션 자동 저장
+├── static/js/
+│   ├── atari_replay.js             # 소켓 초기화, 비교 리플레이, Grad-CAM, 타이머
+│   ├── atari_practice.js           # 연습 모드 전체
+│   ├── atari_achievements.js       # 도전과제 시스템
+│   └── atari_game.js               # core (캔버스, 키 입력, 게임 루프, 세션, UI 탭)
+│
+└── saved_sessions/                 # 세션 자동 저장
     ├── space_invaders/
     ├── breakout/
     └── gomoku/
@@ -157,7 +190,7 @@ ai_arcade/
 
 ---
 
-## ➕ 새 게임 추가하기
+## 새 게임 추가하기
 
 Atari ALE 게임은 파일 하나와 두 줄이면 추가됩니다.
 
@@ -166,7 +199,7 @@ Atari ALE 게임은 파일 하나와 두 줄이면 추가됩니다.
 ```python
 # games/pong.py
 import os
-from games.atari_base import AtariGame
+from games.atari.base import AtariGame
 
 class PongGame(AtariGame):
     game_id      = 'pong'
@@ -179,13 +212,13 @@ class PongGame(AtariGame):
 
     action_names = {0:'NOOP', 1:'FIRE', 2:'RIGHT', 3:'LEFT', 4:'RIGHTFIRE', 5:'LEFTFIRE'}
 
-    keyboard_keys = [             # 가상 키보드 키 목록
+    keyboard_keys = [
         {'id': 'left',  'label': '←',    'actions': [3, 5]},
         {'id': 'right', 'label': '→',    'actions': [2, 4]},
         {'id': 'fire',  'label': 'FIRE', 'actions': [1, 4, 5]},
     ]
 
-    key_combos = {                # 키 조합 → 액션 (키 이름 알파벳순 + 연결)
+    key_combos = {
         'fire+left': 5, 'fire+right': 4,
         'left': 3, 'right': 2, 'fire': 1, '': 0,
     }
@@ -207,25 +240,16 @@ class PongGame(AtariGame):
 from games.pong import PongGame
 
 ATARI_GAMES = [
-    SpaceInvadersGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
-    BreakoutGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    ...,
     PongGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),  # ← 추가
 ]
 ```
 
-### 3단계 (선택): `llm_feedback.py`에 피드백 분기 추가
-
-```python
-elif game_type == 'pong':
-    # build_messages, build_fallback_feedback 구현
-    ...
-```
-
-베이스 클래스가 자동 처리하는 것: Flask 라우트, 소켓 핸들러 전체, Q-value 분석 백그라운드 태스크, 카운터팩추얼 리플레이, 세션 저장/불러오기, HTML 테마 및 가상 키보드 렌더링.
+베이스 클래스가 자동 처리하는 것: Flask 라우트, 소켓 핸들러 전체, Q-value 분석 백그라운드 태스크, counterfactual 리플레이, 연습 모드, 세션 저장/불러오기, HTML 테마 및 가상 키보드 렌더링.
 
 ---
 
-## 🛠️ 기술 스택
+## 기술 스택
 
 - **Backend**: Flask, Flask-SocketIO, eventlet
 - **RL 환경**: Gymnasium (ALE/Atari), 자체 구현 (Gomoku)
@@ -235,5 +259,5 @@ elif game_type == 'pong':
 
 ---
 
-## 📝 라이선스
+## 라이선스
 - Team A1

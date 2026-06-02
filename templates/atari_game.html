@@ -456,6 +456,9 @@ const KEY_COMBOS    = {{ key_combos | tojson }};
 const CONTROL_DESCRIPTIONS = {{ (game_info.get('controls', {}) if game_info else {}) | tojson }};
 const ALL_ACHIEVEMENTS = {{ achievements | tojson }};
 </script>
+<script src="{{ url_for('static', filename='js/atari_replay.js') }}"></script>
+<script src="{{ url_for('static', filename='js/atari_practice.js') }}"></script>
+<script src="{{ url_for('static', filename='js/atari_achievements.js') }}"></script>
 <script src="{{ url_for('static', filename='js/atari_game.js') }}"></script>
 </body>
 </html>
