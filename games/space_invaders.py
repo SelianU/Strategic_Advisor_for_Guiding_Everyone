@@ -121,7 +121,7 @@ class SpaceInvadersGame(AtariGame):
     frame_skip  = 15   # 에이전트 학습/분석 기준
     prefix     = 'si_'
     theme_color = '#39ff14'
-    model_path_parts = ('ai_agents', 'space_invaders', 'checkpoints', 'best_model_insane.pth')
+    model_path_parts = ('ai_agents', 'space_invaders', 'checkpoints', 'best_model_spaceinvaders.pth')
 
     action_names = {
         0: 'NOOP', 1: 'FIRE', 2: 'RIGHT', 3: 'LEFT', 4: 'RIGHTFIRE', 5: 'LEFTFIRE',

@@ -119,7 +119,7 @@ class AlienGame(AtariGame):
     frame_skip  = 4
     prefix     = 'al_'
     theme_color = '#a855f7'   # 보라색 계열
-    model_path_parts = ('ai_agents', 'alien', 'checkpoints', 'best_model.pth')
+    model_path_parts = ('ai_agents', 'alien', 'checkpoints', 'best_model_alien.pth')
 
     action_names = {
         0: 'NOOP',      1: 'FIRE',

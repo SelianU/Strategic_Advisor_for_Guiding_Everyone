@@ -66,15 +66,15 @@ pip install -r requirements.txt
 
 ```
 ai_agents/
-├── space_invaders/checkpoints/best_model.pth
+├── space_invaders/checkpoints/best_model_spaceinvaders.pth
 ├── breakout/checkpoints/best_model.pth
-├── enduro/checkpoints/best_model.pth
-├── alien/checkpoints/best_model.pth
+├── enduro/checkpoints/best_model_enduro.pth
+├── alien/checkpoints/best_model_alien.pth
 ├── amidar/checkpoints/best_model.pth
-├── assault/checkpoints/best_model.pth
+├── assault/checkpoints/best_model_assault.pth
 ├── asterix/checkpoints/best_model.pth
 ├── asteroids/checkpoints/best_model.pth
-├── atlantis/checkpoints/best_model.pth
+├── atlantis/checkpoints/best_model_atlantis.pth
 ├── mariobros/checkpoints/best_model.pth
 └── gomoku/gomoku_rl/pretrained_models/15_15/ppo/0.pt
 ```
@@ -252,7 +252,7 @@ ATARI_GAMES = [
 ## 기술 스택
 
 - **Backend**: Flask, Flask-SocketIO, eventlet
-- **RL 환경**: Gymnasium (ALE/Atari), 자체 구현 (Gomoku)
+- **RL 환경**: Gymnasium (ALE/Atari), gomoku_rl 서브모듈 (Gomoku)
 - **AI 모델**: PyTorch (D3QN, PPO)
 - **Frontend**: Vanilla JS, Socket.IO, Canvas API
 - **디자인**: Press Start 2P + Share Tech Mono 폰트, 레트로 아케이드 테마

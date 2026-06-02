@@ -11,7 +11,7 @@ class AssaultGame(AtariGame):
     frame_skip  = 4
     prefix     = 'as_'
     theme_color = '#00ff88'
-    model_path_parts = ('ai_agents', 'assault', 'checkpoints', 'best_model.pth')
+    model_path_parts = ('ai_agents', 'assault', 'checkpoints', 'best_model_assault.pth')
 
     action_names = {
         0: 'NOOP',  1: 'FIRE',  2: 'UP',  3: 'RIGHT',

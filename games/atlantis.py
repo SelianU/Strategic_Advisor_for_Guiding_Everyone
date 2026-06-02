@@ -87,7 +87,7 @@ class AtlantisGame(AtariGame):
     frame_skip  = 4
     prefix     = 'at_'
     theme_color = '#4488ff'
-    model_path_parts = ('ai_agents', 'atlantis', 'checkpoints', 'best_model.pth')
+    model_path_parts = ('ai_agents', 'atlantis', 'checkpoints', 'best_model_atlantis.pth')
 
     action_names = {
         0: 'NOOP',  1: 'FIRE',  2: 'RIGHTFIRE',  3: 'LEFTFIRE',

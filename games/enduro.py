@@ -211,7 +211,7 @@ class EnduroGame(AtariGame):
     frame_skip  = 4
     prefix     = 'en_'
     theme_color = '#ff2255'
-    model_path_parts = ('ai_agents', 'enduro', 'checkpoints', 'best_model.pth')
+    model_path_parts = ('ai_agents', 'enduro', 'checkpoints', 'best_model_enduro.pth')
 
     action_names = {
         0: 'NOOP',
