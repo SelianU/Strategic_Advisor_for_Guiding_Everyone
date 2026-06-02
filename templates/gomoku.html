@@ -14,6 +14,19 @@
   <a href="/" class="topbar-back">◀ MENU</a>
   <div class="topbar-game-name">⚫ GOMOKU</div>
   <div class="topbar-flex"></div>
+  <button id="achBtn" class="ach-summary-btn">🏆 도전과제 확인</button>
+</div>
+
+<!-- 도전과제 모달 -->
+<div id="achModal" class="ach-modal-overlay" style="display:none">
+  <div class="ach-modal-box">
+    <div class="ach-modal-header">
+      <span>🏆 도전과제</span>
+      <span id="achModalCount" class="ach-modal-count"></span>
+      <button id="achModalClose" class="ach-modal-close">✕</button>
+    </div>
+    <div class="ach-modal-body" id="achModalBody"></div>
+  </div>
 </div>
 
 <div class="layout">
@@ -132,6 +145,7 @@
           </div>
           <div class="outcome-overlay" id="gomokuOutcomeOverlay"></div>
         </div>
+        </div><!-- /.board-with-evalbar -->
         <div class="status-bar" id="statusBar">WAITING</div>
         <div class="compare-stage" id="gomokuCompareStage" style="width:100%">
           <div class="compare-images">
@@ -198,9 +212,53 @@
       <div class="side-column">
         <!-- SENSEI header -->
         <div class="sensei-coach-header">
-          <span class="sensei-coach-icon">🎓</span>
-          <span class="sensei-coach-label">SAGE · COACH</span>
-          <span class="sensei-coach-status" id="coachStatus">대기 중</span>
+          <span class="sensei-coach-icon" id="coachHeaderIcon">📋</span>
+          <span class="sensei-coach-label" id="coachHeaderLabel">RULE BOOK</span>
+        </div>
+
+        <!-- 게임 시작 전 소개 패널 -->
+        <div class="game-intro-panel" id="gameIntroPanel">
+          {% if game_info %}
+          <div class="gi-summary">{{ game_info.get('summary', '') }}</div>
+          {% if game_info.get('objective') %}
+          <div class="gi-section">
+            <div class="gi-label">🎯 목표</div>
+            <div class="gi-body">{{ game_info['objective'] }}</div>
+          </div>
+          {% endif %}
+          {% if game_info.get('how_to_play') %}
+          <div class="gi-section">
+            <div class="gi-label">🕹️ 진행 방법</div>
+            <ul class="gi-list">
+              {% for item in game_info['how_to_play'] %}<li>{{ item }}</li>{% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          {% if game_info.get('scoring') %}
+          <div class="gi-section">
+            <div class="gi-label">📊 평가 지표</div>
+            <ul class="gi-list">
+              {% for item in game_info['scoring'] %}<li>{{ item }}</li>{% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          {% if game_info.get('end_condition') %}
+          <div class="gi-section">
+            <div class="gi-label">⛔ 종료 조건</div>
+            <div class="gi-body">{{ game_info['end_condition'] }}</div>
+          </div>
+          {% endif %}
+          {% if game_info.get('tips') %}
+          <div class="gi-section">
+            <div class="gi-label">💡 팁</div>
+            <ul class="gi-list">
+              {% for item in game_info['tips'] %}<li>{{ item }}</li>{% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          {% else %}
+          <div class="gi-body" style="color:var(--muted)">게임 정보가 없습니다.</div>
+          {% endif %}
         </div>
 
         <!-- TOP-5 MOMENTS -->
@@ -236,6 +294,17 @@
   </div>
 </div>
 
+<script>
+const ALL_ACHIEVEMENTS = [
+  { id:'survive_5',  title:'첫 수의 떨림',   desc:'내 돌 5개 이상 착수',     tier:'bronze'   },
+  { id:'survive_10', title:'판세를 읽다',     desc:'내 돌 10개 이상 착수',    tier:'bronze'   },
+  { id:'survive_15', title:'중반의 감각',     desc:'내 돌 15개 이상 착수',    tier:'silver'   },
+  { id:'survive_20', title:'중반전 돌입',     desc:'내 돌 20개 이상 착수',    tier:'silver'   },
+  { id:'survive_30', title:'장기전의 고수',   desc:'내 돌 30개 이상 착수',    tier:'gold'     },
+  { id:'win_black',  title:'선수의 증명',     desc:'흑돌로 AI를 격파',        tier:'gold'     },
+  { id:'win_white',  title:'역전의 전설',     desc:'백돌 후수로 AI를 격파',   tier:'platinum' },
+];
+</script>
 <script src="{{ url_for('static', filename='js/gomoku.js') }}"></script>
 </body>
 </html>

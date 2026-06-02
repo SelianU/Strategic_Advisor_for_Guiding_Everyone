@@ -88,7 +88,6 @@
   <div class="game-area">
     <div class="game-area-header">
       <div class="game-area-title">▶ SELECT GAME</div>
-      {# Atari 게임 수 + Gomoku 1 / COMING SOON 1 #}
       <div class="game-count">{{ atari_games|length + 1 }} ACTIVE &nbsp;·&nbsp; 1 COMING SOON</div>
     </div>
 
@@ -107,6 +106,8 @@
           <p class="card-desc">
             {%- if not g.has_model -%}
               ⚠ 모델 미설치 — Q-value 분석 비활성화.
+            {%- elif g.summary -%}
+              {{ g.summary }}
             {%- else -%}
               D3QN 에이전트가 플레이를 실시간 분석하고 SAGE가 전략 피드백을 제공합니다.
             {%- endif -%}
@@ -125,7 +126,7 @@
           <div class="card-icon">⚫</div>
           <div class="card-title">GOMOKU<br>VS AI</div>
           <div class="card-ai-tag">STRATEGY · BOARD</div>
-          <p class="card-desc">PPO AI와 오목 대결. 각 착수의 Q-Value를 분석하고 최선의 수를 알려줍니다.</p>
+          <p class="card-desc">15×15 바둑판에서 가로·세로·대각선으로 5개를 먼저 이으면 승리하는 전략 보드 게임입니다.</p>
           <span class="card-btn">PLAY NOW</span>
         </div>
       </a>

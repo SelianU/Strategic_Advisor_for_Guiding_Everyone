@@ -64,18 +64,34 @@ load_config()
 # ── Atari 게임 등록 ──────────────────────────────────────────────────────────
 
 import ale_py  # noqa  (ALE 환경 등록)
+import gymnasium as gym
+gym.register_envs(ale_py)  # ALE 환경 명시적 등록
+
 from games.space_invaders import SpaceInvadersGame
 from games.breakout import BreakoutGame
 from games.enduro import EnduroGame
 from games.alien import AlienGame
-# from games.pong import PongGame  # ← 예시: 새 게임 추가 시 이 줄 활성화
+from games.amidar import AmidarGame
+from games.assault import AssaultGame
+from games.asterix import AsterixGame
+from games.asteroids import AsteroidsGame
+from games.atlantis import AtlantisGame
+from games.mariobros import MarioBrosGame
 
 ATARI_GAMES = [
     SpaceInvadersGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
     BreakoutGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
     EnduroGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
     AlienGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    AmidarGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    AssaultGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    AsterixGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    AsteroidsGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    AtlantisGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
+    MarioBrosGame(DEVICE, socketio, app, SAVED_SESSIONS_DIR),
 ]
+
+DANCE_GAMES = []
 
 # ── Gomoku 모델 ──────────────────────────────────────────────────────────────
 
@@ -334,10 +350,47 @@ def index():
             'theme_color': g.theme_color,
             'theme_rgb':   _hex_to_rgb(g.theme_color),
             'has_model':   g.net is not None,
+            'summary':     (g.game_info or {}).get('summary', ''),
         }
         for g in ATARI_GAMES
     ]
-    return render_template('index.html', atari_games=games_meta)
+    dance_meta = [
+        {
+            'url':         g.url_path,
+            'game_id':     g.game_id,
+            'game_title':  g.game_title,
+            'game_icon':   g.game_icon,
+            'theme_color': g.theme_color,
+            'theme_rgb':   _hex_to_rgb(g.theme_color),
+            'has_model':   True,
+        }
+        for g in DANCE_GAMES
+    ]
+    return render_template('index.html', atari_games=games_meta, dance_games=dance_meta)
+
+_GOMOKU_GAME_INFO = {
+    'summary': '15×15 바둑판에서 가로·세로·대각선으로 5개를 먼저 이으면 승리하는 전략 보드 게임입니다.',
+    'objective': 'AlphaZero 기반 AI를 상대로 먼저 5목을 달성하세요.',
+    'how_to_play': [
+        '원하는 교차점을 클릭해 돌을 놓습니다.',
+        '흑(●)이 먼저 두며, 흑·백 교대로 진행됩니다.',
+        '가로·세로·대각선 어느 방향으로든 5개 연속이면 즉시 승리입니다.',
+        '시작 전 COLOR 패널에서 흑·백을 선택할 수 있습니다.',
+    ],
+    'scoring': [
+        '승률 바: 화면 좌측에 흑·백 실시간 승률 표시 (AI 분석 기준)',
+        '평균 착수 손실(Avg Loss): 게임 후 내 수의 품질 평가',
+        '착수 손실 < 0.05 → 탁월한 플레이',
+        '착수 손실 < 0.12 → 좋은 플레이',
+        '착수 손실 < 0.20 → 평균적 플레이',
+        '착수 손실 ≥ 0.20 → 개선 필요',
+    ],
+    'end_condition': '5목 달성 즉시 종료됩니다. 보드가 꽉 차면 무승부입니다.',
+    'tips': [
+        '승률 바가 급격히 내려가는 수가 패인 — 게임 후 TOP-5 분석에서 확인하세요.',
+        '공격과 수비를 동시에 고려하세요. 4목을 막지 못하면 즉시 역전됩니다.',
+    ],
+}
 
 @app.route('/gomoku')
 def gomoku_page():
@@ -349,6 +402,7 @@ def gomoku_page():
         priority_models=[(m, short_model_name(m)) for m in FALLBACK_PRIORITY],
         pool_models=[(m, short_model_name(m)) for m in FALLBACK_POOL],
         saved_sessions=list_saved_sessions('gomoku'),
+        game_info=_GOMOKU_GAME_INFO,
     )
 
 @app.route('/api/settings', methods=['GET'])

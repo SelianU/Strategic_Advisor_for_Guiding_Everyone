@@ -22,6 +22,7 @@ import json
 import os
 import re
 import time
+from difflib import SequenceMatcher
 from typing import Any
 from urllib import error as urlerror
 from urllib import request as urlrequest
@@ -60,40 +61,6 @@ def short_model_name(full: str) -> str:
     return name
 
 
-# ── 공통 출력 형식 규칙 ───────────────────────────────────────────────────────
-
-_STRUCTURED_OUTPUT_RULE = """
-출력 형식 (반드시 준수):
-답변은 아래 세 섹션으로 구성하고, 각 섹션을 정확히 해당 태그로 시작하세요.
-태그는 줄의 맨 앞에 단독으로 위치해야 합니다.
-
-[상황]
-이 순간 어떤 상황이었는지 1~2문장으로 서술합니다.
-
-[비교]
-플레이어님의 행동/착수와 에이전트의 선택을 대비하고 왜 에이전트가 더 유리했는지 2~4문장으로 설명합니다.
-
-[조언]
-"다음에 이런 상황이라면" 또는 유사한 뉘앙스로 시작하는 실천 조언을 1~2문장으로 씁니다.
-
-규칙:
-- 태그 외에 다른 레이블, 제목, 번호는 절대 쓰지 마세요.
-- 한국어로만 쓰세요. 영어 표현 금지.
-- 말투는 단정한 존댓말 ("했습니다", "좋았습니다").
-- 인삿말, 이모티콘, 감탄사 금지.
-"""
-
-# ── Gomoku 시스템 프롬프트 (board game이라 별도 유지) ─────────────────────────
-
-GOMOKU_SYSTEM_PROMPT = (
-    "당신은 오목 플레이어님에게 1:1 코칭을 해주는 게임 코치입니다.\n\n"
-    "게임 정보:\n"
-    "- 15×15 오목, 5목을 먼저 만들면 승리합니다.\n"
-    "- 핵심 개념: 열린 3목·4목, 양방향 확장, 핵심 자리 선점, 상대 4목 차단, 공격과 수비의 균형.\n"
-    + _STRUCTURED_OUTPUT_RULE
-)
-
-
 # ── coach_config 동적 임포트 ─────────────────────────────────────────────────
 
 _config_cache: dict[str, Any] = {}
@@ -112,58 +79,57 @@ def _load_coach_config(game_id: str) -> Any | None:
         return None
 
 
-# ── 구조화 피드백 파싱 ────────────────────────────────────────────────────────
+# ── 텍스트 정제 및 포맷 ──────────────────────────────────────────────────────
 
 def sanitize_feedback_text(text: str) -> str:
     text = text.strip()
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
     text = re.sub(r"^(안녕하세요[!！.\s]*)", "", text)
-    # 태그 문자 []를 허용하도록 정규식 수정
-    text = re.sub(r"[^a-zA-Z0-9\s.,!?()\-\u3131-\u318E\uAC00-\uD7A3:\n\[\]]", "", text)
+    text = re.sub(r"[^a-zA-Z0-9\s.,!?()\-ㄱ-ㆎ가-힣:\n]", "", text)
     for old, new in {
         "거예요": "것입니다", "거에요": "것입니다",
         "했어요": "했습니다", "좋아요": "좋습니다",
         "보여요": "보였습니다", "살펴보자": "살펴보겠습니다",
+        "다음과 같은 전략을 시도해 보면 유용할 수 있습니다.": "",
+        "다음과 같은 전략을 시도해보면 유용합니다.": "",
     }.items():
         text = text.replace(old, new)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def parse_structured_feedback(text: str) -> dict[str, str]:
-    """
-    [상황] / [비교] / [조언] 태그를 파싱합니다.
-    태그가 없으면 전체를 comparison으로 폴백합니다.
-
-    Returns: {'situation', 'comparison', 'advice', 'full'}
-    """
-    tags = {'situation': '[상황]', 'comparison': '[비교]', 'advice': '[조언]'}
-    positions: dict[str, int] = {
-        key: text.find(tag)
-        for key, tag in tags.items()
-        if text.find(tag) != -1
-    }
-
-    if not positions:
-        clean = sanitize_feedback_text(text)
-        return {'situation': '', 'comparison': clean, 'advice': '', 'full': clean}
-
-    order = sorted(positions.items(), key=lambda x: x[1])
-    sections: dict[str, str] = {}
-    for i, (key, pos) in enumerate(order):
-        start = pos + len(tags[key])
-        end   = order[i + 1][1] if i + 1 < len(order) else len(text)
-        sections[key] = sanitize_feedback_text(text[start:end].strip())
-
-    situation  = sections.get('situation', '')
-    comparison = sections.get('comparison', '')
-    advice     = sections.get('advice', '')
-    full       = '\n\n'.join(p for p in [situation, comparison, advice] if p)
-    return {'situation': situation, 'comparison': comparison, 'advice': advice, 'full': full}
+def _is_similar_sentence(a: str, b: str) -> bool:
+    a_norm = re.sub(r"\s+", " ", a.strip())
+    b_norm = re.sub(r"\s+", " ", b.strip())
+    if not a_norm or not b_norm:
+        return False
+    if a_norm == b_norm:
+        return True
+    return SequenceMatcher(None, a_norm, b_norm).ratio() >= 0.82
 
 
 def format_feedback_text(text: str) -> str:
-    """하위 호환: full 텍스트만 반환."""
-    return parse_structured_feedback(text)['full']
+    """LLM 응답을 2문단 서술형으로 정리합니다."""
+    text = sanitize_feedback_text(text)
+    text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    if sentences and not re.search(r"[.!?]$", sentences[-1]):
+        sentences.pop()
+    deduped: list[str] = []
+    for s in sentences:
+        if any(_is_similar_sentence(s, e) for e in deduped):
+            continue
+        deduped.append(s)
+    if len(deduped) <= 2:
+        return "\n\n".join(deduped)
+    mid = len(deduped) // 2
+    return f"{' '.join(deduped[:mid])}\n\n{' '.join(deduped[mid:])}".strip()
+
+
+def parse_structured_feedback(text: str) -> dict[str, str]:
+    """하위 호환: full 텍스트를 structured dict 형태로 래핑합니다."""
+    full = format_feedback_text(text)
+    return {'situation': '', 'comparison': full, 'advice': '', 'full': full}
 
 
 # ── 오류 요약 ─────────────────────────────────────────────────────────────────
@@ -192,58 +158,12 @@ def classify_model_route(selected: str, primary: str) -> str:
     return "외부 모델"
 
 
-# ── Gomoku 전용 빌더 ─────────────────────────────────────────────────────────
-
-def _build_gomoku_messages(summary: dict[str, Any]) -> list[dict[str, str]]:
-    best_q    = summary.get('best_q', 0)
-    actual_q  = summary.get('actual_q', 0)
-    human_seq = ", ".join(summary.get("human_sequence_labels", [])[:8]) or "기록 없음"
-    agent_seq = ", ".join(summary.get("agent_sequence_labels", [])[:8]) or "기록 없음"
-    path_guide = (
-        f"권장 착수의 Q값도 {best_q:.4f}로 이 국면 자체가 매우 불리합니다. "
-        "에이전트가 이겼을 것이라는 표현은 피하고, 어려운 상황에서 왜 에이전트의 수가 그나마 더 나은지 설명하세요."
-        if best_q < 0.12 else
-        f"이후 수순 데이터를 활용해 두 경로가 어떻게 달라졌는지 묘사하세요. "
-        f"인간 수순({human_seq})과 에이전트 수순({agent_seq})의 차이를 구체적으로 보여주세요."
-    )
-    user_prompt = (
-        f"다음은 오목 코칭 사례입니다.\n\n"
-        f"상황 정보: ※ 좌표는 (위에서 몇 번째 행, 왼쪽에서 몇 번째 열) — 1-인덱스 기준\n"
-        f"- 플레이어님 착수: ({summary['actual_row']}, {summary['actual_col']})\n"
-        f"- 에이전트 권장 착수: ({summary['best_row']}, {summary['best_col']})\n"
-        f"- 플레이어님 Q값: {actual_q:.4f} / 에이전트 Q값: {best_q:.4f}\n"
-        f"- 가치 차이: {summary.get('loss', 0):.4f}\n"
-        f"- 플레이어님 이후 수순: {human_seq}\n"
-        f"- 에이전트 이후 수순: {agent_seq}\n\n"
-        f"이후 경로 지침: {path_guide}\n"
-    )
-    return [
-        {"role": "system", "content": GOMOKU_SYSTEM_PROMPT},
-        {"role": "user",   "content": user_prompt},
-    ]
-
-
-def _build_gomoku_fallback(summary: dict[str, Any]) -> str:
-    actual    = f"({summary['actual_row']}, {summary['actual_col']})"
-    best      = f"({summary['best_row']}, {summary['best_col']})"
-    human_seq = ", ".join(summary.get("human_sequence_labels", [])[:8]) or "기록 없음"
-    agent_seq = ", ".join(summary.get("agent_sequence_labels", [])[:8]) or "기록 없음"
-    return (
-        f"[상황]\n플레이어님은 {actual}에 착수했지만, AI가 권장한 {best}가 더 유리했습니다.\n\n"
-        f"[비교]\n실제 착수는 돌을 길게 잇거나 상대 위협을 끊어내는 힘이 다소 약했던 반면, "
-        f"권장 착수는 이후 주도권을 잡기 쉬운 선택이었습니다. "
-        f"인간 수순이 {human_seq}로 이어진 데 비해, 에이전트 수순 {agent_seq}는 "
-        f"더 빠르게 핵심 자리를 선점했습니다.\n\n"
-        f"[조언]\n다음에 이런 상황이라면, 한 방향만 잇는 수보다 양쪽으로 확장될 여지가 있는 자리를 먼저 찾아보세요."
-    )
-
-
-# ── Atari 범용 빌더 (coach_config 기반) ──────────────────────────────────────
+# ── 범용 빌더 (coach_config 기반) ────────────────────────────────────────────
 
 def _build_atari_messages(game_id: str, summary: dict[str, Any]) -> list[dict[str, str]]:
     cfg = _load_coach_config(game_id)
     return [
-        {"role": "system", "content": cfg.SYSTEM_PROMPT + _STRUCTURED_OUTPUT_RULE},
+        {"role": "system", "content": cfg.SYSTEM_PROMPT},
         {"role": "user",   "content": cfg.build_user_prompt(summary)},
     ]
 
@@ -304,30 +224,39 @@ def _call_llm(messages: list[dict[str, str]]) -> tuple[str | None, str | None, s
                     actual_model = data.get("model", candidate)
                     content = data["choices"][0]["message"].get("content")
                     if isinstance(content, str) and content.strip():
+                        print(f'[LLM] ✅ 성공: {short_model_name(candidate)} ({len(content)}자)')
                         return content, actual_model, classify_model_route(actual_model, primary)
                     if isinstance(content, list):
                         parts = [i["text"] for i in content
                                  if isinstance(i, dict) and i.get("type") == "text" and i.get("text")]
                         if parts:
-                            return "\n".join(parts), actual_model, classify_model_route(actual_model, primary)
+                            joined = "\n".join(parts)
+                            print(f'[LLM] ✅ 성공(list): {short_model_name(candidate)} ({len(joined)}자)')
+                            return joined, actual_model, classify_model_route(actual_model, primary)
+                    print(f'[LLM] ⚠ 빈 응답: {short_model_name(candidate)} content={content!r}')
                     break  # 빈 응답 → 다음 모델
 
+                print(f'[LLM] ✗ HTTP {status_code}: {short_model_name(candidate)} '
+                      f'err={str((data or {}).get("error", {}).get("message", ""))[:80]}')
                 if status_code == 429 and attempt < MAX_LLM_ATTEMPTS - 1:
                     time.sleep(RETRY_DELAYS[min(attempt, len(RETRY_DELAYS) - 1)])
                     continue
                 break
 
             except urlerror.HTTPError as exc:
+                print(f'[LLM] ✗ HTTPError {exc.code}: {short_model_name(candidate)}')
                 if exc.code == 429 and attempt < MAX_LLM_ATTEMPTS - 1:
                     time.sleep(RETRY_DELAYS[min(attempt, len(RETRY_DELAYS) - 1)])
                     continue
                 break
-            except Exception:
+            except Exception as exc:
+                print(f'[LLM] ✗ Exception({type(exc).__name__}): {short_model_name(candidate)} — {exc}')
                 if attempt < MAX_LLM_ATTEMPTS - 1:
                     time.sleep(RETRY_DELAYS[min(attempt, len(RETRY_DELAYS) - 1)])
                     continue
                 break
 
+    print('[LLM] ✗ 모든 모델 실패 → 로컬 폴백')
     return None, None, "로컬"
 
 
@@ -343,35 +272,30 @@ def generate_feedback(
     Returns:
         (full_text, structured_dict, source, model, route)
     """
-    # ── 메시지 / 폴백 결정 ──────────────────────────────────────────────────
-    if game_id == "gomoku":
-        messages      = _build_gomoku_messages(summary)
-        fallback_text = _build_gomoku_fallback(summary)
-    elif _load_coach_config(game_id) is not None:
+    print(f'[LLM] generate_feedback game_id={game_id} step={summary.get("step", "?")}')
+    if _load_coach_config(game_id) is not None:
         messages      = _build_atari_messages(game_id, summary)
         fallback_text = _build_atari_fallback(game_id, summary)
     else:
-        # coach_config 없음 → 최소 폴백
         fallback_text = (
-            "[상황]\n이 순간 플레이어님의 행동과 에이전트의 행동이 달랐습니다.\n\n"
-            "[비교]\n에이전트의 Q값이 더 높아 더 유리한 판단이었습니다.\n\n"
-            "[조언]\n다음에는 에이전트의 추천 행동을 참고해보세요."
+            "이 순간 플레이어님의 행동과 에이전트의 행동이 달랐습니다. "
+            "에이전트의 Q값이 더 높아 더 유리한 판단이었습니다.\n\n"
+            "다음에는 에이전트의 추천 행동을 참고해보세요."
         )
         fb = parse_structured_feedback(fallback_text)
         return fb['full'], fb, "local", None, "로컬 (coach_config 없음)"
 
-    # ── API 키 없음 → 로컬 폴백 ────────────────────────────────────────────
     if not os.getenv("OPENROUTER_API_KEY"):
+        print(f'[LLM] ⚠ OPENROUTER_API_KEY 미설정 → 로컬 폴백 (game_id={game_id})')
         fb = parse_structured_feedback(fallback_text)
         return fb['full'], fb, "local", None, "로컬"
 
-    # ── LLM 호출 ────────────────────────────────────────────────────────────
+    print(f'[LLM] API 키 확인됨, LLM 호출 시작 (game_id={game_id})')
     raw, model, route = _call_llm(messages)
     if raw:
         fb = parse_structured_feedback(raw)
         return fb['full'], fb, "llm", model, route
 
-    # ── 모든 모델 실패 → 로컬 폴백 ─────────────────────────────────────────
     fb = parse_structured_feedback(fallback_text)
     return fb['full'], fb, "local", None, "로컬"
 

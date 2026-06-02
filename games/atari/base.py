@@ -29,7 +29,7 @@ Atari ALE 게임의 공통 로직을 캡슐화한 베이스 클래스.
         keyboard_keys = [
             {'id': 'left',  'label': '←',    'actions': [3, 5]},
             {'id': 'right', 'label': '→',    'actions': [2, 4]},
-            {'id': 'fire',  'label': 'FIRE', 'actions': [1, 4, 5]},
+            {'id': 'fire',  'label': 'SPACE', 'actions': [1, 4, 5]},
         ]
         key_combos = {'left+fire': 5, 'right+fire': 4, 'left': 3, 'right': 2, 'fire': 1, '': 0}
 
@@ -59,6 +59,7 @@ from .gradcam        import AtariGradCAM
 from .sessions       import _SessionsMixin
 from .analysis       import _AnalysisMixin
 from .counterfactual import _CounterfactualMixin
+from .practice       import _PracticeMixin
 
 
 # ── 프로젝트 루트 (모델 체크포인트 경로 계산용) ──────────────────────────────
@@ -69,7 +70,7 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 
 # ── 베이스 클래스 ────────────────────────────────────────────────────────────
-class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
+class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, _PracticeMixin, ABC):
     """
     Atari ALE 게임 베이스 클래스.
     서브클래스는 아래 class 속성과 두 추상 메서드만 구현하면 됩니다.
@@ -93,6 +94,11 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
 
     # 모델 체크포인트 경로 (프로젝트 루트 기준 경로 파트 튜플)
     model_path_parts: tuple = ()
+
+    # 학습 시 사용한 frame skip — 에이전트 분석/카운터팩추얼에 사용
+    frame_skip: int = 4
+    # 인간 플레이 시 frame skip (에이전트 분석용 frame_skip 과 별개)
+    play_frame_skip: int = 1
 
     # 액션 이름 {int: str}
     action_names: dict = {}
@@ -131,6 +137,7 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
         self.valid_entries: list = []
         self.analysis_results: list = []
         self.counterfactual_cache: dict = {}
+        self._practice_mode: bool = False
 
         self._init()
 
@@ -161,6 +168,38 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
     def _extra_summary(self, entry: dict) -> dict:
         """게임별 추가 summary 필드. 서브클래스에서 필요 시 override."""
         return {}
+
+    def _extra_frame_data(self, obs_raw: np.ndarray) -> dict:
+        """매 프레임 emit에 포함할 게임별 추가 데이터. 서브클래스에서 필요 시 override."""
+        return {}
+
+    def _compute_achievements(self) -> list:
+        """게임 종료 후 도전과제 달성 여부 반환. 서브클래스에서 override."""
+        return []
+
+    def _achievement_report(self, achieved=None) -> list:
+        """전체 도전과제 목록에 현재 달성 상태를 합쳐 반환."""
+        all_achievements = getattr(self, 'achievements', []) or []
+        achieved_ids = set(getattr(self, '_ach_unlocked', set()))
+        for item in achieved or []:
+            ach_id = item.get('id') if isinstance(item, dict) else None
+            if ach_id:
+                achieved_ids.add(ach_id)
+
+        report = []
+        for ach in all_achievements:
+            item = dict(ach)
+            item['unlocked'] = item.get('id') in achieved_ids
+            report.append(item)
+        return report
+
+    def _on_episode_reset(self):
+        """게임 시작 시 게임별 상태 초기화 훅. 서브클래스에서 override."""
+        pass
+
+    def _check_realtime_achievements(self, entry: dict) -> list:
+        """매 스텝 후 새로 달성된 도전과제 반환. 서브클래스에서 override."""
+        return []
 
     # ── Grad-CAM 헬퍼 ────────────────────────────────────────────────────────
     # self.net이 DuelingDQN 구조일 때 자동으로 활성화됩니다.
@@ -208,6 +247,8 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
                 priority_models  = [(m, short_model_name(m)) for m in FALLBACK_PRIORITY],
                 pool_models      = [(m, short_model_name(m)) for m in FALLBACK_POOL],
                 saved_sessions   = game._list_sessions(),
+                game_info        = getattr(game, 'game_info', {}),
+                achievements     = getattr(game, 'achievements', []),
             )
 
         self.app.add_url_rule(
@@ -229,6 +270,9 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
         sio.on_event(f'{p}load_session',          lambda d: g._on_load_session(d))
         sio.on_event(f'{p}delete_session',        lambda d: g._on_delete_session(d))
         sio.on_event(f'{p}request_counterfactual', lambda d: g._on_counterfactual(d))
+        sio.on_event(f'{p}start_practice',         lambda d: g._on_start_practice(d))
+        sio.on_event(f'{p}practice_action',        lambda d: g._on_practice_action(d))
+        sio.on_event(f'{p}stop_practice',          lambda:   g._on_stop_practice())
 
     # ── 게임 루프 ─────────────────────────────────────────────────────────────
     def _on_start(self):
@@ -238,6 +282,8 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
         self.valid_entries     = []
         self.analysis_results  = []
         self.counterfactual_cache = {}
+        self._ach_unlocked: set = set()
+        self._on_episode_reset()
 
         obs_raw, _ = self._env.reset()
         proc = preprocess(obs_raw)
@@ -262,21 +308,38 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
             return
         action       = int(data.get('action', 0))
         pre_snapshot = self._env.unwrapped.ale.cloneSystemState()
+        pre_ram      = self._env.unwrapped.ale.getRAM().copy()
         pre_stacked  = self._get_stacked().copy()
         pre_rgb      = self.last_rgb.copy() if self.last_rgb is not None else self._env.render()
 
-        obs_raw, reward, terminated, truncated, _ = self._env.step(action)
+        n_skip = self.play_frame_skip
+        total_reward = 0.0
+        terminated = truncated = False
+        obs_raw = None
+        frame_buf: list = []
+        step_info: dict = {}
+        for i in range(n_skip):
+            obs_raw, rew, terminated, truncated, step_info = self._env.step(action)
+            total_reward += rew
+            if i >= n_skip - 2:
+                frame_buf.append(obs_raw)
+            if terminated or truncated:
+                break
+        obs_for_stack = (np.maximum(frame_buf[0], frame_buf[1])
+                         if len(frame_buf) == 2 else obs_raw)
+        reward = total_reward
         done = terminated or truncated
         self.last_rgb = obs_raw.copy()
         current_score = float(
             sum(d['reward'] for d in self.episode_data if d.get('action') is not None)
             + float(reward)
         )
-        self._frames.append(preprocess(obs_raw))
+        self._frames.append(preprocess(obs_for_stack))
 
         self.episode_data.append({
             'step':            len(self.episode_data),
             'pre_snapshot':    pre_snapshot,
+            'pre_ram':         pre_ram,
             'pre_stacked_state': pre_stacked,
             'pre_rgb':         pre_rgb,
             'rgb':             obs_raw,
@@ -284,15 +347,23 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, ABC):
             'action':          action,
             'reward':          float(reward),
             'done':            done,
+            'lives':           step_info.get('lives'),
         })
+
+        new_achs = self._check_realtime_achievements(self.episode_data[-1])
+        for ach in new_achs:
+            emit(f'{self.prefix}achievement', ach)
 
         if done:
             self.env_ready = False
             basic = self._basic_analyze()
-            emit(f'{self.prefix}over', {**basic, 'has_model': (self.net is not None)})
+            achievements = self._achievement_report(self._compute_achievements())
+            emit(f'{self.prefix}over', {**basic, 'has_model': (self.net is not None),
+                                        'achievements': achievements})
             if self.net is not None:
                 self.socketio.start_background_task(self._run_analysis)
         else:
             emit(f'{self.prefix}frame', {
                 'image': encode_frame(obs_raw), 'done': False, 'score': current_score,
+                **self._extra_frame_data(obs_raw),
             })

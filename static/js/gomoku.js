@@ -376,7 +376,14 @@ document.addEventListener('keydown', (e) => {
 
 // ── 이벤트 핸들러 ────────────────────────────────────────────
 document.getElementById('startBtn').addEventListener('click', () => {
+  const introPanel = document.getElementById('gameIntroPanel');
+  if (introPanel) introPanel.classList.add('hidden');
+  const hIcon = document.getElementById('coachHeaderIcon');
+  const hLabel = document.getElementById('coachHeaderLabel');
+  if (hIcon)  hIcon.textContent  = '🎓';
+  if (hLabel) hLabel.textContent = 'SAGE · COACH';
   gameActive = false; myMoveCount = 0;
+  gomokuUnlockedIds.clear();   // 새 게임마다 도전과제 초기화
   clearTimeout(gomokuGameOverTimer);
   gomokuGameOverTimer = null;
   gomokuGameOverHoldUntil = 0;
@@ -390,6 +397,7 @@ document.getElementById('startBtn').addEventListener('click', () => {
   document.getElementById('gomokuSessionLabel').textContent = 'LIVE';
   document.getElementById('statusBar').textContent = 'WAITING FOR SERVER';
   document.getElementById('gomokuBoardWrap').classList.remove('hidden');
+  document.getElementById('evalBarContainer').style.display = '';
   document.getElementById('gomokuPostgamePanel').classList.remove('visible');
   document.getElementById('gomokuCompareStage').classList.remove('visible');
   document.getElementById('gomokuCenterFeedback').classList.remove('visible');
@@ -459,6 +467,10 @@ socket.on('gomoku_state', (data) => {
   if (data.win_rate !== undefined) updateEvalBar(data.win_rate);
   boardState = data.cells;
   renderBoard(data.cells, data.last_move, data.winning_line || null, data.outcome_text || '');
+  // ── 생존 도전과제: 내 돌 수 기준으로 순차 체크 ──────────────
+  const myStones = data.cells.filter(c => c === humanColor).length;
+  checkGomokuSurviveAchievements(myStones);
+  // ─────────────────────────────────────────────────────────
   if (data.game_over) {
     gameActive = false;
     document.getElementById('statusBar').textContent = 'GAME OVER';
@@ -466,6 +478,9 @@ socket.on('gomoku_state', (data) => {
     const humanWon = data.winner === humanColor;
     const color = humanWon ? 'var(--green)' : (data.winner === -1 ? 'var(--yellow)' : 'var(--red)');
     setMsg(data.message, color);
+    // ── 승리 도전과제: 게임 종료 시에만 체크 ────────────────────
+    checkGomokuWinAchievements(humanWon, humanColor);
+    // ─────────────────────────────────────────────────────────
     clearTimeout(gomokuGameOverTimer);
     gomokuGameOverHoldUntil = Date.now() + 3200;
     gomokuPendingAnalysisData = null;
@@ -483,9 +498,9 @@ socket.on('gomoku_state', (data) => {
   setMsg(data.message);
   document.getElementById('statusBar').textContent =
     data.current_player === 1 ? '당신의 차례 (흑 ●)' : 'AI 생각 중...';
-  if (data.current_player === 1) {
+  if (data.current_player === humanColor) {
     gameActive = true;
-    myMoveCount++;
+    myMoveCount = data.cells.filter(c => c === humanColor).length;
     document.getElementById('moveCount').textContent = myMoveCount;
   }
 });
@@ -591,6 +606,7 @@ function showAnalysis(data) {
   gomokuPendingMoveNum = gomokuCandidates.length ? parseInt(gomokuCandidates[0].move_num) : null;
   gomokuCandidates.forEach(candidate => gomokuCandidateStatus.set(parseInt(candidate.move_num), 'waiting'));
   document.getElementById('gomokuBoardWrap').classList.add('hidden');
+  document.getElementById('evalBarContainer').style.display = 'none';
   document.getElementById('gomokuPostgamePanel').classList.add('visible');
   renderGomokuCandidateBar(gomokuCandidates);
   setGomokuRightTab(gomokuRightTab);
@@ -670,6 +686,7 @@ socket.on('gomoku_session_loaded', (data) => {
   boardState = data.board?.cells || [];
   renderBoard(boardState, data.board?.last_move ?? -1);
   document.getElementById('gomokuBoardWrap').classList.add('hidden');
+  document.getElementById('evalBarContainer').style.display = 'none';
   document.getElementById('statusBar').textContent = '';
   document.getElementById('moveCount').textContent = data.analysis?.total_moves ?? '0';
   document.getElementById('gomokuSessionLabel').textContent = data.meta?.title || 'LOADED';
@@ -705,3 +722,101 @@ document.querySelectorAll('#gomokuRightTabs .right-tab').forEach(btn => {
 document.querySelectorAll('[data-gomoku-feedback-tab]').forEach(btn => {
   btn.addEventListener('click', () => setGomokuFeedbackTab(btn.dataset.gomokuFeedbackTab));
 });
+
+// ── 도전과제 시스템 ───────────────────────────────────────────────────────────
+const ACH_TIER_LABEL = { bronze:'🥉 초급', silver:'🥈 중급', gold:'🥇 고급', platinum:'💎 최고급' };
+const ACH_ICONS      = { bronze:'🥉', silver:'🥈', gold:'🥇', platinum:'💎' };
+const gomokuUnlockedIds = new Set();
+
+function unlockGomokuAch(id) {
+  if (gomokuUnlockedIds.has(id)) return;
+  const ach = ALL_ACHIEVEMENTS.find(a => a.id === id);
+  if (!ach) return;
+  gomokuUnlockedIds.add(id);
+  addGomokuAchToast(ach);
+}
+
+// 매 수마다 호출 — 임계값 통과 순간 한 번씩만 발동
+function checkGomokuSurviveAchievements(totalMoves) {
+  if (totalMoves >= 5)  unlockGomokuAch('survive_5');
+  if (totalMoves >= 10) unlockGomokuAch('survive_10');
+  if (totalMoves >= 15) unlockGomokuAch('survive_15');
+  if (totalMoves >= 20) unlockGomokuAch('survive_20');
+  if (totalMoves >= 30) unlockGomokuAch('survive_30');
+}
+
+// 게임 종료 시에만 호출
+function checkGomokuWinAchievements(humanWon, color) {
+  if (humanWon && color === 1) unlockGomokuAch('win_black');
+  if (humanWon && color === 2) unlockGomokuAch('win_white');
+}
+
+function openAchModal() {
+  const tiers = ['bronze', 'silver', 'gold', 'platinum'];
+  const byTier = {};
+  tiers.forEach(t => byTier[t] = []);
+  ALL_ACHIEVEMENTS.forEach(a => byTier[a.tier].push(a));
+  const unlocked = ALL_ACHIEVEMENTS.filter(a => gomokuUnlockedIds.has(a.id)).length;
+  document.getElementById('achModalCount').textContent = `${unlocked} / ${ALL_ACHIEVEMENTS.length} 달성`;
+  document.getElementById('achModalBody').innerHTML = tiers.map(tier => {
+    const items = byTier[tier];
+    if (!items.length) return '';
+    return `<div>
+      <div class="ach-modal-section-label">${ACH_TIER_LABEL[tier]}</div>
+      <div class="ach-modal-grid">
+        ${items.map(a => {
+          const done = gomokuUnlockedIds.has(a.id);
+          const cls  = done ? `unlocked-${a.tier}` : 'locked';
+          const icon = done ? ACH_ICONS[a.tier] : '🔒';
+          return `<div class="ach-modal-item ${cls}">
+            <span class="ach-mi-icon">${icon}</span>
+            <div class="ach-mi-body">
+              <div class="ach-mi-title">${a.title}</div>
+              <div class="ach-mi-desc">${a.desc}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('achModal').style.display = 'flex';
+}
+
+document.getElementById('achBtn').addEventListener('click', openAchModal);
+document.getElementById('achModalClose').addEventListener('click', () => {
+  document.getElementById('achModal').style.display = 'none';
+});
+document.getElementById('achModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+});
+
+// 토스트 알림
+const TOAST_TOP_START = 80, TOAST_STEP = 130, TOAST_DURATION = 5000;
+let gomokuActiveToasts = [];
+
+function addGomokuAchToast(ach) {
+  const tier = ach.tier || 'bronze';
+  gomokuActiveToasts.forEach(t => {
+    const curTop = parseInt(t.style.top) || TOAST_TOP_START;
+    t.style.top  = (curTop + TOAST_STEP) + 'px';
+  });
+  const toast = document.createElement('div');
+  toast.className = `ach-toast ach-toast-${tier}`;
+  toast.style.top = TOAST_TOP_START + 'px';
+  toast.innerHTML = `
+    <div class="ach-toast-icon">${ACH_ICONS[tier] || '🏆'}</div>
+    <div class="ach-toast-body">
+      <div class="ach-toast-label">도전과제 달성!</div>
+      <div class="ach-toast-title">${ach.title}</div>
+      <div class="ach-toast-desc">${ach.desc}</div>
+    </div>
+    <div class="ach-toast-bar"></div>`;
+  document.body.appendChild(toast);
+  gomokuActiveToasts.unshift(toast);
+  requestAnimationFrame(() => { requestAnimationFrame(() => toast.classList.add('show')); });
+  setTimeout(() => toast.classList.add('hide'), TOAST_DURATION);
+  setTimeout(() => {
+    toast.remove();
+    gomokuActiveToasts = gomokuActiveToasts.filter(t => t !== toast);
+  }, TOAST_DURATION + 600);
+}

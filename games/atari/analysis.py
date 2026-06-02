@@ -38,16 +38,14 @@ class _AnalysisMixin:
         if not self.analysis_results:
             return None
         losses = [a['loss'] for a in self.analysis_results]
-        p_cnt  = Counter(a['action_name']      for a in self.analysis_results)
-        ai_cnt = Counter(a['best_action_name'] for a in self.analysis_results)
         return {
-            'avg_loss':      round(float(np.mean(losses)), 3),
-            'worst':         max(self.analysis_results, key=lambda a: a['loss']),
-            'worst_10':      self._select_top5(self.analysis_results),
-            'total_steps':   len(self.analysis_results),
-            'agree_rate':    round(sum(1 for a in self.analysis_results if a['is_best']) / len(self.analysis_results) * 100, 1),
-            'player_actions': dict(p_cnt),
-            'ai_actions':    dict(ai_cnt),
+            'avg_loss':       round(float(np.mean(losses)), 3),
+            'worst':          max(self.analysis_results, key=lambda a: a['loss']),
+            'worst_10':       self._select_top5(self.analysis_results),
+            'total_steps':    len(self.analysis_results),
+            'agree_rate':     round(sum(1 for a in self.analysis_results if a['is_best']) / len(self.analysis_results) * 100, 1),
+            'player_actions': dict(Counter(a['action_name']      for a in self.analysis_results)),
+            'ai_actions':     dict(Counter(a['best_action_name'] for a in self.analysis_results)),
         }
 
     def _basic_analyze(self) -> dict:
@@ -101,13 +99,11 @@ class _AnalysisMixin:
         agree    = round(sum(1 for a in analyses if a['is_best']) / len(analyses) * 100, 1)
         self.analysis_results = analyses
 
-        p_cnt  = Counter(a['action_name']      for a in analyses)
-        ai_cnt = Counter(a['best_action_name'] for a in analyses)
-
         self.socketio.emit(f'{self.prefix}analysis_done', {
             'avg_loss': avg_loss, 'worst': worst, 'worst_10': worst_10,
             'total_steps': total, 'agree_rate': agree,
-            'player_actions': dict(p_cnt), 'ai_actions': dict(ai_cnt),
+            'player_actions': dict(Counter(a['action_name']      for a in analyses)),
+            'ai_actions':     dict(Counter(a['best_action_name'] for a in analyses)),
             'session_id': sid,
         })
         print(f'✅ [{self.game_id}] 분석 완료 avg_loss={avg_loss:.3f} agree={agree}%')

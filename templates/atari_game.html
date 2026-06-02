@@ -22,6 +22,9 @@
   <a href="/" class="topbar-back">◀ MENU</a>
   <div class="topbar-name">{{ game_icon }} {{ game_title }}</div>
   <div class="topbar-flex"></div>
+  <button class="ach-summary-btn" id="achSummaryBtn">
+    🏆 도전과제 확인
+  </button>
 </div>
 
 <div class="layout">
@@ -121,10 +124,13 @@
 
           <!-- Grad-CAM 토글 버튼 -->
           <div class="gcam-controls">
+            <div id="replayTimer" style="display:none;">30</div>
             <button class="gcam-btn active" id="gcamNormalBtn"><span class="gcam-dot"></span>NORMAL</button>
             <button class="gcam-btn" id="gcamHumanBtn"><span class="gcam-dot"></span>HUMAN CAM</button>
             <button class="gcam-btn" id="gcamAgentBtn"><span class="gcam-dot"></span>AGENT CAM</button>
             <button class="gcam-btn" id="gcamSplitBtn"><span class="gcam-dot"></span>SPLIT CAM</button>
+            <button class="gcam-btn practice-btn" id="practiceBtn" style="display:none;">🎮 연습 모드</button>
+            <button class="gcam-btn practice-exit-btn" id="practiceExitBtn" style="display:none;">비교 영상으로 돌아가기</button>
           </div>
           <div class="gcam-no-support" id="gcamNoSupport">⚠ 이 모델은 Grad-CAM을 지원하지 않습니다</div>
 
@@ -178,18 +184,47 @@
           </div>
 
           <div class="speed-controls">
-            <button class="speed-btn speed-seek" id="seekBack">◀◀ −1s</button>
             <button class="speed-btn" data-speed="0.25">×¼</button>
             <button class="speed-btn" data-speed="0.5">×½</button>
             <button class="speed-btn active" data-speed="1">×1</button>
             <button class="speed-btn" data-speed="2">×2</button>
             <button class="speed-btn" data-speed="4">×4</button>
-            <button class="speed-btn speed-seek" id="seekFwd">+1s ▶▶</button>
           </div>
           <!-- 가상 키보드 (JS로 동적 생성) -->
           <div class="vkbd" id="vkbd"></div>
+
+          <!-- 비교 영상 → 연습 모드 전환용 카운트다운 -->
+          <div class="practice-countdown" id="practiceCountdown" style="display:none;">
+            <div class="practice-countdown-num" id="practiceCountdownNum">3</div>
+          </div>
         </div>
 
+        <!-- 연습 모드 뷰 -->
+        <div id="practiceView" style="display:none;position:relative;">
+          <div class="practice-split">
+            <div class="practice-half">
+              <div class="practice-half-label human">PRACTICE · LIVE</div>
+              <canvas id="practiceCanvasHuman" width="160" height="210"></canvas>
+            </div>
+            <div class="practice-half">
+              <div class="practice-half-label agent">AGENT · ORIGINAL</div>
+              <canvas id="practiceCanvasAgent" width="160" height="210"></canvas>
+            </div>
+          </div>
+          <div class="practice-live-status">
+            <span id="practiceTimeLeft">30s</span>
+            <span id="practiceLiveScore">SCORE 0</span>
+            <button type="button" class="practice-inline-back" id="practiceInlineBackBtn">← 비교 영상</button>
+          </div>
+
+          <!-- 연습 종료 오버레이 -->
+          <div id="practiceOverOverlay" style="display:none;">
+            <div class="practice-over-title">PRACTICE OVER</div>
+            <div class="practice-over-score" id="practiceOverScore">SCORE: 0</div>
+            <button class="practice-over-btn practice-over-retry-btn" id="practiceRetryBtn">🔄 다시 연습하기</button>
+            <button class="practice-over-btn" id="practiceBackBtn">← 비교 영상으로</button>
+          </div>
+        </div>
         <!-- Q-value 분석 -->
         <div class="analysis-zone" id="analysisZone">
           <div class="right-tabs" id="rightTabs">
@@ -211,6 +246,10 @@
               <div class="qvalue-card">
                 <div class="qvalue-mini">평균 Q 손실</div>
                 <div class="avg-q-loss" id="avgLoss">—</div>
+              </div>
+              <div class="qvalue-card" id="momentLossCard" style="display:none;">
+                <div class="qvalue-mini">이 순간 손실</div>
+                <div class="avg-q-loss loss-high" id="momentLoss">—</div>
               </div>
               <div class="qvalue-card">
                 <div class="qvalue-mini">내 행동 분포</div>
@@ -239,14 +278,64 @@
             </div>
           </div>
         </div>
+        <div class="practice-result-card" id="practiceResultCard"></div>
       </div>
 
       <!-- 코치 사이드 패널 -->
       <div class="side-column">
+        <!-- 📋 RULE BOOK: 게임 시작 전 규칙 설명 -->
+        <div id="gameIntroPanel">
+          <div style="display:flex;align-items:center;padding:10px 14px;background:rgba(255,170,0,.05);border-bottom:1px solid rgba(255,170,0,.15);">
+            <span style="font-size:1rem">📋</span>
+            <span style="font-family:'Press Start 2P',monospace;font-size:.56rem;color:var(--amber);letter-spacing:2px;margin-left:10px;">RULE BOOK</span>
+            <button onclick="document.getElementById('gameIntroPanel').classList.add('hidden')" style="margin-left:auto;background:none;border:none;color:var(--sub);font-size:.9rem;cursor:pointer;padding:0 4px;">✕</button>
+          </div>
+          <div class="game-intro-panel">
+            {% if game_info %}
+            <div class="gi-summary">{{ game_info.summary }}</div>
+            {% if game_info.objective %}
+            <div class="gi-section">
+              <div class="gi-label">🎯 목표</div>
+              <div class="gi-body">{{ game_info.objective }}</div>
+            </div>
+            {% endif %}
+            {% if game_info.how_to_play %}
+            <div class="gi-section">
+              <div class="gi-label">🕹 조작법</div>
+              <ul class="gi-list">
+              {% for item in game_info.how_to_play %}
+                <li>{{ item }}</li>
+              {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if game_info.scoring %}
+            <div class="gi-section">
+              <div class="gi-label">🏆 점수 조건</div>
+              <ul class="gi-list">
+              {% for item in game_info.scoring %}
+                <li>{{ item }}</li>
+              {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if game_info.tips %}
+            <div class="gi-section">
+              <div class="gi-label">💡 팁</div>
+              <ul class="gi-list">
+              {% for item in game_info.tips %}
+                <li>{{ item }}</li>
+              {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% endif %}
+          </div>
+        </div>
+
         <div class="coach-header">
           <span style="font-size:1.1rem">🎓</span>
           <span class="coach-label">SAGE · COACH</span>
-          <span class="coach-status" id="coachStatus">대기 중</span>
         </div>
         <div class="postgame-panel" id="postgamePanel">
           <div class="postgame-title">GAME OVER · TOP-5 MOMENTS</div>
@@ -280,15 +369,58 @@
             <div class="fb-text" id="fbText" style="display:none">후보를 선택하면 코칭 피드백이 여기에 표시됩니다.</div>
           </div>
           <div class="fb-summary" id="fbSummary">
-            <div class="summary-grid">
-              <div class="summary-item"><div class="summary-k">STEP</div><div class="summary-v" id="sumStep">—</div></div>
-              <div class="summary-item"><div class="summary-k">LOSS</div><div class="summary-v" id="sumLoss">—</div></div>
-              <div class="summary-item"><div class="summary-k">HUMAN ACTION</div><div class="summary-v" id="sumHAction">—</div></div>
-              <div class="summary-item"><div class="summary-k">AGENT ACTION</div><div class="summary-v" id="sumAAction">—</div></div>
-              <div class="summary-item"><div class="summary-k">H SCORE DELTA</div><div class="summary-v" id="sumHScore">—</div></div>
-              <div class="summary-item"><div class="summary-k">A SCORE DELTA</div><div class="summary-v" id="sumAScore">—</div></div>
-              <div class="summary-item"><div class="summary-k">H FIRST SCORE</div><div class="summary-v" id="sumHFirst">—</div></div>
-              <div class="summary-item"><div class="summary-k">A FIRST SCORE</div><div class="summary-v" id="sumAFirst">—</div></div>
+            <!-- STEP & LOSS 메타 칩 -->
+            <div class="cf-meta-row">
+              <div class="cf-meta-chip">
+                <div class="cf-meta-label">STEP</div>
+                <div class="cf-meta-val" id="sumStep">—</div>
+              </div>
+              <div class="cf-meta-chip loss">
+                <div class="cf-meta-label">LOSS</div>
+                <div class="cf-meta-val" id="sumLoss">—</div>
+              </div>
+            </div>
+
+            <!-- VS 테이블 -->
+            <div class="cf-vs-header">
+              <div class="cf-vs-h human">HUMAN</div>
+              <div class="cf-vs-badge">VS</div>
+              <div class="cf-vs-h agent">AGENT</div>
+            </div>
+            <div class="cf-vs-rows">
+              <div class="cf-vs-row">
+                <div class="cf-vs-cell human action">
+                  <div class="cf-vs-mini">액션</div>
+                  <div class="cf-vs-val" id="sumHAction">—</div>
+                </div>
+                <div class="cf-vs-sep"></div>
+                <div class="cf-vs-cell agent action">
+                  <div class="cf-vs-mini">액션</div>
+                  <div class="cf-vs-val" id="sumAAction">—</div>
+                </div>
+              </div>
+              <div class="cf-vs-row">
+                <div class="cf-vs-cell human">
+                  <div class="cf-vs-mini">점수 변화</div>
+                  <div class="cf-vs-val" id="sumHScore">—</div>
+                </div>
+                <div class="cf-vs-sep"></div>
+                <div class="cf-vs-cell agent">
+                  <div class="cf-vs-mini">점수 변화</div>
+                  <div class="cf-vs-val" id="sumAScore">—</div>
+                </div>
+              </div>
+              <div class="cf-vs-row">
+                <div class="cf-vs-cell human">
+                  <div class="cf-vs-mini">즉시 점수</div>
+                  <div class="cf-vs-val" id="sumHFirst">—</div>
+                </div>
+                <div class="cf-vs-sep"></div>
+                <div class="cf-vs-cell agent">
+                  <div class="cf-vs-mini">즉시 점수</div>
+                  <div class="cf-vs-val" id="sumAFirst">—</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -296,6 +428,21 @@
     </div>
   </div>
 </div>
+
+<!-- 도전과제 모달 -->
+<div class="ach-modal-overlay" id="achModalOverlay" style="display:none;">
+  <div class="ach-modal-box">
+    <div class="ach-modal-header">
+      <span>🏆 도전과제</span>
+      <span class="ach-modal-count" id="achModalCount"></span>
+      <button class="ach-modal-close" id="achModalClose">✕</button>
+    </div>
+    <div class="ach-modal-body" id="achModalBody"></div>
+  </div>
+</div>
+
+<!-- 도전과제 토스트 컨테이너 (실시간 알림) -->
+<div id="achToastContainer"></div>
 
 <script>
 // ── 게임별 설정 (Jinja 주입) ─────────────────────────────────────────────────
@@ -306,6 +453,8 @@ const HAS_MODEL     = {{ 'true' if has_model else 'false' }};
 const ACTION_NAMES  = {{ action_names | tojson }};
 const KEYBOARD_KEYS = {{ keyboard_keys | tojson }};
 const KEY_COMBOS    = {{ key_combos | tojson }};
+const CONTROL_DESCRIPTIONS = {{ (game_info.get('controls', {}) if game_info else {}) | tojson }};
+const ALL_ACHIEVEMENTS = {{ achievements | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/atari_game.js') }}"></script>
 </body>
