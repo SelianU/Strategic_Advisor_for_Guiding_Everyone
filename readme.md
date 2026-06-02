@@ -111,10 +111,10 @@ export OPENROUTER_MODEL='meta-llama/llama-3.3-70b-instruct:free'
 - **환경**: ALE/SpaceInvaders-v5, ALE/Breakout-v5, ALE/Enduro-v5 등
 - **입력**: 4프레임 스택 (84×84 grayscale)
 - **아키텍처**: Dueling DQN (Value Stream + Advantage Stream)
-- **Frame Skip**: 게임마다 `frameskip=20` 적용 (현재 학습 완료 또는 진행 중)
-  - 인간 액션 주기와 유사한 수준으로 설정해 코칭 비교의 타당성 확보
+- **Frame Skip**: 인간 액션 주기와 유사한 수준으로 설정해 코칭 비교의 타당성 확보
+  - Space Invaders: `frameskip=15` 적용 완료
+  - 나머지 게임: `frameskip=20` 으로 순차적으로 학습 중
   - 논문 기준(frameskip=4) 대비 높은 수치임에도 에이전트 성능이 인간 평균을 상회해 코칭 정당성 유지
-  - Space Invaders는 frameskip=20 학습 모델 적용 완료, 나머지 게임은 순차적으로 전환 중
 
 ### PPO (Proximal Policy Optimization) — Gomoku
 - **환경**: 15×15 오목, 5목 승리 조건
