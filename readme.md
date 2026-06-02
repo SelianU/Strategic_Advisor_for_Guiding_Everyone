@@ -37,7 +37,7 @@
 - **TOP-5 핵심 순간 선택**: loss 기반 global top-5, 60프레임 간격 보장
 - **Human vs Agent 비교 리플레이**: 30초 타이머, ×¼~×4 배속, Grad-CAM 시각화
 - **연습 모드**: 핵심 순간부터 직접 플레이, 30초 타이머, AI 일치율 결과 카드
-- **도전과제 시스템**: 게임별 Bronze/Silver/Gold/Platinum 도전과제, 실시간 토스트 알림
+- **도전과제 시스템**: Atari·Gomoku 전 게임 Bronze/Silver/Gold/Platinum 도전과제, 실시간 토스트 알림
 - **Rule Book**: 게임별 규칙/조작법/점수 조건
 - **LLM 코칭 피드백**: OpenRouter 연동, 자동 폴백 (주 모델 → 예비 대형 → 자동 예비풀)
 - **세션 저장/불러오기**: 분석 결과와 counterfactual 캐시 포함 저장
@@ -109,8 +109,12 @@ export OPENROUTER_MODEL='meta-llama/llama-3.3-70b-instruct:free'
 
 ### D3QN (Dueling Double Deep Q-Network) — Atari 게임
 - **환경**: ALE/SpaceInvaders-v5, ALE/Breakout-v5, ALE/Enduro-v5 등
-- **입력**: 4프레임 스택 (84×84 grayscale), `frameskip=1`
+- **입력**: 4프레임 스택 (84×84 grayscale)
 - **아키텍처**: Dueling DQN (Value Stream + Advantage Stream)
+- **Frame Skip**: 게임마다 `frameskip=20` 적용 (현재 학습 완료 또는 진행 중)
+  - 인간 액션 주기와 유사한 수준으로 설정해 코칭 비교의 타당성 확보
+  - 논문 기준(frameskip=4) 대비 높은 수치임에도 에이전트 성능이 인간 평균을 상회해 코칭 정당성 유지
+  - Space Invaders는 frameskip=20 학습 모델 적용 완료, 나머지 게임은 순차적으로 전환 중
 
 ### PPO (Proximal Policy Optimization) — Gomoku
 - **환경**: 15×15 오목, 5목 승리 조건
@@ -130,7 +134,7 @@ export OPENROUTER_MODEL='meta-llama/llama-3.3-70b-instruct:free'
 | 비교 리플레이 배속 컨트롤 | ✅ (×¼~×4) | — |
 | Grad-CAM 시각화 | ✅ | — |
 | 연습 모드 | ✅ | — |
-| 도전과제 시스템 | ✅ | — |
+| 도전과제 시스템 | ✅ | ✅ |
 | 상용 LLM / 로컬 코칭 피드백 | ✅ | ✅ |
 | 세션 저장 / 불러오기 | ✅ | ✅ |
 
@@ -159,15 +163,15 @@ SAGE/
 │       └── sessions.py             #     세션 직렬화 / 디스크 영속화
 │
 ├── ai_agents/                      # ── 학습된 모델 ──────────────────
-│   ├── space_invaders/checkpoints/best_model.pth
+│   ├── space_invaders/checkpoints/best_model_spaceinvaders.pth
 │   ├── breakout/checkpoints/best_model.pth
-│   ├── enduro/checkpoints/best_model.pth
-│   ├── alien/checkpoints/best_model.pth
+│   ├── enduro/checkpoints/best_model_enduro.pth
+│   ├── alien/checkpoints/best_model_alien.pth
 │   ├── amidar/checkpoints/best_model.pth
-│   ├── assault/checkpoints/best_model.pth
+│   ├── assault/checkpoints/best_model_assault.pth
 │   ├── asterix/checkpoints/best_model.pth
 │   ├── asteroids/checkpoints/best_model.pth
-│   ├── atlantis/checkpoints/best_model.pth
+│   ├── atlantis/checkpoints/best_model_atlantis.pth
 │   ├── mariobros/checkpoints/best_model.pth
 │   └── gomoku/gomoku_rl/pretrained_models/15_15/ppo/0.pt
 │
