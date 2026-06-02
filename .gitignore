@@ -20,6 +20,7 @@ ENV/
 
 # 환경 변수
 .env
+config.json
 .env.local
 .env.*.local
 

@@ -1,4 +1,4 @@
 {
-  "openrouter_api_key": "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",
+  "openrouter_api_key": "your own key",
   "openrouter_model": "meta-llama/llama-3.3-70b-instruct:free"
 }
