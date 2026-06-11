@@ -18,11 +18,12 @@ from flask         import render_template, request, jsonify
 from flask_socketio import emit
 
 from extensions     import app, socketio
-from config_store   import save_config
+from config_store   import save_config, is_valid_api_key
 from atari_registry import ATARI_GAMES
 from llm_feedback   import (test_openrouter_connection, DEFAULT_MODEL,
                             FALLBACK_PRIORITY, FALLBACK_POOL, short_model_name)
-from games.gomoku.sessions import list_saved_sessions
+from games.gomoku.game_info import GOMOKU_GAME_INFO
+from games.gomoku.sessions  import list_saved_sessions
 
 
 # ── 헬퍼 ────────────────────────────────────────────────────────────────────
@@ -44,10 +45,11 @@ def index():
             'theme_color': g.theme_color,
             'theme_rgb':   _hex_to_rgb(g.theme_color),
             'has_model':   g.net is not None,
+            'summary':     (g.game_info or {}).get('summary', ''),
         }
         for g in ATARI_GAMES
     ]
-    return render_template('index.html', atari_games=games_meta)
+    return render_template('index.html', atari_games=games_meta, dance_games=[])
 
 
 @app.route('/gomoku')
@@ -60,6 +62,7 @@ def gomoku_page():
         priority_models=[(m, short_model_name(m)) for m in FALLBACK_PRIORITY],
         pool_models=[(m, short_model_name(m)) for m in FALLBACK_POOL],
         saved_sessions=list_saved_sessions('gomoku'),
+        game_info=GOMOKU_GAME_INFO,
     )
 
 
@@ -77,8 +80,10 @@ def post_settings():
     data    = request.get_json(force=True) or {}
     api_key = data.get('api_key', '').strip()
     model   = data.get('model', '').strip() or DEFAULT_MODEL
-    if data.get('clear_key'): os.environ.pop('OPENROUTER_API_KEY', None)
-    elif api_key:             os.environ['OPENROUTER_API_KEY'] = api_key
+    if data.get('clear_key'):          os.environ.pop('OPENROUTER_API_KEY', None)
+    elif is_valid_api_key(api_key):    os.environ['OPENROUTER_API_KEY'] = api_key
+    elif api_key:
+        return jsonify({'ok': False, 'message': '유효한 API 키 형식이 아닙니다.'})
     os.environ['OPENROUTER_MODEL'] = model
     save_config(os.getenv('OPENROUTER_API_KEY', ''), model)
     return jsonify({'ok': True})

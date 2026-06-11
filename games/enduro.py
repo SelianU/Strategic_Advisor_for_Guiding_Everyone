@@ -1,5 +1,4 @@
 """games/enduro.py — Enduro 게임 설정"""
-import os
 import colorsys
 import numpy as np
 from games.atari import AtariGame
@@ -211,7 +210,7 @@ class EnduroGame(AtariGame):
     frame_skip  = 4
     prefix     = 'en_'
     theme_color = '#ff2255'
-    model_path_parts = ('ai_agents', 'enduro', 'checkpoints', 'best_model_enduro.pth')
+    model_path_parts = ('data', 'checkpoints', 'enduro', 'best_model_enduro.pth')
 
     action_names = {
         0: 'NOOP',
@@ -369,16 +368,8 @@ class EnduroGame(AtariGame):
         result.update(phase_from_step(step))
         return result
 
-    def _load_model(self, path: str):
-        if not os.path.exists(path):
-            return None
-        from ai_agents.enduro import load_enduro_d3qn
-        net, _ = load_enduro_d3qn(path, self.device)
-        return net
+    # _load_model / _get_q_values 는 베이스 기본 구현(d3qn_helper) 사용
 
-    def _get_q_values(self, stacked_state):
-        from ai_agents.enduro import get_q_values
-        return get_q_values(self.net, stacked_state, self.device)
     game_info = {
         'summary': '하루 단위로 정해진 수의 차량을 추월하며 최대한 오래 달리는 지구력 레이싱 게임입니다.',
         'objective': 'Day 1은 200대, Day 2부터는 매일 300대를 하루가 끝나기 전에 추월하세요.',

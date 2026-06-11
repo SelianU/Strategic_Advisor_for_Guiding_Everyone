@@ -1,21 +1,10 @@
-from .d3qn_helper import (
-    ACTION_NAMES,
-    AtariWrapper,
-    Config,
-    DuelingDQN,
-    GradRescale,
-    analyze_episode,
-    get_q_values,
-    load_breakout_d3qn,
-)
+"""
+ai_agents/mariobros/__init__.py — 하위 호환 shim.
+공통 d3qn_helper 위임 코드는 ai_agents/_compat.py 참조.
 
-__all__ = [
-    "ACTION_NAMES",
-    "AtariWrapper",
-    "Config",
-    "DuelingDQN",
-    "GradRescale",
-    "analyze_episode",
-    "get_q_values",
-    "load_breakout_d3qn",
-]
+기존 import 경로는 변경 없이 계속 동작합니다:
+    from ai_agents.mariobros import load_d3qn, get_q_values
+"""
+from ai_agents._compat import install_shim
+
+install_shim(__name__, 'mariobros', loader_alias='load_d3qn')

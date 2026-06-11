@@ -1,0 +1,205 @@
+/* ============================================================================
+ * common.css — 게임 페이지(atari_game / gomoku) 공통 스타일
+ *
+ * 테마색은 각 페이지가 정의하는 CSS 변수로 주입된다:
+ *   --theme      : 게임 테마색 (atari: Jinja 주입, gomoku: cyan)
+ *   --theme-rgb  : 테마색 RGB 트리플 (rgba() 합성용)
+ * 이 파일은 페이지 전용 CSS(atari_game.css / gomoku.css)보다 먼저 로드되며,
+ * 페이지 CSS가 필요한 부분만 덮어쓴다.
+ * ========================================================================== */
+
+/* ── 리셋 / 베이스 ── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(var(--theme-rgb),.15);}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(var(--theme-rgb),.025) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--theme-rgb),.025) 1px,transparent 1px);
+  background-size:52px 52px;}
+
+/* ── 상단 바 ── */
+.page-topbar{position:relative;z-index:10;height:48px;display:flex;align-items:center;background:rgba(4,5,10,.98);border-bottom:1px solid var(--border-c);padding:0 16px;}
+.topbar-back{font-family:'Press Start 2P',monospace;font-size:.55rem;color:var(--theme);border:1px solid rgba(var(--theme-rgb),.28);background:transparent;padding:8px 14px;cursor:pointer;text-decoration:none;transition:background .2s;white-space:nowrap;flex-shrink:0;}
+.topbar-back:hover{background:rgba(var(--theme-rgb),.08);}
+.topbar-flex{flex:1;}
+
+/* ── 패널 공통 ── */
+.panel{background:var(--dim);border:1px solid rgba(var(--theme-rgb),.18);padding:14px;}
+.panel-title{font-family:'Press Start 2P',monospace;font-size:.58rem;color:var(--theme);margin-bottom:10px;letter-spacing:1px;}
+
+.game-title{font-family:'Press Start 2P',monospace;font-size:.85rem;color:var(--theme);text-shadow:0 0 10px var(--theme);letter-spacing:3px;flex-shrink:0;}
+
+/* ── 시작 버튼 ── */
+.start-btn{width:100%;font-family:'Press Start 2P',monospace;font-size:.62rem;background:var(--theme);color:#000;border:none;padding:13px;cursor:pointer;transition:box-shadow .2s;}
+.start-btn:hover{box-shadow:0 0 20px var(--theme);}
+.start-btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* ── LLM 상태 패널 ── */
+.llm-status{background:var(--dim);border:1px solid rgba(var(--theme-rgb),.18);padding:12px;}
+.llm-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.llm-dot.on{background:var(--theme);box-shadow:0 0 8px var(--theme);}
+.llm-dot.off{background:var(--red);box-shadow:0 0 8px var(--red);}
+.llm-sub{font-size:.66rem;color:var(--sub);margin-top:8px;line-height:1.5;word-break:break-all;}
+.llm-rank-list{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+.llm-rank-row{display:flex;align-items:flex-start;gap:6px;}
+.llm-rank-num{color:var(--theme);font-size:.6rem;min-width:14px;padding-top:2px;}
+.llm-rank-content{flex:1;min-width:0;}
+.llm-rank-label{font-size:.6rem;color:#667;margin-bottom:2px;display:flex;align-items:center;gap:4px;}
+.llm-rank-model{font-size:.68rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
+.llm-pool-toggle{background:none;border:none;color:var(--theme);font-size:.58rem;cursor:pointer;padding:0 2px;line-height:1;}
+.llm-pool-list{display:none;margin-top:3px;padding-left:6px;border-left:1px solid rgba(var(--theme-rgb),.25);}
+.llm-pool-list.open{display:block;}
+
+/* ── 세션 저장/불러오기 패널 ── */
+.session-panel{background:var(--dim);border:1px solid rgba(255,230,0,.18);padding:12px;}
+.session-input,.session-select{width:100%;background:#0b1118;border:1px solid #1f2b33;color:var(--text);padding:9px 10px;font-family:'Share Tech Mono',monospace;font-size:.72rem;margin-top:8px;}
+.session-actions{display:flex;gap:6px;margin-top:10px;}
+.session-btn{flex:1;background:transparent;border:1px solid rgba(255,230,0,.28);color:var(--yellow);padding:8px;font-size:.68rem;cursor:pointer;font-family:'Share Tech Mono',monospace;}
+.session-btn:hover{background:rgba(255,230,0,.08);}
+.session-status{margin-top:8px;font-size:.67rem;color:var(--sub);white-space:pre-wrap;}
+
+/* ── 게임 인트로(Rule Book) 패널 ── */
+.game-intro-panel{display:flex;flex-direction:column;gap:10px;padding:14px;overflow-y:auto;}
+.game-intro-panel.hidden{display:none;}
+.gi-summary{font-size:.78rem;color:var(--text);line-height:1.6;padding-bottom:8px;border-bottom:1px solid var(--border-c);}
+.gi-section{display:flex;flex-direction:column;gap:4px;}
+.gi-label{font-family:'Press Start 2P',monospace;font-size:.52rem;color:var(--amber);letter-spacing:1px;}
+.gi-body{font-size:.76rem;color:var(--sub);line-height:1.6;}
+.gi-list{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:3px;}
+.gi-list li{font-size:.75rem;color:var(--sub);line-height:1.55;}
+
+/* ── 코칭 피드백 박스 ── */
+.center-feedback{display:none;width:100%;background:rgba(255,170,0,.03);border:1px solid rgba(255,170,0,.18);border-left:3px solid var(--amber);}
+.center-feedback.visible{display:block;}
+
+/* ── 요약 그리드 ── */
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.summary-k{font-size:.70rem;color:var(--sub);margin-bottom:4px;}
+.summary-v{font-size:.96rem;color:#fff;}
+
+/* ── 도전과제 확인 버튼 ── */
+.ach-summary-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;margin:0;flex-shrink:0;
+  background:rgba(255,215,0,.1);
+  border:1px solid rgba(255,215,0,.35);
+  border-radius:4px;
+  color:#ffd700;font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  cursor:pointer;letter-spacing:1px;
+  transition:background .15s, border-color .15s;
+}
+.ach-summary-btn:hover{
+  background:rgba(255,215,0,.18);border-color:rgba(255,215,0,.6);
+}
+
+/* ── 도전과제 모달 ── */
+.ach-modal-overlay{
+  position:fixed;inset:0;z-index:10000;
+  background:rgba(0,0,0,.72);
+  display:flex;align-items:center;justify-content:center;
+}
+.ach-modal-box{
+  width:min(680px,92vw);max-height:80vh;
+  background:#0d1018;
+  border:1px solid rgba(255,215,0,.25);
+  border-radius:8px;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  box-shadow:0 8px 48px rgba(0,0,0,.8);
+}
+.ach-modal-header{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  font-family:'Press Start 2P',monospace;font-size:.65rem;
+  color:#ffd700;flex-shrink:0;
+}
+.ach-modal-count{
+  font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  color:rgba(255,255,255,.4);margin-left:auto;
+}
+.ach-modal-close{
+  background:none;border:none;color:rgba(255,255,255,.4);
+  font-size:1rem;cursor:pointer;padding:2px 6px;
+  transition:color .15s;
+}
+.ach-modal-close:hover{color:#fff;}
+.ach-modal-body{
+  overflow-y:auto;padding:10px 14px 16px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.ach-modal-section-label{
+  font-family:'Share Tech Mono',monospace;font-size:.65rem;
+  letter-spacing:2px;color:rgba(255,255,255,.3);
+  padding:4px 0 6px;border-bottom:1px solid rgba(255,255,255,.06);
+  margin-bottom:4px;
+}
+.ach-modal-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:6px;
+}
+.ach-modal-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:8px 10px;border-radius:5px;
+  border:1px solid transparent;
+  cursor:default;
+  transition:border-color .15s, background .15s;
+}
+.ach-modal-item.locked{
+  background:rgba(255,255,255,.03);
+  border-color:rgba(255,255,255,.06);
+}
+.ach-modal-item.locked .ach-mi-title{ color:rgba(255,255,255,.3); }
+.ach-modal-item.locked .ach-mi-desc { color:rgba(255,255,255,.18); }
+.ach-modal-item.unlocked-bronze{background:rgba(180,100,30,.15);border-color:rgba(205,127,50,.3);}
+.ach-modal-item.unlocked-silver{background:rgba(160,160,180,.1); border-color:rgba(192,192,192,.25);}
+.ach-modal-item.unlocked-gold  {background:rgba(200,160,0,.13);  border-color:rgba(255,215,0,.3);}
+.ach-modal-item.unlocked-platinum{background:rgba(100,200,220,.1);border-color:rgba(150,230,255,.35);}
+.ach-modal-item.unlocked-bronze .ach-mi-title{color:#e8a96a;}
+.ach-modal-item.unlocked-silver .ach-mi-title{color:#ddd;}
+.ach-modal-item.unlocked-gold   .ach-mi-title{color:#ffe566;}
+.ach-modal-item.unlocked-platinum .ach-mi-title{color:#c0f0ff;}
+.ach-modal-item:hover .ach-mi-desc{ color:rgba(255,255,255,.55); }
+.ach-mi-icon{ font-size:1.1rem;flex-shrink:0;margin-top:1px; }
+.ach-mi-body{ display:flex;flex-direction:column;gap:2px;min-width:0; }
+.ach-mi-title{ font-size:.78rem;font-weight:600;line-height:1.3; }
+.ach-mi-desc { font-size:.66rem;color:rgba(255,255,255,.28);line-height:1.4;transition:color .15s; }
+
+/* ── 도전과제 토스트 — 공통 비주얼 (배치/애니메이션은 페이지별 CSS) ── */
+.ach-toast-bronze{ border-left:4px solid #cd7f32;
+  box-shadow:-2px 0 20px rgba(205,127,50,.4), 0 4px 28px rgba(0,0,0,.7); }
+.ach-toast-silver{ border-left:4px solid #c0c0c0;
+  box-shadow:-2px 0 18px rgba(192,192,192,.35), 0 4px 28px rgba(0,0,0,.7); }
+.ach-toast-gold  { border-left:4px solid #ffd700;
+  box-shadow:-2px 0 22px rgba(255,215,0,.5), 0 4px 28px rgba(0,0,0,.7); }
+.ach-toast-platinum{ border-left:4px solid #96e6ff;
+  box-shadow:-2px 0 26px rgba(100,220,255,.6), 0 4px 32px rgba(0,0,0,.8),
+             0 0 50px rgba(100,200,255,.18); }
+.ach-toast-icon{ font-size:2.2rem; line-height:1; flex-shrink:0; }
+.ach-toast-body{ flex:1; min-width:0; }
+.ach-toast-label{
+  font-size:.6rem; letter-spacing:2px; text-transform:uppercase;
+  color:rgba(255,255,255,.4); margin-bottom:4px;
+}
+.ach-toast-title{
+  font-size:1.05rem; font-weight:700; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ach-toast-desc{
+  font-size:.72rem; color:rgba(255,255,255,.55); margin-top:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ach-toast-bar{
+  position:absolute; bottom:0; left:0; height:3px; width:100%;
+  transform-origin:left;
+  animation:ach-bar-shrink 5s linear forwards;
+}
+.ach-toast-bronze .ach-toast-bar{ background:#cd7f32; }
+.ach-toast-silver .ach-toast-bar{ background:#c0c0c0; }
+.ach-toast-gold   .ach-toast-bar{ background:#ffd700; }
+.ach-toast-platinum .ach-toast-bar{ background:#96e6ff; }
+@keyframes ach-bar-shrink{
+  from{ transform:scaleX(1); }
+  to  { transform:scaleX(0); }
+}

@@ -1,5 +1,4 @@
 """games/amidar.py — Amidar 게임 설정"""
-import os
 import numpy as np
 from games.atari import AtariGame
 from games.atari.ach_helper import episode_score, life_losses
@@ -169,7 +168,7 @@ class AmidarGame(AtariGame):
     frame_skip  = 4
     prefix     = 'am_'
     theme_color = '#ff6b35'
-    model_path_parts = ('ai_agents', 'amidar', 'checkpoints', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'amidar', 'best_model.pth')
 
     action_names = {
         0: 'NOOP',  1: 'FIRE',      2: 'UP',       3: 'RIGHT',
@@ -346,12 +345,7 @@ class AmidarGame(AtariGame):
         gs = extract_amidar_game_state(pre_rgb, pre_ram)
         return {'game_state': gs} if gs else {}
 
-    def _load_model(self, path: str):
-        if not os.path.exists(path):
-            return None
-        from ai_agents.d3qn_helper import load_d3qn
-        net, _ = load_d3qn('amidar', path, self.device)
-        return net
+    # _load_model / _get_q_values 는 베이스 기본 구현(d3qn_helper) 사용
 
     game_info = {
         'summary': '격자판 위를 이동하며 모든 경로를 칠해 완성하는 전략 게임입니다.',
@@ -384,6 +378,3 @@ class AmidarGame(AtariGame):
         ],
     }
 
-    def _get_q_values(self, stacked_state):
-        from ai_agents.d3qn_helper import get_q_values
-        return get_q_values(self.net, stacked_state, self.device)

@@ -1,4 +1,4 @@
-const socket = io({ transports: ['websocket'] });
+const socket = createGameSocket();
 const BOARD_W = 15, BOARD_H = 15;
 const HAS_LLM = document.body.dataset.hasLlm === 'true';
 let humanColor = 1;  // 1=흑, 2=백
@@ -34,12 +34,7 @@ let gomokuPendingAnalysisData = null;
 let gomokuLastStateSeq = -1;
 let gomokuRightTab = 'summary';
 let gomokuFeedbackTab = 'feedback';
-const GOMOKU_STATUS_LABELS = {
-  waiting: '대기 중',
-  generating: '생성 중',
-  ready: '준비됨',
-  error: '실패'
-};
+// 후보 상태 라벨은 common_utils.js 의 STATUS_LABELS 공유
 
 function setGomokuRightTab(tab) {
   gomokuRightTab = tab;
@@ -75,30 +70,13 @@ function updateGomokuSummaryFromPayload(moveNum, summary) {
   document.getElementById('gomokuAgentMoveVal').textContent = summary?.best_row !== undefined ? `(${summary.best_row}, ${summary.best_col})` : '—';
 }
 
-// 재생 끝난 후 화살표 이동 시 양쪽 함께 업데이트
+// 자동 재생/화살표 이동 공용: 인간+에이전트 프레임 동기 렌더
 function renderGomokuFrame(idx) {
   if (!gomokuCompareFrames.length) return;
   gomokuCompareIdx = Math.max(0, Math.min(idx, gomokuCompareFrames.length - 1));
-  document.getElementById('gomokuAgentImage').src =
-    'data:image/jpeg;base64,' + gomokuCompareFrames[gomokuCompareIdx];
+  document.getElementById('gomokuAgentImage').src = b64src(gomokuCompareFrames[gomokuCompareIdx]);
   if (gomokuHumanFrames[gomokuCompareIdx]) {
-    document.getElementById('gomokuHumanImage').src =
-      'data:image/jpeg;base64,' + gomokuHumanFrames[gomokuCompareIdx];
-  }
-  document.getElementById('gomokuFrameCounter').textContent =
-    `${gomokuCompareIdx + 1} / ${gomokuCompareFrames.length}`;
-  document.getElementById('gomokuPrevBtn').disabled = gomokuCompareIdx === 0;
-  document.getElementById('gomokuNextBtn').disabled = gomokuCompareIdx === gomokuCompareFrames.length - 1;
-}
-
-// 자동 재생 중: 인간+에이전트 동기화
-function syncGomokuFrame(idx) {
-  gomokuCompareIdx = Math.max(0, Math.min(idx, gomokuCompareFrames.length - 1));
-  document.getElementById('gomokuAgentImage').src =
-    'data:image/jpeg;base64,' + gomokuCompareFrames[gomokuCompareIdx];
-  if (gomokuHumanFrames[gomokuCompareIdx]) {
-    document.getElementById('gomokuHumanImage').src =
-      'data:image/jpeg;base64,' + gomokuHumanFrames[gomokuCompareIdx];
+    document.getElementById('gomokuHumanImage').src = b64src(gomokuHumanFrames[gomokuCompareIdx]);
   }
   document.getElementById('gomokuFrameCounter').textContent =
     `${gomokuCompareIdx + 1} / ${gomokuCompareFrames.length}`;
@@ -114,10 +92,10 @@ function playGomokuFrames(humanFrames, agentFrames) {
   if (!gomokuCompareFrames.length) return;
   document.getElementById('gomokuCompareStage').classList.add('visible');
   // 처음엔 양쪽 동기화해서 재생
-  syncGomokuFrame(0);
+  renderGomokuFrame(0);
   gomokuCompareTimer = setInterval(() => {
     if (gomokuCompareIdx < gomokuCompareFrames.length - 1) {
-      syncGomokuFrame(gomokuCompareIdx + 1);
+      renderGomokuFrame(gomokuCompareIdx + 1);
     } else {
       // 1회 재생 완료: 첫 프레임으로 복귀 (양쪽 모두 화살표로 이동 가능)
       clearInterval(gomokuCompareTimer);
@@ -128,19 +106,8 @@ function playGomokuFrames(humanFrames, agentFrames) {
 }
 
 function renderGomokuSessionOptions(sessions) {
-  gomokuSavedSessions = Array.isArray(sessions) ? sessions : [];
-  const select = document.getElementById('gomokuSessionSelect');
-  const previous = select.value;
-  select.innerHTML = '<option value="">저장된 기록 선택</option>';
-  gomokuSavedSessions.forEach(item => {
-    const option = document.createElement('option');
-    option.value = item.id;
-    option.textContent = `${item.title} · ${item.saved_at || ''}`;
-    select.appendChild(option);
-  });
-  if (previous && gomokuSavedSessions.some(item => item.id === previous)) {
-    select.value = previous;
-  }
+  gomokuSavedSessions = populateSessionSelect(
+    document.getElementById('gomokuSessionSelect'), sessions);
 }
 
 function setGomokuCandidateStatus(moveNum, status) {
@@ -175,26 +142,27 @@ function prefetchGomokuReplay(moveNum) {
   socket.emit('gomoku_request_counterfactual', { move_num: moveNum, session_id: gomokuSessionId });
 }
 
+// 리플레이 + 코칭 피드백 표시 (캐시 적중 / 신규 수신 공용)
+function showGomokuCounterfactual(moveNum, data) {
+  playGomokuFrames(data.human_frames || [], data.agent_frames || []);
+  document.getElementById('gomokuCenterFeedback').classList.add('visible');
+  document.getElementById('gomokuFeedbackLoading').classList.remove('active');
+  document.getElementById('gomokuFeedbackSourceCenter').textContent =
+    data.feedback_source === 'llm'
+      ? '외부 LLM 코칭 피드백'
+      : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
+  document.getElementById('gomokuLlmCurrentStatus').textContent = `현재 선택: ${feedbackRouteText(data)}`;
+  document.getElementById('gomokuFeedbackTextCenter').textContent = data.feedback || '';
+  updateGomokuSummaryFromPayload(moveNum, data.summary || {});
+}
+
 function requestGomokuReplay(moveNum) {
   if (Number.isNaN(moveNum)) return;
   gomokuPendingMoveNum = moveNum;
   const cacheKey = `${gomokuSessionId}:${moveNum}`;
   if (gomokuReplayCache.has(cacheKey)) {
-    const cached = gomokuReplayCache.get(cacheKey);
     setGomokuCandidateStatus(moveNum, 'ready');
-    playGomokuFrames(cached.human_frames || [], cached.agent_frames || []);
-    const s = cached.summary || {};
-    document.getElementById('gomokuCenterFeedback').classList.add('visible');
-    document.getElementById('gomokuFeedbackLoading').classList.remove('active');
-    document.getElementById('gomokuFeedbackSourceCenter').textContent =
-      cached.feedback_source === 'llm'
-        ? '외부 LLM 코칭 피드백'
-        : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
-    document.getElementById('gomokuLlmCurrentStatus').textContent =
-      `현재 선택: ${cached.feedback_route || (cached.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
-      (cached.feedback_model ? ` (${cached.feedback_model})` : '');
-    document.getElementById('gomokuFeedbackTextCenter').textContent = cached.feedback || '';
-    updateGomokuSummaryFromPayload(moveNum, s);
+    showGomokuCounterfactual(moveNum, gomokuReplayCache.get(cacheKey));
     return;
   }
   setGomokuCandidateStatus(moveNum, 'generating');
@@ -226,7 +194,7 @@ function renderGomokuCandidateBar(candidates) {
     btn.innerHTML =
       `<span class="candidate-rank">TOP ${idx + 1}</span>` +
       `<span class="candidate-main"><span class="candidate-step">${a.move_num}수</span><span class="candidate-loss">(LOSS ${a.loss.toFixed(3)})</span></span>` +
-      `<span class="candidate-state">${GOMOKU_STATUS_LABELS[status] || GOMOKU_STATUS_LABELS.waiting}</span>`;
+      `<span class="candidate-state">${STATUS_LABELS[status] || STATUS_LABELS.waiting}</span>`;
     btn.addEventListener('click', () => {
       document.querySelectorAll('#gomokuCandidateBar .candidate-pill').forEach(el => el.classList.remove('active'));
       btn.classList.add('active');
@@ -624,19 +592,7 @@ socket.on('gomoku_counterfactual_ready', (data) => {
     maybePrefetchGomokuCandidates();
     return;
   }
-  playGomokuFrames(data.human_frames || [], data.agent_frames || []);
-  const s = data.summary || {};
-  document.getElementById('gomokuCenterFeedback').classList.add('visible');
-  document.getElementById('gomokuFeedbackLoading').classList.remove('active');
-  document.getElementById('gomokuFeedbackSourceCenter').textContent =
-    data.feedback_source === 'llm'
-      ? '외부 LLM 코칭 피드백'
-      : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
-  document.getElementById('gomokuLlmCurrentStatus').textContent =
-    `현재 선택: ${data.feedback_route || (data.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
-    (data.feedback_model ? ` (${data.feedback_model})` : '');
-  document.getElementById('gomokuFeedbackTextCenter').textContent = data.feedback || '';
-  updateGomokuSummaryFromPayload(responseMoveNum, s);
+  showGomokuCounterfactual(responseMoveNum, data);
   maybePrefetchGomokuCandidates();
 });
 
@@ -724,8 +680,8 @@ document.querySelectorAll('[data-gomoku-feedback-tab]').forEach(btn => {
 });
 
 // ── 도전과제 시스템 ───────────────────────────────────────────────────────────
+// 티어 아이콘은 common_utils.js 의 ACH_TIER_ICONS 공유 (섹션 라벨만 gomoku 고유)
 const ACH_TIER_LABEL = { bronze:'🥉 초급', silver:'🥈 중급', gold:'🥇 고급', platinum:'💎 최고급' };
-const ACH_ICONS      = { bronze:'🥉', silver:'🥈', gold:'🥇', platinum:'💎' };
 const gomokuUnlockedIds = new Set();
 
 function unlockGomokuAch(id) {
@@ -752,33 +708,12 @@ function checkGomokuWinAchievements(humanWon, color) {
 }
 
 function openAchModal() {
-  const tiers = ['bronze', 'silver', 'gold', 'platinum'];
-  const byTier = {};
-  tiers.forEach(t => byTier[t] = []);
-  ALL_ACHIEVEMENTS.forEach(a => byTier[a.tier].push(a));
-  const unlocked = ALL_ACHIEVEMENTS.filter(a => gomokuUnlockedIds.has(a.id)).length;
-  document.getElementById('achModalCount').textContent = `${unlocked} / ${ALL_ACHIEVEMENTS.length} 달성`;
-  document.getElementById('achModalBody').innerHTML = tiers.map(tier => {
-    const items = byTier[tier];
-    if (!items.length) return '';
-    return `<div>
-      <div class="ach-modal-section-label">${ACH_TIER_LABEL[tier]}</div>
-      <div class="ach-modal-grid">
-        ${items.map(a => {
-          const done = gomokuUnlockedIds.has(a.id);
-          const cls  = done ? `unlocked-${a.tier}` : 'locked';
-          const icon = done ? ACH_ICONS[a.tier] : '🔒';
-          return `<div class="ach-modal-item ${cls}">
-            <span class="ach-mi-icon">${icon}</span>
-            <div class="ach-mi-body">
-              <div class="ach-mi-title">${a.title}</div>
-              <div class="ach-mi-desc">${a.desc}</div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  renderAchievementModalContent({
+    list: ALL_ACHIEVEMENTS.map(a => ({ ...a, unlocked: gomokuUnlockedIds.has(a.id) })),
+    tierLabels: ACH_TIER_LABEL,
+    countEl: document.getElementById('achModalCount'),
+    bodyEl:  document.getElementById('achModalBody'),
+  });
   document.getElementById('achModal').style.display = 'flex';
 }
 
@@ -803,14 +738,7 @@ function addGomokuAchToast(ach) {
   const toast = document.createElement('div');
   toast.className = `ach-toast ach-toast-${tier}`;
   toast.style.top = TOAST_TOP_START + 'px';
-  toast.innerHTML = `
-    <div class="ach-toast-icon">${ACH_ICONS[tier] || '🏆'}</div>
-    <div class="ach-toast-body">
-      <div class="ach-toast-label">도전과제 달성!</div>
-      <div class="ach-toast-title">${ach.title}</div>
-      <div class="ach-toast-desc">${ach.desc}</div>
-    </div>
-    <div class="ach-toast-bar"></div>`;
+  toast.innerHTML = achToastInnerHTML(ach, '도전과제 달성!');
   document.body.appendChild(toast);
   gomokuActiveToasts.unshift(toast);
   requestAnimationFrame(() => { requestAnimationFrame(() => toast.classList.add('show')); });

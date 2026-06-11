@@ -5,6 +5,7 @@
 <title>GOMOKU — AI ARCADE</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/gomoku.css') }}">
 </head>
 <body data-has-llm="{{ 'true' if has_openrouter else 'false' }}">
@@ -305,6 +306,7 @@ const ALL_ACHIEVEMENTS = [
   { id:'win_white',  title:'역전의 전설',     desc:'백돌 후수로 AI를 격파',   tier:'platinum' },
 ];
 </script>
+<script src="{{ url_for('static', filename='js/common_utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/gomoku.js') }}"></script>
 </body>
 </html>

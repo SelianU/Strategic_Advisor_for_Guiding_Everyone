@@ -1,15 +1,7 @@
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;}
-  ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(var(--theme-rgb),.15);}
-  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-    background-image:linear-gradient(rgba(var(--theme-rgb),.025) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--theme-rgb),.025) 1px,transparent 1px);
-    background-size:52px 52px;}
+/* atari_game.css — Atari 게임 페이지 전용 스타일.
+ * 공통 스타일(리셋·topbar·패널·LLM/세션 패널·인트로·도전과제 등)은 common.css 참조. */
 
-  .page-topbar{position:relative;z-index:10;height:48px;display:flex;align-items:center;background:rgba(4,5,10,.98);border-bottom:1px solid var(--border-c);padding:0 16px;}
-  .topbar-back{font-family:'Press Start 2P',monospace;font-size:.55rem;color:var(--theme);border:1px solid rgba(var(--theme-rgb),.28);background:transparent;padding:8px 14px;cursor:pointer;text-decoration:none;transition:background .2s;flex-shrink:0;}
-  .topbar-back:hover{background:rgba(var(--theme-rgb),.08);}
   .topbar-name{font-family:'Press Start 2P',monospace;font-size:.62rem;color:var(--text);letter-spacing:3px;padding:0 20px;}
-  .topbar-flex{flex:1;}
   .topbar-pill{display:flex;align-items:center;gap:8px;padding:0 18px;border-left:1px solid var(--border-c);font-size:.65rem;color:var(--sub);height:48px;}
   .tpill-dot{width:8px;height:8px;border-radius:50%;}
   .tpill-dot.on{background:var(--theme);box-shadow:0 0 7px var(--theme);}
@@ -18,37 +10,12 @@
   .layout{position:relative;z-index:1;display:flex;height:calc(100vh - 48px);overflow:hidden;}
   .left{width:200px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border-c);background:rgba(6,8,14,1);overflow-y:auto;}
   .left-inner{display:flex;flex-direction:column;gap:12px;padding:16px;}
-  .panel{background:var(--dim);border:1px solid rgba(var(--theme-rgb),.18);padding:14px;}
-  .panel-title{font-family:'Press Start 2P',monospace;font-size:.58rem;color:var(--theme);margin-bottom:10px;letter-spacing:1px;}
   .stat-row{display:flex;justify-content:space-between;font-size:.78rem;margin:5px 0;}
   .stat-val{color:var(--theme);}
   .controls-list{font-size:.78rem;line-height:2;color:var(--sub);}
   .key{background:#1a1a2e;padding:2px 6px;border:1px solid #344;}
-  .start-btn{width:100%;font-family:'Press Start 2P',monospace;font-size:.62rem;background:var(--theme);color:#000;border:none;padding:13px;cursor:pointer;transition:box-shadow .2s;}
-  .start-btn:hover{box-shadow:0 0 20px var(--theme);}
-  .start-btn:disabled{opacity:.35;cursor:not-allowed;}
   .no-model-warn{background:rgba(var(--theme-rgb),.06);border:1px solid rgba(var(--theme-rgb),.3);border-left:3px solid var(--theme);padding:12px;font-size:.72rem;line-height:1.8;}
   .no-model-warn strong{color:var(--theme);}
-  .llm-status{background:var(--dim);border:1px solid rgba(var(--theme-rgb),.18);padding:12px;}
-  .llm-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
-  .llm-dot.on{background:var(--theme);box-shadow:0 0 8px var(--theme);}
-  .llm-dot.off{background:var(--red);box-shadow:0 0 8px var(--red);}
-  .llm-sub{font-size:.66rem;color:var(--sub);margin-top:8px;line-height:1.5;word-break:break-all;}
-  .llm-rank-list{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
-  .llm-rank-row{display:flex;align-items:flex-start;gap:6px;}
-  .llm-rank-num{color:var(--theme);font-size:.6rem;min-width:14px;padding-top:2px;}
-  .llm-rank-content{flex:1;min-width:0;}
-  .llm-rank-label{font-size:.6rem;color:#667;margin-bottom:2px;display:flex;align-items:center;gap:4px;}
-  .llm-rank-model{font-size:.68rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
-  .llm-pool-toggle{background:none;border:none;color:var(--theme);font-size:.58rem;cursor:pointer;padding:0 2px;line-height:1;}
-  .llm-pool-list{display:none;margin-top:3px;padding-left:6px;border-left:1px solid rgba(var(--theme-rgb),.25);}
-  .llm-pool-list.open{display:block;}
-  .session-panel{background:var(--dim);border:1px solid rgba(255,230,0,.18);padding:12px;}
-  .session-input,.session-select{width:100%;background:#0b1118;border:1px solid #1f2b33;color:var(--text);padding:9px 10px;font-family:'Share Tech Mono',monospace;font-size:.72rem;margin-top:8px;}
-  .session-actions{display:flex;gap:6px;margin-top:10px;}
-  .session-btn{flex:1;background:transparent;border:1px solid rgba(255,230,0,.28);color:var(--yellow);padding:8px;font-size:.68rem;cursor:pointer;font-family:'Share Tech Mono',monospace;}
-  .session-btn:hover{background:rgba(255,230,0,.08);}
-  .session-status{margin-top:8px;font-size:.67rem;color:var(--sub);white-space:pre-wrap;}
 
   .main-shell{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
 	  .top-row{display:grid;grid-template-columns:minmax(0,1fr) 440px;flex:1;overflow:hidden;min-height:0;transition:grid-template-columns .2s ease;}
@@ -58,20 +25,12 @@
   .right-wrapper{display:flex;flex-direction:column;height:100%;overflow:hidden;border-left:1px solid var(--border-c);}
 	  .side-column{display:flex;flex-direction:column;gap:12px;overflow-y:auto;padding:16px;flex:1;min-height:0;}
 	  body.game-playing .side-column{display:none;}
-  .game-title{font-family:'Press Start 2P',monospace;font-size:.85rem;color:var(--theme);text-shadow:0 0 10px var(--theme);letter-spacing:3px;flex-shrink:0;}
   canvas{border:2px solid var(--theme);box-shadow:0 0 30px rgba(var(--theme-rgb),.25);max-width:100%;max-height:calc(100vh - 180px);}
   canvas.hidden{display:none;}
   .status-bar{font-size:.78rem;color:var(--sub);letter-spacing:2px;}
 
-  /* ── 게임 인트로 패널 ── */
-	  .game-intro-panel{display:flex;flex-direction:column;gap:10px;padding:14px;overflow-y:auto;}
-	  #gameIntroPanel.hidden,.game-intro-panel.hidden{display:none;}
-  .gi-summary{font-size:.78rem;color:var(--text);line-height:1.6;padding-bottom:8px;border-bottom:1px solid var(--border-c);}
-  .gi-section{display:flex;flex-direction:column;gap:4px;}
-  .gi-label{font-family:'Press Start 2P',monospace;font-size:.52rem;color:var(--amber);letter-spacing:1px;}
-  .gi-body{font-size:.76rem;color:var(--sub);line-height:1.6;}
-  .gi-list{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:3px;}
-  .gi-list li{font-size:.75rem;color:var(--sub);line-height:1.55;}
+  /* ── 게임 인트로 패널 (id 셀렉터 보강) ── */
+	  #gameIntroPanel.hidden{display:none;}
 
   /* ── 코치 패널 ── */
 	  .coach-header{display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,170,0,.05);border-bottom:1px solid rgba(255,170,0,.15);}
@@ -116,8 +75,6 @@
   .vkey.pressed{background:rgba(var(--theme-rgb),.18);border-color:var(--theme);color:var(--theme);box-shadow:0 0 6px rgba(var(--theme-rgb),.4);}
 
   /* 피드백 패널 */
-  .center-feedback{display:none;width:100%;background:rgba(255,170,0,.03);border:1px solid rgba(255,170,0,.18);border-left:3px solid var(--amber);}
-  .center-feedback.visible{display:block;}
   .cf-source{font-size:.70rem;color:var(--amber);padding:12px 14px 0;}
 	  .feedback-tabs{display:none;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,170,0,.12);}
 	  .feedback-tabs:has([data-fb-tab="summary"]){grid-template-columns:1fr;}
@@ -215,10 +172,7 @@
   .worst-table th{color:var(--sub);font-weight:normal;text-align:left;padding:5px 4px;border-bottom:1px solid #1a1a2e;}
   .worst-table td{padding:5px 4px;border-bottom:1px solid #0d1117;}
   .loss-high{color:var(--red);} .loss-mid{color:var(--yellow);} .loss-low{color:var(--theme);}
-  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .summary-item{background:#0b1118;border:1px solid rgba(var(--theme-rgb),.18);padding:10px 12px;}
-  .summary-k{font-size:.70rem;color:var(--sub);margin-bottom:4px;}
-  .summary-v{font-size:.96rem;color:#fff;}
 
   @media(max-width:1380px){.top-row{grid-template-columns:minmax(0,1fr) 400px;}}
   @media(max-width:1100px){.top-row{grid-template-columns:minmax(0,1fr) 320px;}}
@@ -316,102 +270,8 @@
   .swatch-cold{background:linear-gradient(90deg,#00f,#0ff);}
   .swatch-warm{background:linear-gradient(90deg,#0f0,#ff0);}
   .swatch-hot{background:linear-gradient(90deg,#ff0,#f00);}
-/* ── 도전과제 ──────────────────────────────────────────────────────────────── */
-/* ── 도전과제 확인 버튼 ──────────────────────────────────────────────────────── */
-.ach-summary-btn{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:6px 14px;margin:0;flex-shrink:0;
-  background:rgba(255,215,0,.1);
-  border:1px solid rgba(255,215,0,.35);
-  border-radius:4px;
-  color:#ffd700;font-family:'Share Tech Mono',monospace;font-size:.72rem;
-  cursor:pointer;letter-spacing:1px;
-  transition:background .15s, border-color .15s;
-}
-.ach-summary-btn:hover{
-  background:rgba(255,215,0,.18);border-color:rgba(255,215,0,.6);
-}
 
-/* ── 도전과제 모달 ───────────────────────────────────────────────────────────── */
-.ach-modal-overlay{
-  position:fixed;inset:0;z-index:10000;
-  background:rgba(0,0,0,.72);
-  display:flex;align-items:center;justify-content:center;
-}
-.ach-modal-box{
-  width:min(680px,92vw);max-height:80vh;
-  background:#0d1018;
-  border:1px solid rgba(255,215,0,.25);
-  border-radius:8px;
-  display:flex;flex-direction:column;
-  overflow:hidden;
-  box-shadow:0 8px 48px rgba(0,0,0,.8);
-}
-.ach-modal-header{
-  display:flex;align-items:center;gap:10px;
-  padding:14px 18px;
-  border-bottom:1px solid rgba(255,255,255,.08);
-  font-family:'Press Start 2P',monospace;font-size:.65rem;
-  color:#ffd700;flex-shrink:0;
-}
-.ach-modal-count{
-  font-family:'Share Tech Mono',monospace;font-size:.72rem;
-  color:rgba(255,255,255,.4);margin-left:auto;
-}
-.ach-modal-close{
-  background:none;border:none;color:rgba(255,255,255,.4);
-  font-size:1rem;cursor:pointer;padding:2px 6px;
-  transition:color .15s;
-}
-.ach-modal-close:hover{color:#fff;}
-.ach-modal-body{
-  overflow-y:auto;padding:10px 14px 16px;
-  display:flex;flex-direction:column;gap:14px;
-}
-/* 티어 섹션 */
-.ach-modal-section-label{
-  font-family:'Share Tech Mono',monospace;font-size:.65rem;
-  letter-spacing:2px;color:rgba(255,255,255,.3);
-  padding:4px 0 6px;border-bottom:1px solid rgba(255,255,255,.06);
-  margin-bottom:4px;
-}
-/* 아이템 그리드 */
-.ach-modal-grid{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
-  gap:6px;
-}
-.ach-modal-item{
-  display:flex;align-items:flex-start;gap:10px;
-  padding:8px 10px;border-radius:5px;
-  border:1px solid transparent;
-  cursor:default;
-  transition:border-color .15s, background .15s;
-}
-/* 미달성 */
-.ach-modal-item.locked{
-  background:rgba(255,255,255,.03);
-  border-color:rgba(255,255,255,.06);
-}
-.ach-modal-item.locked .ach-mi-title{ color:rgba(255,255,255,.3); }
-.ach-modal-item.locked .ach-mi-desc { color:rgba(255,255,255,.18); }
-/* 달성 — 티어별 */
-.ach-modal-item.unlocked-bronze{background:rgba(180,100,30,.15);border-color:rgba(205,127,50,.3);}
-.ach-modal-item.unlocked-silver{background:rgba(160,160,180,.1); border-color:rgba(192,192,192,.25);}
-.ach-modal-item.unlocked-gold  {background:rgba(200,160,0,.13);  border-color:rgba(255,215,0,.3);}
-.ach-modal-item.unlocked-platinum{background:rgba(100,200,220,.1);border-color:rgba(150,230,255,.35);}
-.ach-modal-item.unlocked-bronze .ach-mi-title{color:#e8a96a;}
-.ach-modal-item.unlocked-silver .ach-mi-title{color:#ddd;}
-.ach-modal-item.unlocked-gold   .ach-mi-title{color:#ffe566;}
-.ach-modal-item.unlocked-platinum .ach-mi-title{color:#c0f0ff;}
-/* 호버 시 desc 강조 */
-.ach-modal-item:hover .ach-mi-desc{ color:rgba(255,255,255,.55); }
-
-.ach-mi-icon{ font-size:1.1rem;flex-shrink:0;margin-top:1px; }
-.ach-mi-body{ display:flex;flex-direction:column;gap:2px;min-width:0; }
-.ach-mi-title{ font-size:.78rem;font-weight:600;line-height:1.3; }
-.ach-mi-desc { font-size:.66rem;color:rgba(255,255,255,.28);line-height:1.4;transition:color .15s; }
-
-/* ── 실시간 도전과제 토스트 (스택) ──────────────────────────────────────────── */
+/* ── 실시간 도전과제 토스트 — 컨테이너 스택 배치 (비주얼은 common.css) ── */
 #achToastContainer{
   position:fixed;
   top:58px;
@@ -443,49 +303,6 @@
 .ach-toast.show{ transform:translateX(0); opacity:1; }
 .ach-toast.hide{ transform:translateX(calc(100% + 24px)); opacity:0;
   transition:transform .35s ease, opacity .3s ease; }
-
-/* 티어별 왼쪽 테두리 + glow */
-.ach-toast-bronze{ border-left:4px solid #cd7f32;
-  box-shadow:-2px 0 20px rgba(205,127,50,.4), 0 4px 28px rgba(0,0,0,.7); }
-.ach-toast-silver{ border-left:4px solid #c0c0c0;
-  box-shadow:-2px 0 18px rgba(192,192,192,.35), 0 4px 28px rgba(0,0,0,.7); }
-.ach-toast-gold  { border-left:4px solid #ffd700;
-  box-shadow:-2px 0 22px rgba(255,215,0,.5), 0 4px 28px rgba(0,0,0,.7); }
-.ach-toast-platinum{ border-left:4px solid #96e6ff;
-  box-shadow:-2px 0 26px rgba(100,220,255,.6), 0 4px 32px rgba(0,0,0,.8),
-             0 0 50px rgba(100,200,255,.18); }
-
-.ach-toast-icon{ font-size:2.2rem; line-height:1; flex-shrink:0; }
-
-.ach-toast-body{ flex:1; min-width:0; }
-.ach-toast-label{
-  font-size:.6rem; letter-spacing:2px; text-transform:uppercase;
-  color:rgba(255,255,255,.4); margin-bottom:4px;
-}
-.ach-toast-title{
-  font-size:1.05rem; font-weight:700; color:#fff;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.ach-toast-desc{
-  font-size:.72rem; color:rgba(255,255,255,.55); margin-top:3px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-
-/* 하단 진행 바 (자동 소멸 타이머) */
-.ach-toast-bar{
-  position:absolute; bottom:0; left:0; height:3px; width:100%;
-  transform-origin:left;
-  animation:ach-bar-shrink 5s linear forwards;
-}
-.ach-toast-bronze .ach-toast-bar{ background:#cd7f32; }
-.ach-toast-silver .ach-toast-bar{ background:#c0c0c0; }
-.ach-toast-gold   .ach-toast-bar{ background:#ffd700; }
-.ach-toast-platinum .ach-toast-bar{ background:#96e6ff; }
-
-@keyframes ach-bar-shrink{
-  from{ transform:scaleX(1); }
-  to  { transform:scaleX(0); }
-}
 
 /* ── 연습 모드 ── */
 .practice-btn{margin-left:auto;}

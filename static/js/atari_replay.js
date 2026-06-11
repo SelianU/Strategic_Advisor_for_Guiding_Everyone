@@ -2,10 +2,10 @@
 
 const REPLAY_FPS    = 60;
 const REPLAY_HORIZON = REPLAY_FPS * 30;
-const STATUS_LABELS = { waiting:'대기 중', generating:'생성 중', ready:'준비됨', error:'실패' };
+// STATUS_LABELS 는 common_utils.js 에서 공유
 
 // ── 소켓 / 캔버스 ────────────────────────────────────────────────────────────
-const socket  = io({ transports: ['websocket'] });
+const socket  = createGameSocket();
 
 // ── 카운터팩추얼 리플레이 ─────────────────────────────────────────────────────
 let cfFrames = [], cfHActs = [], cfAActs = [];
@@ -52,8 +52,6 @@ document.getElementById('gcamAgentBtn').addEventListener('click', () => setGcamM
 document.getElementById('gcamSplitBtn').addEventListener('click', () => setGcamMode('split'));
 
 // ── 프레임 렌더 ───────────────────────────────────────────────────────────────
-function b64src(b64) { return b64 ? 'data:image/jpeg;base64,' + b64 : ''; }
-
 function renderCfFrame(idx) {
   if (!cfFrames.length) return;
   cfIdx = Math.max(0, Math.min(idx, cfFrames.length - 1));
@@ -286,9 +284,7 @@ function showFeedback(data) {
   document.getElementById('fbSource').textContent =
     data.feedback_source === 'llm' ? '외부 LLM 코칭 피드백'
     : (HAS_LLM ? '외부 LLM 지연으로 로컬 피드백 표시' : '로컬 데이터 기반 코칭 피드백');
-  document.getElementById('llmStatus').textContent =
-    `현재: ${data.feedback_route || (data.feedback_source === 'llm' ? '외부 LLM' : '로컬')}` +
-    (data.feedback_model ? ` (${data.feedback_model})` : '');
+  document.getElementById('llmStatus').textContent = `현재: ${feedbackRouteText(data)}`;
 
   // 구조화 피드백 렌더링
   const fb = data.feedback_structured || {};

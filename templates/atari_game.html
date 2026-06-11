@@ -14,6 +14,7 @@
     --border-c:rgba({{ theme_rgb }},.12); --border-a:rgba(255,170,0,.15);
   }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/atari_game.css') }}">
 </head>
 <body data-has-llm="{{ 'true' if has_openrouter else 'false' }}">
@@ -45,7 +46,7 @@
       {% if not has_model %}
       <div class="no-model-warn">
         <strong>⚠ 모델 없음</strong><br>
-        checkpoints/best_model.pth를 배치하면 Q-value 분석이 활성화됩니다.
+        data/checkpoints/{{ game_id }}/에 모델을 배치하면 Q-value 분석이 활성화됩니다.
       </div>
       {% endif %}
       <div class="llm-status">
@@ -456,6 +457,7 @@ const KEY_COMBOS    = {{ key_combos | tojson }};
 const CONTROL_DESCRIPTIONS = {{ (game_info.get('controls', {}) if game_info else {}) | tojson }};
 const ALL_ACHIEVEMENTS = {{ achievements | tojson }};
 </script>
+<script src="{{ url_for('static', filename='js/common_utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/atari_replay.js') }}"></script>
 <script src="{{ url_for('static', filename='js/atari_practice.js') }}"></script>
 <script src="{{ url_for('static', filename='js/atari_achievements.js') }}"></script>

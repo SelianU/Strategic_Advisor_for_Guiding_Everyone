@@ -1,5 +1,4 @@
 """games/space_invaders.py — Space Invaders 게임 설정"""
-import os
 import numpy as np
 from games.atari import AtariGame
 
@@ -121,7 +120,7 @@ class SpaceInvadersGame(AtariGame):
     frame_skip  = 15   # 에이전트 학습/분석 기준
     prefix     = 'si_'
     theme_color = '#39ff14'
-    model_path_parts = ('ai_agents', 'space_invaders', 'checkpoints', 'best_model_spaceinvaders.pth')
+    model_path_parts = ('data', 'checkpoints', 'space_invaders', 'best_model_spaceinvaders.pth')
 
     action_names = {
         0: 'NOOP', 1: 'FIRE', 2: 'RIGHT', 3: 'LEFT', 4: 'RIGHTFIRE', 5: 'LEFTFIRE',
@@ -206,16 +205,7 @@ class SpaceInvadersGame(AtariGame):
         },
     }
 
-    def _load_model(self, path: str):
-        if not os.path.exists(path):
-            return None
-        from ai_agents.space_invaders import load_d3qn
-        net, _ = load_d3qn(path, self.device)
-        return net
-
-    def _get_q_values(self, stacked_state):
-        from ai_agents.space_invaders import get_q_values
-        return get_q_values(self.net, stacked_state, self.device)
+    # _load_model / _get_q_values 는 베이스 기본 구현(d3qn_helper) 사용
 
     # 6×6 적 배치 (줄당 6마리)
     # 연사 콤보 간격 허용치 (스텝): 총알 비행+재장전 고려

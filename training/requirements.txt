@@ -1,0 +1,16 @@
+# training/requirements.txt — 학습·로그 분석 도구 전용 의존성
+#
+# 서버 공통 의존성(torch, gymnasium, ale-py, numpy, opencv-python, pillow 등)을
+# 먼저 설치한 뒤 이 파일을 추가로 설치하세요:
+#   pip install -r requirements.txt -r training/requirements.txt
+#
+# 적용 범위: training/, experiments/, teacher_agent/
+
+# 학습 곡선·Grad-CAM 시각화
+matplotlib
+
+# 사람 플레이 기록 (키 입력 캡처)
+pygame
+
+# SAC 학습 로그 (training/space_invaders/sac_atari_v2.py)
+tensorboard

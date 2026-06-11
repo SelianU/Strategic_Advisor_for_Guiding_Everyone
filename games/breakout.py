@@ -1,5 +1,4 @@
 """games/breakout.py — Breakout 게임 설정"""
-import os
 import numpy as np
 from games.atari import AtariGame
 from games.atari.ach_helper import episode_score, streak_max, life_losses
@@ -139,7 +138,7 @@ class BreakoutGame(AtariGame):
     frame_skip  = 3
     prefix     = 'bo_'
     theme_color = '#ff8a1c'
-    model_path_parts = ('ai_agents', 'breakout', 'checkpoints', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'breakout', 'best_model.pth')
 
     action_names = {
         0: 'NOOP', 1: 'FIRE', 2: 'RIGHT', 3: 'LEFT',
@@ -316,12 +315,7 @@ class BreakoutGame(AtariGame):
         gs = extract_breakout_game_state(pre_ram, prev_ball_y)
         return {'game_state': gs} if gs else {}
 
-    def _load_model(self, path: str):
-        if not os.path.exists(path):
-            return None
-        from ai_agents.breakout import load_breakout_d3qn
-        net, _ = load_breakout_d3qn(path, self.device)
-        return net
+    # _load_model / _get_q_values 는 베이스 기본 구현(d3qn_helper) 사용
 
     game_info = {
         'summary': '화면 아래 패들을 좌우로 움직여 공을 튕기고, 위쪽에 배열된 벽돌을 모두 부수는 벽돌깨기 게임입니다.',
@@ -358,6 +352,3 @@ class BreakoutGame(AtariGame):
         },
     }
 
-    def _get_q_values(self, stacked_state):
-        from ai_agents.breakout import get_q_values as bo_get_q_values
-        return bo_get_q_values(self.net, stacked_state, self.device)

@@ -1,8 +1,6 @@
-"""games/atlantis.py — Atlantis 게임 설정"""
-import os
+"""games/atlantis.py — Atlantis 게임 설정 (선언적 스펙 기반)"""
 import numpy as np
 from games.atari import AtariGame
-from games.atari.ach_helper import episode_score, combo_max, life_losses
 
 
 def extract_atlantis_game_state(ram: np.ndarray | None, rgb_frame: np.ndarray | None) -> dict:
@@ -87,7 +85,7 @@ class AtlantisGame(AtariGame):
     frame_skip  = 4
     prefix     = 'at_'
     theme_color = '#4488ff'
-    model_path_parts = ('ai_agents', 'atlantis', 'checkpoints', 'best_model_atlantis.pth')
+    model_path_parts = ('data', 'checkpoints', 'atlantis', 'best_model_atlantis.pth')
 
     action_names = {
         0: 'NOOP',  1: 'FIRE',  2: 'RIGHTFIRE',  3: 'LEFTFIRE',
@@ -106,22 +104,33 @@ class AtlantisGame(AtariGame):
         '':           0,
     }
 
-    achievements = [
+    achievement_specs = [
         # bronze
-        {'id': 'score_3000',  'title': '첫 방어',        'tier': 'bronze',   'desc': '3000점 달성'},
-        {'id': 'score_10000', 'title': '도시 수호자',    'tier': 'bronze',   'desc': '10000점 달성'},
-        {'id': 'combo_3',     'title': '연속 격파 I',    'tier': 'bronze',   'desc': '200스텝 내 적 3회 격파'},
+        {'id': 'score_3000',  'title': '첫 방어',        'tier': 'bronze',   'desc': '3000점 달성',
+         'metric': 'score', 'value': 3000},
+        {'id': 'score_10000', 'title': '도시 수호자',    'tier': 'bronze',   'desc': '10000점 달성',
+         'metric': 'score', 'value': 10000},
+        {'id': 'combo_3',     'title': '연속 격파 I',    'tier': 'bronze',   'desc': '200스텝 내 적 3회 격파',
+         'metric': 'combo', 'value': 3, 'window': 200},
         # silver
-        {'id': 'score_20000', 'title': '방위군',          'tier': 'silver',   'desc': '20000점 달성'},
-        {'id': 'bench_human', 'title': '인간 평균 돌파',  'tier': 'silver',   'desc': '인간 평균(29,028점) 초과'},
-        {'id': 'combo_8',     'title': '연속 격파 II',   'tier': 'silver',   'desc': '200스텝 내 적 8회 격파'},
-        {'id': 'survive_wave','title': '웨이브 생존',     'tier': 'silver',   'desc': '목숨 잃지 않고 300스텝 생존'},
+        {'id': 'score_20000', 'title': '방위군',          'tier': 'silver',   'desc': '20000점 달성',
+         'metric': 'score', 'value': 20000},
+        {'id': 'bench_human', 'title': '인간 평균 돌파',  'tier': 'silver',   'desc': '인간 평균(29,028점) 초과',
+         'metric': 'score', 'value': 29028, 'cmp': '>'},
+        {'id': 'combo_8',     'title': '연속 격파 II',   'tier': 'silver',   'desc': '200스텝 내 적 8회 격파',
+         'metric': 'combo', 'value': 8, 'window': 200},
+        {'id': 'survive_wave','title': '웨이브 생존',     'tier': 'silver',   'desc': '목숨 잃지 않고 300스텝 생존',
+         'metric': 'no_death', 'value': 300},
         # gold
-        {'id': 'score_50000', 'title': '아틀란티스 영웅', 'tier': 'gold',     'desc': '50000점 달성'},
-        {'id': 'combo_15',    'title': '연속 격파 III',  'tier': 'gold',     'desc': '200스텝 내 적 15회 격파'},
-        {'id': 'bench_dqn',   'title': 'DQN 돌파',       'tier': 'gold',     'desc': 'DQN 기준(85,950점) 초과'},
+        {'id': 'score_50000', 'title': '아틀란티스 영웅', 'tier': 'gold',     'desc': '50000점 달성',
+         'metric': 'score', 'value': 50000},
+        {'id': 'combo_15',    'title': '연속 격파 III',  'tier': 'gold',     'desc': '200스텝 내 적 15회 격파',
+         'metric': 'combo', 'value': 15, 'window': 200},
+        {'id': 'bench_dqn',   'title': 'DQN 돌파',       'tier': 'gold',     'desc': 'DQN 기준(85,950점) 초과',
+         'metric': 'score', 'value': 85950, 'cmp': '>'},
         # platinum
-        {'id': 'bench_ddqn',  'title': 'DDQN 돌파',      'tier': 'platinum', 'desc': 'DDQN 기준(64,758점) 초과'},
+        {'id': 'bench_ddqn',  'title': 'DDQN 돌파',      'tier': 'platinum', 'desc': 'DDQN 기준(64,758점) 초과',
+         'metric': 'score', 'value': 64758, 'cmp': '>'},
     ]
 
     def _extra_summary(self, entry: dict) -> dict:
@@ -131,85 +140,6 @@ class AtlantisGame(AtariGame):
             return {}
         gs = extract_atlantis_game_state(pre_ram, pre_rgb)
         return {'game_state': gs} if gs else {}
-
-    def _on_episode_reset(self):
-        self._rt = {
-            'score': 0.0, 'kill_window': [], 'streak': 0,
-            'max_streak': 0, 'last_kill_step': -1,
-        }
-
-    def _check_realtime_achievements(self, entry: dict) -> list:
-        if not hasattr(self, '_rt'):
-            return []
-        rt = self._rt
-        new = []
-
-        def unlock(id_, title, desc, tier, condition):
-            if condition and id_ not in self._ach_unlocked:
-                self._ach_unlocked.add(id_)
-                new.append({'id': id_, 'title': title, 'desc': desc, 'tier': tier})
-
-        reward = entry.get('reward', 0)
-        step   = entry.get('step', 0)
-        rt['score'] += reward
-        if reward > 0:
-            rt['kill_window'].append(step)
-        rt['kill_window'] = [s for s in rt['kill_window'] if step - s <= 200]
-        s  = rt['score']
-        kw = rt['kill_window']
-        steps_total = len(self.episode_data)
-
-        unlock('score_3000',  '첫 방어',        '3000점 달성',                  'bronze', s >= 3000)
-        unlock('score_10000', '도시 수호자',    '10000점 달성',                 'bronze', s >= 10000)
-        unlock('combo_3',     '연속 격파 I',    '200스텝 내 적 3회 격파',      'bronze', len(kw) >= 3)
-        unlock('score_20000', '방위군',          '20000점 달성',                 'silver', s >= 20000)
-        unlock('bench_human', '인간 평균 돌파',  '인간 평균(29,028점) 초과',    'silver', s > 29028)
-        unlock('combo_8',     '연속 격파 II',   '200스텝 내 적 8회 격파',      'silver', len(kw) >= 8)
-        unlock('survive_wave','웨이브 생존',     '목숨 잃지 않고 300스텝 생존', 'silver',
-               steps_total >= 300 and life_losses(self.episode_data) == 0)
-        unlock('score_50000', '아틀란티스 영웅', '50000점 달성',                 'gold', s >= 50000)
-        unlock('combo_15',    '연속 격파 III',  '200스텝 내 적 15회 격파',     'gold', len(kw) >= 15)
-        unlock('bench_dqn',   'DQN 돌파',       'DQN 기준(85,950점) 초과',      'gold', s > 85950)
-        unlock('bench_ddqn',  'DDQN 돌파',      'DDQN 기준(64,758점) 초과',    'platinum', s > 64758)
-        return new
-
-    def _compute_achievements(self) -> list:
-        data = [d for d in self.episode_data if d.get('action') is not None]
-        if not data:
-            return []
-        s   = episode_score(data)
-        cm  = combo_max(data, window=200, min_r=0, max_r=1e9)
-        ll  = life_losses(data)
-        steps = len(data)
-        achieved = []
-
-        def add(id_, title, desc, tier, cond):
-            if cond:
-                achieved.append({'id': id_, 'title': title, 'desc': desc, 'tier': tier})
-
-        add('score_3000',  '첫 방어',        '3000점 달성',                  'bronze', s >= 3000)
-        add('score_10000', '도시 수호자',    '10000점 달성',                 'bronze', s >= 10000)
-        add('combo_3',     '연속 격파 I',    '200스텝 내 적 3회 격파',      'bronze', cm >= 3)
-        add('score_20000', '방위군',          '20000점 달성',                 'silver', s >= 20000)
-        add('bench_human', '인간 평균 돌파',  '인간 평균(29,028점) 초과',    'silver', s > 29028)
-        add('combo_8',     '연속 격파 II',   '200스텝 내 적 8회 격파',      'silver', cm >= 8)
-        add('survive_wave','웨이브 생존',     '목숨 잃지 않고 300스텝 생존', 'silver', ll == 0 and steps >= 300)
-        add('score_50000', '아틀란티스 영웅', '50000점 달성',                 'gold', s >= 50000)
-        add('combo_15',    '연속 격파 III',  '200스텝 내 적 15회 격파',     'gold', cm >= 15)
-        add('bench_dqn',   'DQN 돌파',       'DQN 기준(85,950점) 초과',      'gold', s > 85950)
-        add('bench_ddqn',  'DDQN 돌파',      'DDQN 기준(64,758점) 초과',    'platinum', s > 64758)
-        return achieved
-
-    def _load_model(self, path: str):
-        if not os.path.exists(path):
-            return None
-        from ai_agents.d3qn_helper import load_d3qn
-        net, _ = load_d3qn('atlantis', path, self.device)
-        return net
-
-    def _get_q_values(self, stacked_state):
-        from ai_agents.d3qn_helper import get_q_values
-        return get_q_values(self.net, stacked_state, self.device)
 
     game_info = {
         'summary': '해저 도시 아틀란티스를 공습하는 외계 함대로부터 도시를 방어하는 게임입니다.',

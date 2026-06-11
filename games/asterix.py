@@ -1,7 +1,5 @@
-"""games/asterix.py — Asterix 게임 설정"""
-import os
+"""games/asterix.py — Asterix 게임 설정 (선언적 스펙 기반)"""
 from games.atari import AtariGame
-from games.atari.ach_helper import episode_score, streak_max, life_losses
 
 class AsterixGame(AtariGame):
     game_id    = 'asterix'
@@ -11,7 +9,7 @@ class AsterixGame(AtariGame):
     frame_skip  = 4
     prefix     = 'ax_'
     theme_color = '#ffd700'
-    model_path_parts = ('ai_agents', 'asterix', 'checkpoints', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'asterix', 'best_model.pth')
 
     action_names = {
         0: 'NOOP',  1: 'UP',    2: 'RIGHT',     3: 'LEFT',
@@ -38,110 +36,34 @@ class AsterixGame(AtariGame):
         '':           0,
     }
 
-    achievements = [
+    achievement_specs = [
         # bronze
-        {'id': 'score_500',    'title': '첫 별 수집',      'tier': 'bronze',   'desc': '500점 달성'},
-        {'id': 'score_1500',   'title': '별 사냥꾼',        'tier': 'bronze',   'desc': '1500점 달성'},
-        {'id': 'streak_5',     'title': '연속 획득 I',      'tier': 'bronze',   'desc': '빠르게 5연속 아이템 획득'},
+        {'id': 'score_500',    'title': '첫 별 수집',      'tier': 'bronze',   'desc': '500점 달성',
+         'metric': 'score', 'value': 500},
+        {'id': 'score_1500',   'title': '별 사냥꾼',        'tier': 'bronze',   'desc': '1500점 달성',
+         'metric': 'score', 'value': 1500},
+        {'id': 'streak_5',     'title': '연속 획득 I',      'tier': 'bronze',   'desc': '빠르게 5연속 아이템 획득',
+         'metric': 'streak', 'value': 5, 'gap': 60},
         # silver
-        {'id': 'score_4000',   'title': '아스테릭스',       'tier': 'silver',   'desc': '4000점 달성'},
-        {'id': 'score_6000',   'title': '용감한 전사',      'tier': 'silver',   'desc': '6000점 달성'},
-        {'id': 'streak_10',    'title': '연속 획득 II',     'tier': 'silver',   'desc': '빠르게 10연속 아이템 획득'},
-        {'id': 'no_death_1000','title': '귀신 같은 회피',   'tier': 'silver',   'desc': '목숨 잃지 않고 1000스텝 생존'},
+        {'id': 'score_4000',   'title': '아스테릭스',       'tier': 'silver',   'desc': '4000점 달성',
+         'metric': 'score', 'value': 4000},
+        {'id': 'score_6000',   'title': '용감한 전사',      'tier': 'silver',   'desc': '6000점 달성',
+         'metric': 'score', 'value': 6000},
+        {'id': 'streak_10',    'title': '연속 획득 II',     'tier': 'silver',   'desc': '빠르게 10연속 아이템 획득',
+         'metric': 'streak', 'value': 10, 'gap': 60},
+        {'id': 'no_death_1000','title': '귀신 같은 회피',   'tier': 'silver',   'desc': '목숨 잃지 않고 1000스텝 생존',
+         'metric': 'no_death', 'value': 1000},
         # gold
-        {'id': 'bench_dqn',    'title': 'DQN 돌파',         'tier': 'gold',     'desc': 'DQN 기준(6,012점) 초과'},
-        {'id': 'bench_human',  'title': '인간 평균 돌파',   'tier': 'gold',     'desc': '인간 평균(8,503점) 초과'},
-        {'id': 'score_12000',  'title': '전설의 전사',      'tier': 'gold',     'desc': '12000점 달성'},
+        {'id': 'bench_dqn',    'title': 'DQN 돌파',         'tier': 'gold',     'desc': 'DQN 기준(6,012점) 초과',
+         'metric': 'score', 'value': 6012, 'cmp': '>'},
+        {'id': 'bench_human',  'title': '인간 평균 돌파',   'tier': 'gold',     'desc': '인간 평균(8,503점) 초과',
+         'metric': 'score', 'value': 8503, 'cmp': '>'},
+        {'id': 'score_12000',  'title': '전설의 전사',      'tier': 'gold',     'desc': '12000점 달성',
+         'metric': 'score', 'value': 12000},
         # platinum
-        {'id': 'bench_ddqn',   'title': 'DDQN 돌파',        'tier': 'platinum', 'desc': 'DDQN 기준(15,150점) 초과'},
+        {'id': 'bench_ddqn',   'title': 'DDQN 돌파',        'tier': 'platinum', 'desc': 'DDQN 기준(15,150점) 초과',
+         'metric': 'score', 'value': 15150, 'cmp': '>'},
     ]
-
-    def _on_episode_reset(self):
-        self._rt = {
-            'score': 0.0, 'kill_window': [], 'streak': 0,
-            'max_streak': 0, 'last_kill_step': -1,
-        }
-
-    def _check_realtime_achievements(self, entry: dict) -> list:
-        if not hasattr(self, '_rt'):
-            return []
-        rt = self._rt
-        new = []
-
-        def unlock(id_, title, desc, tier, condition):
-            if condition and id_ not in self._ach_unlocked:
-                self._ach_unlocked.add(id_)
-                new.append({'id': id_, 'title': title, 'desc': desc, 'tier': tier})
-
-        reward = entry.get('reward', 0)
-        step   = entry.get('step', 0)
-        lives  = entry.get('lives')
-        rt['score'] += reward
-        if lives is not None and hasattr(self, '_rt_prev_lives') and self._rt_prev_lives is not None and lives < self._rt_prev_lives:
-            rt['streak'] = 0
-            rt['last_kill_step'] = -1
-        if lives is not None:
-            self._rt_prev_lives = lives
-        if reward > 0:
-            gap = step - rt['last_kill_step'] if rt['last_kill_step'] >= 0 else 999
-            rt['streak'] = rt['streak'] + 1 if gap <= 60 else 1
-            rt['max_streak'] = max(rt['max_streak'], rt['streak'])
-            rt['last_kill_step'] = step
-        s   = rt['score']
-        sk  = rt['max_streak']
-        steps_total = len(self.episode_data)
-
-        unlock('score_500',    '첫 별 수집',      '500점 달성',                   'bronze', s >= 500)
-        unlock('score_1500',   '별 사냥꾼',        '1500점 달성',                  'bronze', s >= 1500)
-        unlock('streak_5',     '연속 획득 I',      '빠르게 5연속 아이템 획득',     'bronze', sk >= 5)
-        unlock('score_4000',   '아스테릭스',       '4000점 달성',                  'silver', s >= 4000)
-        unlock('score_6000',   '용감한 전사',      '6000점 달성',                  'silver', s >= 6000)
-        unlock('streak_10',    '연속 획득 II',     '빠르게 10연속 아이템 획득',    'silver', sk >= 10)
-        unlock('no_death_1000','귀신 같은 회피',   '목숨 잃지 않고 1000스텝 생존', 'silver',
-               steps_total >= 1000 and life_losses(self.episode_data) == 0)
-        unlock('bench_dqn',    'DQN 돌파',         'DQN 기준(6,012점) 초과',       'gold', s > 6012)
-        unlock('bench_human',  '인간 평균 돌파',   '인간 평균(8,503점) 초과',      'gold', s > 8503)
-        unlock('score_12000',  '전설의 전사',      '12000점 달성',                 'gold', s >= 12000)
-        unlock('bench_ddqn',   'DDQN 돌파',        'DDQN 기준(15,150점) 초과',     'platinum', s > 15150)
-        return new
-
-    def _compute_achievements(self) -> list:
-        data = [d for d in self.episode_data if d.get('action') is not None]
-        if not data:
-            return []
-        s   = episode_score(data)
-        sk  = streak_max(data, gap=60, min_r=0, max_r=1e9)
-        ll  = life_losses(data)
-        steps = len(data)
-        achieved = []
-
-        def add(id_, title, desc, tier, cond):
-            if cond:
-                achieved.append({'id': id_, 'title': title, 'desc': desc, 'tier': tier})
-
-        add('score_500',    '첫 별 수집',      '500점 달성',                   'bronze', s >= 500)
-        add('score_1500',   '별 사냥꾼',        '1500점 달성',                  'bronze', s >= 1500)
-        add('streak_5',     '연속 획득 I',      '빠르게 5연속 아이템 획득',     'bronze', sk >= 5)
-        add('score_4000',   '아스테릭스',       '4000점 달성',                  'silver', s >= 4000)
-        add('score_6000',   '용감한 전사',      '6000점 달성',                  'silver', s >= 6000)
-        add('streak_10',    '연속 획득 II',     '빠르게 10연속 아이템 획득',    'silver', sk >= 10)
-        add('no_death_1000','귀신 같은 회피',   '목숨 잃지 않고 1000스텝 생존', 'silver', ll == 0 and steps >= 1000)
-        add('bench_dqn',    'DQN 돌파',         'DQN 기준(6,012점) 초과',       'gold', s > 6012)
-        add('bench_human',  '인간 평균 돌파',   '인간 평균(8,503점) 초과',      'gold', s > 8503)
-        add('score_12000',  '전설의 전사',      '12000점 달성',                 'gold', s >= 12000)
-        add('bench_ddqn',   'DDQN 돌파',        'DDQN 기준(15,150점) 초과',     'platinum', s > 15150)
-        return achieved
-
-    def _load_model(self, path: str):
-        if not os.path.exists(path):
-            return None
-        from ai_agents.d3qn_helper import load_d3qn
-        net, _ = load_d3qn('asterix', path, self.device)
-        return net
-
-    def _get_q_values(self, stacked_state):
-        from ai_agents.d3qn_helper import get_q_values
-        return get_q_values(self.net, stacked_state, self.device)
 
     game_info = {
         'summary': '마법 물약을 수집하며 끝없이 이동하는 적을 피하는 아케이드 게임입니다.',

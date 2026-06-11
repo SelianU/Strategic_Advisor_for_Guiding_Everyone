@@ -299,16 +299,7 @@ function applyAnalysis(data) {
 
 // ── 세션 목록 렌더 ────────────────────────────────────────────────────────────
 function renderSessions(sessions) {
-  const sel  = document.getElementById('sessionSelect');
-  const prev = sel.value;
-  sel.innerHTML = '<option value="">저장된 기록 선택</option>';
-  (sessions || []).forEach(item => {
-    const o = document.createElement('option');
-    o.value = item.id;
-    o.textContent = `${item.title} · ${item.saved_at || ''}`;
-    sel.appendChild(o);
-  });
-  if (prev && (sessions || []).some(s => s.id === prev)) sel.value = prev;
+  populateSessionSelect(document.getElementById('sessionSelect'), sessions);
 }
 
 // ── UI 초기화 ────────────────────────────────────────────────────────────────
@@ -367,9 +358,10 @@ document.getElementById('startBtn').addEventListener('click', () => {
   if (introPanel) introPanel.classList.add('hidden');
   document.getElementById('status').textContent = 'PLAYING...';
   document.getElementById('startBtn').disabled  = true;
-  // 시작 시 FIRE/ACCEL 키가 있으면 눌린 상태로 시작
-  const hasFireKey = KEYBOARD_KEYS.some(k => k.id === 'fire' || k.id === 'accel');
-  currentAction = hasFireKey ? (KEY_COMBOS['fire'] ?? KEY_COMBOS['accel'] ?? 1) : 0;
+  // 시작 시 ACCEL 키(Enduro 가속)만 눌린 상태로 시작.
+  // FIRE는 자동 입력하지 않는다 — Space Invaders 등에서 시작하자마자 발사되는 문제 방지.
+  const hasAccelKey = KEYBOARD_KEYS.some(k => k.id === 'accel');
+  currentAction = hasAccelKey ? (KEY_COMBOS['accel'] ?? 0) : 0;
   socket.emit(P + 'start');
 });
 

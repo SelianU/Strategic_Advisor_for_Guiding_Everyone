@@ -1,8 +1,6 @@
-"""games/alien.py — Alien 게임 설정"""
-import os
+"""games/alien.py — Alien 게임 설정 (선언적 스펙 기반)"""
 import numpy as np
 from games.atari import AtariGame
-from games.atari.ach_helper import episode_score, life_losses
 
 
 def _alien_dir(dx: int, dy: int) -> str:
@@ -119,7 +117,7 @@ class AlienGame(AtariGame):
     frame_skip  = 4
     prefix     = 'al_'
     theme_color = '#a855f7'   # 보라색 계열
-    model_path_parts = ('ai_agents', 'alien', 'checkpoints', 'best_model_alien.pth')
+    model_path_parts = ('data', 'checkpoints', 'alien', 'best_model_alien.pth')
 
     action_names = {
         0: 'NOOP',      1: 'FIRE',
@@ -162,106 +160,41 @@ class AlienGame(AtariGame):
         '':                  0,  # NOOP
     }
 
-    achievements = [
+    # 에그·펄사: reward == 10 / 외계인 처치·프라이즈: reward >= 400
+    achievement_specs = [
         # bronze
-        {'id': 'egg_10',        'title': '아이템 수집가',    'tier': 'bronze',   'desc': '에그·펄사 10개 수집'},
-        {'id': 'score_800',     'title': '생존자',            'tier': 'bronze',   'desc': '800점 달성'},
-        {'id': 'big_1',         'title': '찬스 포착',         'tier': 'bronze',   'desc': '외계인 처치 또는 프라이즈 획득 1회'},
+        {'id': 'egg_10',        'title': '아이템 수집가',    'tier': 'bronze',   'desc': '에그·펄사 10개 수집',
+         'metric': 'reward_count', 'value': 10, 'reward_exact': 10},
+        {'id': 'score_800',     'title': '생존자',            'tier': 'bronze',   'desc': '800점 달성',
+         'metric': 'score', 'value': 800},
+        {'id': 'big_1',         'title': '찬스 포착',         'tier': 'bronze',   'desc': '외계인 처치 또는 프라이즈 획득 1회',
+         'metric': 'reward_count', 'value': 1, 'reward_min': 400},
         # silver
-        {'id': 'egg_30',        'title': '미로 탐험가',      'tier': 'silver',   'desc': '에그·펄사 30개 수집'},
-        {'id': 'big_2',         'title': '기회주의자',        'tier': 'silver',   'desc': '외계인 처치 또는 프라이즈 획득 2회'},
-        {'id': 'big_3',         'title': '찬스 메이커',      'tier': 'silver',   'desc': '외계인 처치 또는 프라이즈 획득 3회'},
-        {'id': 'no_death_1500', 'title': '무결점 탐험',      'tier': 'silver',   'desc': '목숨 잃지 않고 1500스텝 생존'},
-        {'id': 'score_2000',    'title': '에이리언 헌터',    'tier': 'silver',   'desc': '2000점 달성'},
+        {'id': 'egg_30',        'title': '미로 탐험가',      'tier': 'silver',   'desc': '에그·펄사 30개 수집',
+         'metric': 'reward_count', 'value': 30, 'reward_exact': 10},
+        {'id': 'big_2',         'title': '기회주의자',        'tier': 'silver',   'desc': '외계인 처치 또는 프라이즈 획득 2회',
+         'metric': 'reward_count', 'value': 2, 'reward_min': 400},
+        {'id': 'big_3',         'title': '찬스 메이커',      'tier': 'silver',   'desc': '외계인 처치 또는 프라이즈 획득 3회',
+         'metric': 'reward_count', 'value': 3, 'reward_min': 400},
+        {'id': 'no_death_1500', 'title': '무결점 탐험',      'tier': 'silver',   'desc': '목숨 잃지 않고 1500스텝 생존',
+         'metric': 'no_death', 'value': 1500},
+        {'id': 'score_2000',    'title': '에이리언 헌터',    'tier': 'silver',   'desc': '2000점 달성',
+         'metric': 'score', 'value': 2000},
         # gold
-        {'id': 'egg_70',        'title': '고지가 코앞',      'tier': 'gold',     'desc': '에그·펄사 70개 수집'},
-        {'id': 'score_4000',    'title': '우주 전사',         'tier': 'gold',     'desc': '4000점 달성'},
-        {'id': 'score_6000',    'title': '외계 정복자',       'tier': 'gold',     'desc': '6000점 달성'},
-        {'id': 'bench_dqn',     'title': 'DQN 돌파',          'tier': 'platinum',     'desc': 'DQN 기준(3,069점) 초과'},
-        {'id': 'bench_human',   'title': '인간 평균 돌파',    'tier': 'gold',     'desc': '인간 평균(6,875점) 초과'},
+        {'id': 'egg_70',        'title': '고지가 코앞',      'tier': 'gold',     'desc': '에그·펄사 70개 수집',
+         'metric': 'reward_count', 'value': 70, 'reward_exact': 10},
+        {'id': 'score_4000',    'title': '우주 전사',         'tier': 'gold',     'desc': '4000점 달성',
+         'metric': 'score', 'value': 4000},
+        {'id': 'score_6000',    'title': '외계 정복자',       'tier': 'gold',     'desc': '6000점 달성',
+         'metric': 'score', 'value': 6000},
+        {'id': 'bench_dqn',     'title': 'DQN 돌파',          'tier': 'platinum', 'desc': 'DQN 기준(3,069점) 초과',
+         'metric': 'score', 'value': 3069, 'cmp': '>'},
+        {'id': 'bench_human',   'title': '인간 평균 돌파',    'tier': 'gold',     'desc': '인간 평균(6,875점) 초과',
+         'metric': 'score', 'value': 6875, 'cmp': '>'},
         # platinum
-        {'id': 'bench_ddqn',    'title': 'DDQN 돌파',         'tier': 'gold', 'desc': 'DDQN 기준(2,907점) 초과'},
+        {'id': 'bench_ddqn',    'title': 'DDQN 돌파',         'tier': 'gold',     'desc': 'DDQN 기준(2,907점) 초과',
+         'metric': 'score', 'value': 2907, 'cmp': '>'},
     ]
-
-    def _on_episode_reset(self):
-        self._rt = {
-            'score':     0.0,
-            'egg_count': 0,   # reward == 10 이벤트 수 (에그 + 펄사)
-            'big_count': 0,   # reward >= 400 이벤트 수 (외계인 처치 + 프라이즈)
-        }
-
-    def _check_realtime_achievements(self, entry: dict) -> list:
-        if not hasattr(self, '_rt'):
-            return []
-        rt = self._rt
-        new = []
-
-        def unlock(id_, title, desc, tier, condition):
-            if condition and id_ not in self._ach_unlocked:
-                self._ach_unlocked.add(id_)
-                new.append({'id': id_, 'title': title, 'desc': desc, 'tier': tier})
-
-        reward      = entry.get('reward', 0)
-        steps_total = len(self.episode_data)
-
-        rt['score'] += reward
-        if reward == 10:
-            rt['egg_count'] += 1
-        elif reward >= 400:
-            rt['big_count'] += 1
-
-        s  = rt['score']
-        eg = rt['egg_count']
-        bc = rt['big_count']
-        ll = life_losses(self.episode_data)
-
-        unlock('egg_10',        '아이템 수집가',  '에그·펄사 10개 수집',                  'bronze',   eg >= 10)
-        unlock('score_800',     '생존자',          '800점 달성',                            'bronze',   s >= 800)
-        unlock('big_1',         '찬스 포착',       '외계인 처치 또는 프라이즈 획득 1회',   'bronze',   bc >= 1)
-        unlock('egg_30',        '미로 탐험가',    '에그·펄사 30개 수집',                   'silver',   eg >= 30)
-        unlock('big_2',         '기회주의자',      '외계인 처치 또는 프라이즈 획득 2회',   'silver',   bc >= 2)
-        unlock('big_3',         '찬스 메이커',    '외계인 처치 또는 프라이즈 획득 3회',   'silver',   bc >= 3)
-        unlock('no_death_1500', '무결점 탐험',    '목숨 잃지 않고 1500스텝 생존',          'silver',   steps_total >= 1500 and ll == 0)
-        unlock('score_2000',    '에이리언 헌터',  '2000점 달성',                           'silver',   s >= 2000)
-        unlock('egg_70',        '고지가 코앞',    '에그·펄사 70개 수집',                   'gold',     eg >= 70)
-        unlock('score_4000',    '우주 전사',       '4000점 달성',                           'gold',     s >= 4000)
-        unlock('score_6000',    '외계 정복자',    '6000점 달성',                            'gold',     s >= 6000)
-        unlock('bench_dqn',     'DQN 돌파',        'DQN 기준(3,069점) 초과',                'platinum',     s > 3069)
-        unlock('bench_human',   '인간 평균 돌파',  '인간 평균(6,875점) 초과',               'gold',     s > 6875)
-        unlock('bench_ddqn',    'DDQN 돌파',       'DDQN 기준(2,907점) 초과',               'gold', s > 2907)
-        return new
-
-    def _compute_achievements(self) -> list:
-        data = [d for d in self.episode_data if d.get('action') is not None]
-        if not data:
-            return []
-        s         = episode_score(data)
-        ll        = life_losses(data)
-        steps     = len(data)
-        egg_count = sum(1 for d in data if d.get('reward', 0) == 10)
-        big_count = sum(1 for d in data if d.get('reward', 0) >= 400)
-
-        achieved = []
-
-        def add(id_, title, desc, tier, cond):
-            if cond:
-                achieved.append({'id': id_, 'title': title, 'desc': desc, 'tier': tier})
-
-        add('egg_10',        '아이템 수집가',  '에그·펄사 10개 수집',                   'bronze',   egg_count >= 10)
-        add('score_800',     '생존자',          '800점 달성',                            'bronze',   s >= 800)
-        add('big_1',         '찬스 포착',       '외계인 처치 또는 프라이즈 획득 1회',   'bronze',   big_count >= 1)
-        add('egg_30',        '미로 탐험가',    '에그·펄사 30개 수집',                   'silver',   egg_count >= 30)
-        add('big_2',         '기회주의자',      '외계인 처치 또는 프라이즈 획득 2회',   'silver',   big_count >= 2)
-        add('big_3',         '찬스 메이커',    '외계인 처치 또는 프라이즈 획득 3회',   'silver',   big_count >= 3)
-        add('no_death_1500', '무결점 탐험',    '목숨 잃지 않고 1500스텝 생존',          'silver',   ll == 0 and steps >= 1500)
-        add('score_2000',    '에이리언 헌터',  '2000점 달성',                           'silver',   s >= 2000)
-        add('egg_70',        '고지가 코앞',    '에그·펄사 70개 수집',                   'gold',     egg_count >= 70)
-        add('score_4000',    '우주 전사',       '4000점 달성',                           'gold',     s >= 4000)
-        add('score_6000',    '외계 정복자',    '6000점 달성',                            'gold',     s >= 6000)
-        add('bench_dqn',     'DQN 돌파',        'DQN 기준(3,069점) 초과',                'platinum',     s > 3069)
-        add('bench_human',   '인간 평균 돌파',  '인간 평균(6,875점) 초과',               'gold',     s > 6875)
-        add('bench_ddqn',    'DDQN 돌파',       'DDQN 기준(2,907점) 초과',               'gold', s > 2907)
-        return achieved
 
     def _extra_summary(self, entry: dict) -> dict:
         pre_ram = entry.get('pre_ram')
@@ -270,16 +203,6 @@ class AlienGame(AtariGame):
         gs = extract_alien_game_state(pre_ram)
         return {'game_state': gs} if gs else {}
 
-    def _load_model(self, path: str):
-        if not os.path.exists(path):
-            return None
-        from ai_agents.d3qn_helper import load_d3qn
-        net, _ = load_d3qn('alien', path, self.device)
-        return net
-
-    def _get_q_values(self, stacked_state):
-        from ai_agents.d3qn_helper import get_q_values
-        return get_q_values(self.net, stacked_state, self.device)
     game_info = {
         'summary': '미로형 우주선을 탐험하며 에그를 제거하고 외계인을 피하는 생존 게임입니다.',
         'objective': '미로 안의 에그를 모두 제거해 라운드를 클리어하고 최고 점수를 달성하세요.',

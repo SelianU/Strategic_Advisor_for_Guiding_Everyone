@@ -29,8 +29,7 @@ function updateBadge(hasKey, model) {
 
 async function loadSettings() {
   try {
-    const res = await fetch('/api/settings');
-    const data = await res.json();
+    const data = await getJSON('/api/settings');
     modelInput.value = data.model || '';
     keyHint.textContent = data.has_key ? `현재: ${data.masked_key}` : '현재: 미설정';
     updateBadge(data.has_key, data.model);
@@ -47,8 +46,7 @@ overlay.addEventListener('click', e => { if (e.target === overlay) closeModal();
 disconnectBtn.addEventListener('click', async () => {
   setStatus('연결 해제 중...', 'loading'); disconnectBtn.disabled = true;
   try {
-    const res = await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ clear_key:true, model:modelInput.value.trim() }) });
-    const data = await res.json();
+    const data = await postJSON('/api/settings', { clear_key:true, model:modelInput.value.trim() });
     if (data.ok) { setStatus('연결이 해제되었습니다.', 'err'); apiKeyInput.value = ''; await loadSettings(); }
   } catch(e) { setStatus('요청 오류: ' + e.message, 'err'); disconnectBtn.disabled = false; }
 });
@@ -62,10 +60,9 @@ saveBtn.addEventListener('click', async () => {
   const api_key = apiKeyInput.value.trim(), model = modelInput.value.trim();
   setStatus('저장 중...', 'loading');
   try {
-    const res = await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ api_key, model }) });
-    const data = await res.json();
+    const data = await postJSON('/api/settings', { api_key, model });
     if (data.ok) { setStatus('저장되었습니다.', 'ok'); await loadSettings(); apiKeyInput.value = ''; }
-    else setStatus('저장에 실패했습니다.', 'err');
+    else setStatus(data.message || '저장에 실패했습니다.', 'err');
   } catch(e) { setStatus('요청 오류: ' + e.message, 'err'); }
 });
 
@@ -73,9 +70,8 @@ testBtn.addEventListener('click', async () => {
   const api_key = apiKeyInput.value.trim(), model = modelInput.value.trim();
   setStatus('연결 테스트 중...', 'loading'); testBtn.disabled = true;
   try {
-    if (api_key) await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ api_key, model }) });
-    const res = await fetch('/api/settings/test', { method:'POST' });
-    const data = await res.json();
+    if (api_key) await postJSON('/api/settings', { api_key, model });
+    const data = await postJSON('/api/settings/test');
     setStatus(data.message || (data.ok ? '연결 성공' : '연결 실패'), data.ok ? 'ok' : 'err');
     await loadSettings();
   } catch(e) { setStatus('요청 오류: ' + e.message, 'err'); }

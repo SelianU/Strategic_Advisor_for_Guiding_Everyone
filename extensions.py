@@ -15,4 +15,7 @@ from flask_socketio import SocketIO
 app      = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
 DEVICE   = 'cuda' if torch.cuda.is_available() else 'cpu'
-SAVED_SESSIONS_DIR = os.path.join(os.path.dirname(__file__), 'saved_sessions')
+
+# 런타임 산출물 루트 — 체크포인트(data/checkpoints)·세션(data/saved_sessions) 등
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+SAVED_SESSIONS_DIR = os.path.join(DATA_DIR, 'saved_sessions')

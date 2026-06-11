@@ -24,7 +24,7 @@ Atari ALE 게임의 공통 로직을 캡슐화한 베이스 클래스.
         env_name   = 'ALE/Pong-v5'
         prefix     = 'po_'
         theme_color = '#00f5ff'
-        model_path_parts = ('ai_agents', 'pong', 'checkpoints', 'best_model.pth')
+        model_path_parts = ('data', 'checkpoints', 'pong', 'best_model.pth')
         action_names = {0:'NOOP', 1:'FIRE', 2:'RIGHT', 3:'LEFT', 4:'RIGHTFIRE', 5:'LEFTFIRE'}
         keyboard_keys = [
             {'id': 'left',  'label': '←',    'actions': [3, 5]},
@@ -33,18 +33,18 @@ Atari ALE 게임의 공통 로직을 캡슐화한 베이스 클래스.
         ]
         key_combos = {'left+fire': 5, 'right+fire': 4, 'left': 3, 'right': 2, 'fire': 1, '': 0}
 
-        def _load_model(self, path):
-            if not os.path.exists(path): return None
-            from ai_agents.pong import load_d3qn
-            net, _ = load_d3qn(path, self.device)
-            return net
+        # 도전과제는 선언적 스펙으로 정의 (games/atari/achievements.py 형식)
+        achievement_specs = [
+            {'id': 'score_100', 'title': '첫 득점', 'tier': 'bronze', 'desc': '100점 달성',
+             'metric': 'score', 'value': 100},
+        ]
 
-        def _get_q_values(self, stacked_state):
-            from ai_agents.pong import get_q_values
-            return get_q_values(self.net, stacked_state, self.device)
+_load_model / _get_q_values 는 베이스가 ai_agents/d3qn_helper 로 자동 위임하므로
+D3QN 모델이라면 별도 구현이 필요 없다. (단, ai_agents/d3qn_helper.GAME_CONFIGS 에
+게임 설정을 등록해야 한다.) 다른 아키텍처를 쓰는 게임만 두 메서드를 override 한다.
 """
 import os
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections import deque
 
 import numpy as np
@@ -60,6 +60,8 @@ from .sessions       import _SessionsMixin
 from .analysis       import _AnalysisMixin
 from .counterfactual import _CounterfactualMixin
 from .practice       import _PracticeMixin
+from .achievements   import (AchievementTracker, compute_final_achievements,
+                             specs_to_achievement_list)
 
 
 # ── 프로젝트 루트 (모델 체크포인트 경로 계산용) ──────────────────────────────
@@ -113,6 +115,12 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, _PracticeM
     # 예: {'left+fire': 5, 'right+fire': 4, 'left': 3, 'right': 2, 'fire': 1, '': 0}
     key_combos: dict = {}
 
+    # 선언적 도전과제 스펙 (games/atari/achievements.py 형식 참조).
+    # 정의하면 achievements 목록 + 실시간/사후 판정이 자동 처리된다.
+    # 라운드 클리어 등 복잡한 판정이 필요한 게임은 빈 채로 두고
+    # _check_realtime_achievements / _compute_achievements 를 직접 구현한다.
+    achievement_specs: list = []
+
     # URL 경로 (기본값: /{game_id}, 필요 시 서브클래스에서 override)
     @property
     def url_path(self) -> str:
@@ -139,6 +147,10 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, _PracticeM
         self.counterfactual_cache: dict = {}
         self._practice_mode: bool = False
 
+        # 스펙 기반 게임은 achievements 목록을 스펙에서 자동 생성
+        if self.achievement_specs and not getattr(self, 'achievements', None):
+            self.achievements = specs_to_achievement_list(self.achievement_specs)
+
         self._init()
 
     def _init(self):
@@ -154,16 +166,20 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, _PracticeM
         self._register_route()
         self._register_handlers()
 
-    # ── 추상 메서드 (서브클래스 필수 구현) ────────────────────────────────────
-    @abstractmethod
+    # ── 모델 로드 / Q-value (기본: 공통 d3qn_helper 위임) ────────────────────
+    # 다른 아키텍처를 쓰는 게임만 override 하면 된다.
     def _load_model(self, path: str):
         """모델 파일 로드. 파일 없으면 None 반환."""
-        ...
+        if not os.path.exists(path):
+            return None
+        from ai_agents.d3qn_helper import load_d3qn
+        net, _ = load_d3qn(self.game_id, path, self.device)
+        return net
 
-    @abstractmethod
     def _get_q_values(self, stacked_state: np.ndarray) -> np.ndarray:
         """4-프레임 스택 상태로 Q-value 배열 반환."""
-        ...
+        from ai_agents.d3qn_helper import get_q_values
+        return get_q_values(self.net, stacked_state, self.device)
 
     def _extra_summary(self, entry: dict) -> dict:
         """게임별 추가 summary 필드. 서브클래스에서 필요 시 override."""
@@ -174,7 +190,11 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, _PracticeM
         return {}
 
     def _compute_achievements(self) -> list:
-        """게임 종료 후 도전과제 달성 여부 반환. 서브클래스에서 override."""
+        """게임 종료 후 도전과제 달성 여부 반환.
+        achievement_specs 기반 게임은 자동 판정, 그 외 서브클래스에서 override."""
+        if self.achievement_specs:
+            data = [d for d in self.episode_data if d.get('action') is not None]
+            return compute_final_achievements(self.achievement_specs, data)
         return []
 
     def _achievement_report(self, achieved=None) -> list:
@@ -194,11 +214,17 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, _PracticeM
         return report
 
     def _on_episode_reset(self):
-        """게임 시작 시 게임별 상태 초기화 훅. 서브클래스에서 override."""
-        pass
+        """게임 시작 시 게임별 상태 초기화 훅.
+        achievement_specs 기반 게임은 트래커 생성, 그 외 서브클래스에서 override."""
+        if self.achievement_specs:
+            self._ach_tracker = AchievementTracker(self.achievement_specs)
 
     def _check_realtime_achievements(self, entry: dict) -> list:
-        """매 스텝 후 새로 달성된 도전과제 반환. 서브클래스에서 override."""
+        """매 스텝 후 새로 달성된 도전과제 반환.
+        achievement_specs 기반 게임은 자동 판정, 그 외 서브클래스에서 override."""
+        if self.achievement_specs and hasattr(self, '_ach_tracker'):
+            self._ach_tracker.update(entry)
+            return self._ach_tracker.check(len(self.episode_data), self._ach_unlocked)
         return []
 
     # ── Grad-CAM 헬퍼 ────────────────────────────────────────────────────────
