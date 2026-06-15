@@ -185,6 +185,10 @@ class AtariGame(_SessionsMixin, _AnalysisMixin, _CounterfactualMixin, _PracticeM
         """게임별 추가 summary 필드. 서브클래스에서 필요 시 override."""
         return {}
 
+    def _extra_replay_summary(self, h_frame, a_frame) -> dict:
+        """counterfactual 재생 종료 후 최종 프레임 기반 추가 summary. 서브클래스에서 필요 시 override."""
+        return {}
+
     def _extra_frame_data(self, obs_raw: np.ndarray) -> dict:
         """매 프레임 emit에 포함할 게임별 추가 데이터. 서브클래스에서 필요 시 override."""
         return {}

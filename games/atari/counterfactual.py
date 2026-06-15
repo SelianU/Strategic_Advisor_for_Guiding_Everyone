@@ -20,7 +20,7 @@ from flask_socketio import emit
 
 from llm_feedback import generate_feedback
 
-from .preprocessing import preprocess, encode_frames, compose_compare_frame
+from .preprocessing import preprocess, encode_frame, encode_frames, compose_compare_frame
 from .gradcam       import encode_frame_with_gradcam
 
 
@@ -167,8 +167,18 @@ class _CounterfactualMixin:
                         gcam_agent_frames.append(encode_frame_with_gradcam(af, a_hm))
 
             gap = float(q_vals[best_action] - q_vals[entry['action']])
+            # 직전 / 결정순간 / 직후 3장 프레임
+            step_idx = entry['step']
+            prev_rgb = (self.episode_data[step_idx - 1]['rgb']
+                        if step_idx > 0 and step_idx - 1 < len(self.episode_data)
+                        else entry['pre_rgb'])
             summary = {
-                'step':                     entry['step'],
+                'step':                     step_idx,
+                'rgb_frames_b64':           [
+                    encode_frame(prev_rgb),          # 직전
+                    encode_frame(entry['pre_rgb']),  # 결정순간
+                    encode_frame(entry['rgb']),      # 직후
+                ],
                 'loss':                     round(gap, 3),
                 'gap':                      round(gap, 4),
                 'human_action_name':        self.action_names.get(entry['action'], str(entry['action'])),
@@ -185,6 +195,7 @@ class _CounterfactualMixin:
                 'agent_done':               a_done,
                 'replay_horizon':           replay_horizon,
                 **self._extra_summary(entry),
+                **self._extra_replay_summary(h_frame, a_frame),
             }
             # eventlet 이벤트 루프에 제어권을 넘겨 네트워크 I/O 준비
             try:
@@ -193,6 +204,7 @@ class _CounterfactualMixin:
             except ImportError:
                 pass
             feedback, fb_structured, fb_source, fb_model, fb_route = generate_feedback(self.game_id, summary)
+            summary.pop('rgb_frames_b64', None)   # 소켓 페이로드에 이미지 데이터 제외
 
             # entry_index까지의 누적 통계
             cumul = {}

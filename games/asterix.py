@@ -9,7 +9,7 @@ class AsterixGame(AtariGame):
     frame_skip  = 4
     prefix     = 'ax_'
     theme_color = '#ffd700'
-    model_path_parts = ('data', 'checkpoints', 'asterix', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'asterix', 'best_model_asterix.pth')
 
     action_names = {
         0: 'NOOP',  1: 'UP',    2: 'RIGHT',     3: 'LEFT',

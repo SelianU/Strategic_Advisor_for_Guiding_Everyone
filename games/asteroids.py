@@ -9,7 +9,7 @@ class AsteroidsGame(AtariGame):
     frame_skip  = 4
     prefix     = 'ao_'
     theme_color = '#00bfff'
-    model_path_parts = ('data', 'checkpoints', 'asteroids', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'asteroids', 'best_model_asteroids.pth')
 
     action_names = {
         0: 'NOOP',   1: 'FIRE',        2: 'UP',        3: 'RIGHT',

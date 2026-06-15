@@ -57,10 +57,8 @@ def _game_phase_note(gs: dict[str, Any]) -> str:
     ec     = gs.get('enemy_count', 55)
     phase  = gs.get('enemy_speed_phase', 'normal')
     danger = gs.get('danger_distance', 999)
-    if danger < 20:
-        return "게임오버 직전 극한 상황입니다. 이 순간의 선택이 생존을 결정합니다."
-    if danger < 35:
-        return "적이 많이 내려온 후반 위기 단계입니다. 생존이 최우선이며 공격보다 위치 확보가 중요합니다."
+    if danger < 5:
+        return "적이 방패 바로 위까지 내려와서 곧 사라질 상황입니다. 지금 적극적으로 격파하지 않으면 방패를 잃게 됩니다."
     if phase == 'critical':
         if ec == 1:
             return "마지막 1마리가 남아 이동 속도가 최고조입니다. 빠르게 움직이는 적을 끝까지 추적해 신속히 처리해야 합니다."
@@ -83,10 +81,8 @@ def _game_state_flags(gs: dict[str, Any]) -> str:
     elif phase == 'fast':
         flags.append(f"적이 {ec}마리로 줄어 이동 속도가 빨라진 상태")
     danger = gs.get('danger_distance', 999)
-    if danger < 20:
-        flags.append("적이 머리 바로 위까지 내려와 게임오버 직전")
-    elif danger < 35:
-        flags.append("적이 위협적으로 가까이 내려온 상태")
+    if danger < 5:
+        flags.append("적이 방패 바로 위까지 내려와 곧 사라질 위치")
     shields    = gs.get('shield_integrity', [])
     meaningful = [p for p in shields if p >= 10]
     if shields and not meaningful:
@@ -159,12 +155,37 @@ def build_outcome_guidance(summary: dict[str, Any]) -> str:
 
 # ── user 프롬프트 ─────────────────────────────────────────────────────────────
 
+def _shield_comparison_note(summary: dict[str, Any]) -> str:
+    """replay 종료 시점 방패 상태 비교 문구 생성."""
+    h_end = summary.get('h_shield_end', [])
+    a_end = summary.get('a_shield_end', [])
+    if not h_end or not a_end:
+        return ""
+
+    h_alive = [p for p in h_end if p >= 10]
+    a_alive = [p for p in a_end if p >= 10]
+    h_lost  = len(h_end) - len(h_alive)
+    a_lost  = len(a_end) - len(a_alive)
+
+    if h_lost > a_lost:
+        h_txt = f"방패 {h_lost}개 소멸" if h_lost > 0 else "방패 유지"
+        a_txt = f"방패 {a_lost}개 소멸" if a_lost > 0 else "방패 유지"
+        return (
+            f"\n비교 구간 종료 시점 방패 상태: 플레이어님 경로({h_txt}) / 에이전트 경로({a_txt}). "
+            f"에이전트의 적극적 격파가 방패 소멸을 늦추거나 막아 장기 엄폐 가능성을 유지했습니다. "
+            f"방패가 남아 있을수록 이후 적 탄환 회피와 생존 여유가 커집니다."
+        )
+    if a_lost > h_lost:
+        return ""  # 에이전트 쪽이 오히려 방패를 더 잃은 경우 언급 생략
+    return ""
+
+
 def build_user_prompt(summary: dict[str, Any]) -> str:
-    gs         = summary.get('game_state', {}) or {}
-    gs_section = _game_state_flags(gs)
-    phase_note = _game_phase_note(gs)
-    ec         = gs.get('enemy_count', 55)
-    a_first    = summary.get('agent_first_reward_step')
+    gs           = summary.get('game_state', {}) or {}
+    gs_section   = _game_state_flags(gs)
+    phase_note   = _game_phase_note(gs)
+    ec           = gs.get('enemy_count', 55)
+    a_first      = summary.get('agent_first_reward_step')
     stage_note = (
         "\n※ 이 순간 남은 적이 극소수이고 에이전트 쪽 첫 득점이 매우 빠릅니다. "
         "이는 스테이지 마지막 적을 처치하며 스테이지가 클리어된 상황일 수 있습니다. "
@@ -174,6 +195,14 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
     h_score      = summary.get('human_score_delta', 0)
     a_score      = summary.get('agent_score_delta', 0)
     outcome_guid = build_outcome_guidance(summary)
+
+    frames = summary.get('rgb_frames_b64') or []
+    has_image = len(frames) > 0
+    image_note = (
+        "\n- 첨부 이미지 3장([직전] → [결정순간] → [직후]): 행동 전후 실제 게임 화면입니다. "
+        "적의 위치·밀집도, 방패 상태, 플레이어 위치의 변화를 직접 확인해 상황을 묘사하세요."
+        if has_image else ""
+    )
 
     return f"""다음은 Space Invaders 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
 
@@ -191,17 +220,17 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 - 플레이어님 쪽 득점 프레임들: {summary.get('human_reward_steps') or '없음'}
 - 에이전트 쪽 득점 프레임들: {summary.get('agent_reward_steps') or '없음'}
 - 게임 단계 맥락: {phase_note}
-{gs_section}
+{gs_section}{image_note}
 이후 경로 활용 지침: {outcome_guid}{stage_note}
 
 작성 방식:
 - 문단 수는 2~3개로 자유롭게 구성하세요. 각 문단은 빈 줄 하나로 구분하세요.
 - 문단 제목, 레이블, 번호(예: "분석", "1." 등)는 절대 쓰지 마세요. 바로 본문으로 시작하세요.
-- 첫 번째 문단: 플레이어님 행동과 에이전트 행동을 명확히 대비하고, "이후 경로 활용 지침"에 따라 이후 전개를 설명하세요. "주목할 상황"이 제공된 경우, 나열하지 말고 배경으로 자연스럽게 녹이세요.
+- 첫 번째 문단: 플레이어님 행동과 에이전트 행동을 명확히 대비하고, "이후 경로 활용 지침"에 따라 이후 전개를 설명하세요. 첨부 이미지 3장이 있다면 [직전]→[결정순간]→[직후] 흐름에서 보이는 적 배치·방패 상태·플레이어 위치 변화를 배경으로 자연스럽게 녹이세요.
 - 중간 문단(선택): 에이전트의 행동이 왜 그 상황에서 더 좋은 판단이었는지 전략적 이유를 충분히 설명하세요. Q값 차이의 의미, 위치·속도·위협 요소 등을 자연스럽게 활용하세요.
 - 마지막 문단: "다음에 이런 상황이라면" 또는 그와 비슷한 뉘앙스로 시작해 플레이어님이 바로 실천할 수 있는 구체적인 조언을 주세요.
 - 점수와 득점 프레임은 전체 게임이 아닌 이 순간 이후 약 30초 비교 구간의 수치입니다. 점수를 언급할 때는 "이 구간에서" 또는 "비교 구간에서"라고 명시하세요.
-- Q값 수치를 언급할 때 "에이전트가 더 높은 기대 보상을 가지고 있었음을 보여줍니다"처럼 당연한 설명은 쓰지 마세요. Q값은 수치만 언급하거나, 그 차이가 전략적으로 의미하는 바를 자연스럽게 녹이는 방식으로만 쓰세요.
+- Q값 수치를 언급할 때 "에이전트가 더 높은 기대 보상을 가지고 있었음을 보여줍니다"처럼 당연한 설명은 쓰지 마세요. Q값 차이를 대놓고 적지 말고, 그 차이가 전략적으로 의미하는 바를 자연스럽게 녹이는 방식으로만 쓰세요.
 - 한국어로만 쓰세요. 영어·일본어 등 외국어 표현은 쓰지 마세요.
 - 말투는 "했습니다", "좋았습니다", "유리했습니다"처럼 단정한 존댓말로 쓰세요.
 - 인삿말, 이모티콘, 과한 감탄사는 넣지 마세요.

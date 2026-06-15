@@ -9,7 +9,7 @@ class MarioBrosGame(AtariGame):
     frame_skip  = 4
     prefix     = 'mb_'
     theme_color = '#ff0000'
-    model_path_parts = ('data', 'checkpoints', 'mariobros', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'mariobros', 'best_model_mariobros.pth')
 
     action_names = {
         0: 'NOOP',   1: 'FIRE',          2: 'UP',            3: 'RIGHT',

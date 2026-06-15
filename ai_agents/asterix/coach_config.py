@@ -181,6 +181,14 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
     direction_hint = " ".join(hint_parts)
     hint_line = f"\n에이전트 행동 해석 (반드시 피드백에 반영할 것): {direction_hint}" if direction_hint else ""
 
+    frames    = summary.get('rgb_frames_b64') or []
+    has_image = len(frames) > 0
+    image_note = (
+        "\n- 첨부 이미지 3장([직전] → [결정순간] → [직후]): 행동 전후 실제 게임 화면입니다. "
+        "플레이어 위치, 각 레인의 아이템·적 분포, 이동 방향의 변화를 직접 확인해 상황을 묘사하세요."
+        if has_image else ""
+    )
+
     return f"""다음은 Asterix 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
 
 상황 정보:
@@ -193,7 +201,7 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 - 플레이어님 쪽 득점 프레임들: {summary.get('human_reward_steps') or '없음'}
 - 에이전트 쪽 득점 프레임들: {summary.get('agent_reward_steps') or '없음'}
 
-{gs_note}{hint_line}
+{gs_note}{hint_line}{image_note}
 
 이후 경로 활용 지침: {outcome_guid}
 
@@ -201,7 +209,7 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 - 문단 수는 2~3개. 각 문단은 빈 줄 하나로 구분하세요.
 - 문단 제목·레이블·번호는 절대 쓰지 마세요. 바로 본문으로 시작하세요.
 - 행동 이름은 반드시 한국어로만 표현하세요. NOOP, UP, DOWNRIGHT 같은 영어 약어는 절대 쓰지 마세요.
-- 첫 번째 문단: 플레이어님과 에이전트의 행동을 대비하세요. "에이전트 행동 해석"이 제공된 경우 이를 근거로, 에이전트가 왜 그 레인·방향을 선택했는지 구체적으로 설명하세요. "이후 경로 활용 지침"에 따라 이후 전개도 포함하세요.
+- 첫 번째 문단: 플레이어님과 에이전트의 행동을 대비하세요. "에이전트 행동 해석"이 제공된 경우 이를 근거로, 에이전트가 왜 그 레인·방향을 선택했는지 구체적으로 설명하세요. "이후 경로 활용 지침"에 따라 이후 전개도 포함하세요. 첨부 이미지 3장이 있다면 [직전]→[결정순간]→[직후] 흐름에서 보이는 레인별 아이템·적 분포 변화를 배경으로 자연스럽게 녹이세요.
 - 중간 문단(선택): 같은 레인 위협 회피, 가장 가까운 아이템으로의 효율적 경로, 레인 선점 전략을 구체적으로 설명하세요.
 - 마지막 문단: "다음에 이런 상황이라면" 뉘앙스로 시작해 즉시 실천 가능한 조언으로 마무리하세요.
 - 점수를 언급할 때는 "비교 구간에서"라고 명시하세요.

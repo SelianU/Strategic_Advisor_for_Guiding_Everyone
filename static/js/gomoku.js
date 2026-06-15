@@ -33,7 +33,7 @@ let gomokuGameOverTimer = null;
 let gomokuPendingAnalysisData = null;
 let gomokuLastStateSeq = -1;
 let gomokuRightTab = 'summary';
-let gomokuFeedbackTab = 'feedback';
+let gomokuAnalysisResults = [];   // showAnalysis 때 전체 저장, per-candidate 재계산용
 // 후보 상태 라벨은 common_utils.js 의 STATUS_LABELS 공유
 
 function setGomokuRightTab(tab) {
@@ -44,16 +44,12 @@ function setGomokuRightTab(tab) {
   const summaryOpen = tab === 'summary';
   document.getElementById('scoreSection').classList.toggle('tab-open', summaryOpen);
   document.getElementById('tableSection').classList.toggle('tab-open', tab === 'qvalue');
+  // compare-summary는 종합 분석 탭에서만 표시 (visible 상태일 때만)
+  const cs = document.getElementById('gomokuCompareSummary');
+  if (cs) cs.style.display = summaryOpen && cs.classList.contains('visible') ? 'block' : 'none';
 }
 
-function setGomokuFeedbackTab(tab) {
-  gomokuFeedbackTab = tab;
-  document.querySelectorAll('[data-gomoku-feedback-tab]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.gomokuFeedbackTab === tab);
-  });
-  document.getElementById('gomokuFeedbackTextCenter').style.display = tab === 'feedback' ? 'block' : 'none';
-  document.getElementById('gomokuFeedbackSummaryBox').classList.toggle('visible', tab === 'summary');
-}
+
 
 function getGomokuCandidateByMove(moveNum) {
   return gomokuCandidates.find(candidate => parseInt(candidate.move_num) === parseInt(moveNum)) || null;
@@ -62,12 +58,32 @@ function getGomokuCandidateByMove(moveNum) {
 function updateGomokuSummaryFromPayload(moveNum, summary) {
   const candidate = getGomokuCandidateByMove(moveNum);
   document.getElementById('gomokuMoveVal').textContent = candidate?.move_num ?? summary?.move_num ?? '—';
-  document.getElementById('gomokuLossVal').textContent =
-    candidate?.loss !== undefined && candidate?.loss !== null
-      ? Number(candidate.loss).toFixed(3)
-      : (summary?.loss ?? '—');
+  const loss = (candidate?.loss !== undefined && candidate?.loss !== null)
+    ? Number(candidate.loss) : (summary?.loss != null ? Number(summary.loss) : null);
+  document.getElementById('gomokuLossVal').textContent = loss !== null ? loss.toFixed(3) : '—';
   document.getElementById('gomokuHumanMoveVal').textContent = summary?.actual_row !== undefined ? `(${summary.actual_row}, ${summary.actual_col})` : '—';
   document.getElementById('gomokuAgentMoveVal').textContent = summary?.best_row !== undefined ? `(${summary.best_row}, ${summary.best_col})` : '—';
+  document.getElementById('gomokuHumanQVal').textContent = summary?.actual_q != null ? Number(summary.actual_q).toFixed(3) : '—';
+  document.getElementById('gomokuAgentQVal').textContent = summary?.best_q != null ? Number(summary.best_q).toFixed(3) : '—';
+
+  // 해당 착수까지 누적 통계 (인간 착수만 필터링)
+  // 흑=1이면 홀수 수(1,3,5...), 백=2이면 짝수 수(2,4,6...)가 인간 착수
+  const upTo = moveNum != null
+    ? gomokuAnalysisResults.filter(a => a.move_num <= moveNum)
+    : gomokuAnalysisResults;
+  const humanMoves = upTo.filter(a =>
+    a.loss !== null &&
+    (humanColor === 1 ? a.move_num % 2 === 1 : a.move_num % 2 === 0)
+  );
+  const avgEl = document.getElementById('gomokuAvgLossVal');
+  if (avgEl) {
+    if (humanMoves.length > 0) {
+      const avg = humanMoves.reduce((s, a) => s + a.loss, 0) / humanMoves.length;
+      avgEl.textContent = avg.toFixed(3);
+    } else {
+      avgEl.textContent = '—';
+    }
+  }
 }
 
 // 자동 재생/화살표 이동 공용: 인간+에이전트 프레임 동기 렌더
@@ -145,6 +161,10 @@ function prefetchGomokuReplay(moveNum) {
 // 리플레이 + 코칭 피드백 표시 (캐시 적중 / 신규 수신 공용)
 function showGomokuCounterfactual(moveNum, data) {
   playGomokuFrames(data.human_frames || [], data.agent_frames || []);
+  // 비교 요약 카드 (영상 아래)
+  document.getElementById('gomokuCompareSummary').classList.add('visible');
+  updateGomokuSummaryFromPayload(moveNum, data.summary || {});
+  // 오른쪽 패널: 코칭 피드백
   document.getElementById('gomokuCenterFeedback').classList.add('visible');
   document.getElementById('gomokuFeedbackLoading').classList.remove('active');
   document.getElementById('gomokuFeedbackSourceCenter').textContent =
@@ -153,7 +173,6 @@ function showGomokuCounterfactual(moveNum, data) {
       : (HAS_LLM ? '외부 LLM 지연으로 로컬 데이터 기반 코칭 피드백을 표시합니다.' : '로컬 데이터 기반 코칭 피드백');
   document.getElementById('gomokuLlmCurrentStatus').textContent = `현재 선택: ${feedbackRouteText(data)}`;
   document.getElementById('gomokuFeedbackTextCenter').textContent = data.feedback || '';
-  updateGomokuSummaryFromPayload(moveNum, data.summary || {});
 }
 
 function requestGomokuReplay(moveNum) {
@@ -170,6 +189,7 @@ function requestGomokuReplay(moveNum) {
   gomokuCompareFrames = [];
   gomokuHumanFrames = [];
   document.getElementById('gomokuCompareStage').classList.remove('visible');
+  document.getElementById('gomokuCompareSummary').classList.remove('visible');
   document.getElementById('gomokuHumanImage').src = '';
   document.getElementById('gomokuAgentImage').src = '';
   document.getElementById('gomokuCenterFeedback').classList.add('visible');
@@ -177,7 +197,6 @@ function requestGomokuReplay(moveNum) {
   document.getElementById('gomokuFeedbackTextCenter').textContent = '';
   document.getElementById('gomokuFeedbackLoading').classList.toggle('active', HAS_LLM);
   document.getElementById('gomokuLlmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 외부 LLM 확인 중' : '현재 선택: 로컬';
-  updateGomokuSummaryFromPayload(moveNum, {});
   socket.emit('gomoku_request_counterfactual', { move_num: moveNum, session_id: gomokuSessionId });
 }
 
@@ -368,15 +387,18 @@ document.getElementById('startBtn').addEventListener('click', () => {
   document.getElementById('evalBarContainer').style.display = '';
   document.getElementById('gomokuPostgamePanel').classList.remove('visible');
   document.getElementById('gomokuCompareStage').classList.remove('visible');
+  document.getElementById('gomokuCompareSummary').classList.remove('visible');
   document.getElementById('gomokuCenterFeedback').classList.remove('visible');
   document.getElementById('gomokuCandidateBar').innerHTML = '';
   document.getElementById('gomokuFeedbackSourceCenter').textContent = '';
   document.getElementById('gomokuFeedbackTextCenter').textContent = '착수를 고르면 코칭 피드백이 여기에 표시됩니다.';
   document.getElementById('gomokuFeedbackLoading').classList.remove('active');
+  gomokuAnalysisResults = [];
   gomokuReplayCache.clear();
   clearGomokuTerminalOverlay();
   hideAnalysis();
   initBoard();
+  document.body.classList.add('game-playing');
   socket.emit('gomoku_start', { human_color: humanColor });
   document.getElementById('startBtn').disabled = true;
   updateEvalBar(50);
@@ -441,6 +463,7 @@ socket.on('gomoku_state', (data) => {
   // ─────────────────────────────────────────────────────────
   if (data.game_over) {
     gameActive = false;
+    // game-playing은 showAnalysis 때 해제 (분석창 전환 시점에 SAGE 패널 표시)
     document.getElementById('statusBar').textContent = 'GAME OVER';
     document.getElementById('startBtn').disabled = false;
     const humanWon = data.winner === humanColor;
@@ -515,6 +538,9 @@ function hideAnalysis() {
 
 function showAnalysis(data) {
   clearGomokuTerminalOverlay();
+  document.body.classList.remove('game-playing');   // 분석창 전환 시점에 SAGE 패널 표시
+  // 전체 분석 결과 저장 (후보 선택 시 누적 통계 재계산용)
+  gomokuAnalysisResults = data.analyses || [];
   // 종합 점수
   const avgLoss = data.avg_loss;
   let grade, gradeColor;
@@ -608,6 +634,7 @@ socket.on('gomoku_counterfactual_error', (data) => {
   document.getElementById('gomokuFeedbackSourceCenter').textContent = '비교 리플레이 생성 실패';
   document.getElementById('gomokuFeedbackTextCenter').textContent = data.message || '오류가 발생했습니다.';
   document.getElementById('gomokuCompareStage').classList.remove('visible');
+  document.getElementById('gomokuCompareSummary').classList.remove('visible');
 });
 
 socket.on('gomoku_sessions_list', (data) => {
@@ -631,6 +658,7 @@ socket.on('gomoku_session_loaded', (data) => {
     document.getElementById('gomokuSessionStatus').textContent = data.message || '기록을 불러오지 못했습니다.';
     return;
   }
+  document.body.classList.remove('game-playing');
   gomokuSessionId = data.session_id;
   gomokuReplayCache.clear();
   gomokuCandidateStatus.clear();
@@ -658,13 +686,13 @@ socket.on('gomoku_session_loaded', (data) => {
   document.getElementById('gomokuSessionTitle').value = data.meta?.title || '';
   document.getElementById('gomokuSessionStatus').textContent = `불러온 기록: ${data.meta?.title || '이름 없음'}`;
   document.getElementById('gomokuCompareStage').classList.remove('visible');
+  document.getElementById('gomokuCompareSummary').classList.remove('visible');
   document.getElementById('gomokuHumanImage').src = '';
   document.getElementById('gomokuAgentImage').src = '';
   document.getElementById('gomokuCenterFeedback').classList.remove('visible');
   document.getElementById('gomokuFeedbackLoading').classList.remove('active');
   document.getElementById('gomokuFeedbackSourceCenter').textContent = '';
   document.getElementById('gomokuFeedbackTextCenter').textContent = '착수를 고르면 코칭 피드백이 여기에 표시됩니다.';
-  setGomokuFeedbackTab('feedback');
   document.getElementById('gomokuLlmCurrentStatus').textContent = HAS_LLM ? '현재 선택: 대기 중' : '현재 선택: 로컬';
   updateGomokuSummaryFromPayload(null, {});
   clearGomokuTerminalOverlay();
@@ -674,9 +702,6 @@ socket.on('gomoku_session_loaded', (data) => {
 initBoard();
 document.querySelectorAll('#gomokuRightTabs .right-tab').forEach(btn => {
   btn.addEventListener('click', () => setGomokuRightTab(btn.dataset.gomokuTab));
-});
-document.querySelectorAll('[data-gomoku-feedback-tab]').forEach(btn => {
-  btn.addEventListener('click', () => setGomokuFeedbackTab(btn.dataset.gomokuFeedbackTab));
 });
 
 // ── 도전과제 시스템 ───────────────────────────────────────────────────────────

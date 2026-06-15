@@ -76,7 +76,9 @@
   }
 
   .main-shell { flex:1; min-width:0; display:flex; flex-direction:column; height:100%; overflow:hidden; }
-  .top-row { display:grid; grid-template-columns:minmax(0,1fr) 420px; flex:1; overflow:hidden; min-height:0; }
+  .top-row { display:grid; grid-template-columns:minmax(0,1fr) 440px; flex:1; overflow:hidden; min-height:0; transition:grid-template-columns .2s ease; }
+  body.game-playing .top-row { grid-template-columns:minmax(0,1fr) 0; }
+  body.game-playing .side-column { display:none; }
   .center { min-width:0; display:flex; flex-direction:column; align-items:center; gap:12px; overflow-y:auto; padding:16px; height:100%; }
   .side-column { display:flex; flex-direction:column; gap:12px; border-left:1px solid var(--border-c); overflow-y:auto; padding:16px; height:100%; }
 
@@ -255,17 +257,43 @@
   .feedback-loading-label { font-size:.66rem; color:var(--sub); margin-bottom:6px; }
   .feedback-loading-track { height:4px; background:#1a1a2e; border-radius:999px; overflow:hidden; }
   .feedback-loading-bar { width:35%; height:100%; background:linear-gradient(90deg,var(--amber),var(--cyan)); box-shadow:0 0 8px rgba(255,170,0,.4); animation:feedback-loading 1.2s ease-in-out infinite; }
-  .center-feedback-box { padding:14px; font-size:.80rem; line-height:1.85; white-space:pre-wrap; color:var(--text); }
-  .feedback-tabs { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid rgba(255,170,0,.12); }
+  .center-feedback-box { padding:14px; font-size:.82rem; line-height:1.85; white-space:pre-wrap; color:var(--text); }
+  .feedback-tabs { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid rgba(255,170,0,.18); }
   .feedback-tab {
-    background:transparent; border:none; border-right:1px solid rgba(255,170,0,.12); color:var(--sub);
-    padding:9px 8px; font-size:.64rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
-    min-height:36px; display:flex; align-items:center; justify-content:center; text-align:center;
+    background:transparent; border:none; border-right:1px solid rgba(255,170,0,.18); color:var(--sub);
+    padding:10px 8px; font-size:.66rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    min-height:40px; display:flex; align-items:center; justify-content:center; text-align:center;
   }
   .feedback-tab:last-child { border-right:none; }
   .feedback-tab.active { color:var(--amber); background:rgba(255,170,0,.06); }
-  .feedback-summary-box { display:none; padding:12px 14px; }
-  .feedback-summary-box.visible { display:block; }
+  /* 비교 요약 카드 (종합 분석 탭 내) */
+  .compare-summary { display:none; background:var(--dim); border:1px solid rgba(0,245,255,.2); padding:14px; }
+  .compare-summary.visible { display:block; }
+  /* CF 메타 칩 — 기본 2열, compare-summary 안에선 3열 */
+  .cf-meta-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+  .compare-summary .cf-meta-row { grid-template-columns:repeat(3,1fr); }
+  .cf-meta-chip { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:4px; padding:9px 12px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .cf-meta-chip.loss { border-color:rgba(0,245,255,.35); background:rgba(0,245,255,.07); }
+  .cf-meta-label { font-family:'Press Start 2P',monospace; font-size:.42rem; color:var(--sub); letter-spacing:1px; text-align:center; }
+  .cf-meta-val { font-family:'Share Tech Mono',monospace; font-size:1rem; color:var(--text); }
+  .cf-meta-chip.loss .cf-meta-val { color:var(--cyan); }
+  /* CF VS 테이블 */
+  .cf-vs-header { display:grid; grid-template-columns:1fr auto 1fr; border:1px solid rgba(255,255,255,.1); border-radius:4px 4px 0 0; overflow:hidden; margin-top:10px; }
+  .cf-vs-h { padding:7px 12px; font-family:'Press Start 2P',monospace; font-size:.42rem; letter-spacing:1px; }
+  .cf-vs-h.human { color:var(--cyan); background:rgba(0,245,255,.05); }
+  .cf-vs-h.agent { color:var(--theme); background:rgba(var(--theme-rgb),.07); text-align:right; }
+  .cf-vs-badge { display:flex; align-items:center; justify-content:center; padding:0 8px; font-family:'Press Start 2P',monospace; font-size:.42rem; color:var(--sub); background:rgba(255,255,255,.03); border-left:1px solid rgba(255,255,255,.08); border-right:1px solid rgba(255,255,255,.08); }
+  .cf-vs-rows { border:1px solid rgba(255,255,255,.1); border-top:none; border-radius:0 0 4px 4px; overflow:hidden; }
+  .cf-vs-row { display:grid; grid-template-columns:1fr 1px 1fr; border-bottom:1px solid rgba(255,255,255,.07); }
+  .cf-vs-row:last-child { border-bottom:none; }
+  .cf-vs-sep { background:rgba(255,255,255,.08); }
+  .cf-vs-cell { padding:8px 12px; display:flex; flex-direction:column; gap:3px; }
+  .cf-vs-cell.human { background:rgba(0,245,255,.03); }
+  .cf-vs-cell.agent { background:rgba(var(--theme-rgb),.05); align-items:flex-end; }
+  .cf-vs-mini { font-family:'Share Tech Mono',monospace; font-size:.60rem; color:var(--sub); }
+  .cf-vs-val { font-family:'Share Tech Mono',monospace; font-size:.82rem; color:var(--text); }
+  .cf-vs-cell.human .cf-vs-val { color:#fff; }
+  .cf-vs-cell.agent .cf-vs-val { color:var(--theme); }
   @keyframes feedback-loading {
     0% { transform:translateX(-120%); }
     100% { transform:translateX(320%); }
@@ -329,14 +357,8 @@
   .qvalue-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .qvalue-card { background:#0b1118; border:1px solid #1f2b33; padding:14px; }
   .qvalue-card.full { grid-column:1 / -1; }
-  .center-feedback-box { background:rgba(255,255,255,.03); border-left:3px solid var(--amber); padding:14px; font-size:.84rem; line-height:1.85; white-space:pre-wrap; }
-  .feedback-tab {
-    background:#0b1118; border:1px solid rgba(255,230,0,.18); color:var(--sub);
-    padding:12px 10px; font-size:.70rem; cursor:pointer; font-family:'Share Tech Mono',monospace;
-    min-height:46px; display:flex; align-items:center; justify-content:center; text-align:center;
-  }
   @media (max-width: 1380px){
-    .top-row { grid-template-columns:minmax(0,1fr) 380px; }
+    .top-row { grid-template-columns:minmax(0,1fr) 400px; }
   }
   @media (max-width: 1100px){
     .top-row { grid-template-columns:minmax(0,1fr) 320px; }

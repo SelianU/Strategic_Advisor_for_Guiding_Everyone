@@ -138,7 +138,7 @@ class BreakoutGame(AtariGame):
     frame_skip  = 3
     prefix     = 'bo_'
     theme_color = '#ff8a1c'
-    model_path_parts = ('data', 'checkpoints', 'breakout', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'breakout', 'best_model_breakout.pth')
 
     action_names = {
         0: 'NOOP', 1: 'FIRE', 2: 'RIGHT', 3: 'LEFT',

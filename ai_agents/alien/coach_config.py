@@ -197,6 +197,14 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
     outcome_guid = build_outcome_guidance(summary)
     gs_note      = _game_state_note(summary.get('game_state') or {})
 
+    frames    = summary.get('rgb_frames_b64') or []
+    has_image = len(frames) > 0
+    image_note = (
+        "\n- 첨부 이미지 3장([직전] → [결정순간] → [직후]): 행동 전후 실제 게임 화면입니다. "
+        "외계인 위치·이동 방향, 에그 분포, 펄사 상태, 플레이어 위치의 변화를 직접 확인해 상황을 묘사하세요."
+        if has_image else ""
+    )
+
     return f"""다음은 Alien 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
 
 상황 정보:
@@ -208,7 +216,7 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 - 이후 30초 비교 구간 에이전트 점수: {a_score:.1f}
 - 플레이어님 쪽 득점 프레임들: {summary.get('human_reward_steps') or '없음'}
 - 에이전트 쪽 득점 프레임들: {summary.get('agent_reward_steps') or '없음'}
-{gs_note}
+{gs_note}{image_note}
 이후 경로 활용 지침: {outcome_guid}
 
 작성 방식:
@@ -217,7 +225,7 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 - 행동 이름은 반드시 한국어로만 표현하세요. NOOP, FIRE, UPFIRE 같은 영어 약어는 절대 쓰지 마세요.
 - 화염 방사기는 방어 수단입니다. "발사했다", "쐈다"는 표현은 절대 쓰지 마세요.
 - Q값 수치는 전체 피드백에서 단 한 번만 언급하세요.
-- 첫 번째 문단: 플레이어님과 에이전트의 행동을 대비하고, "이후 경로 활용 지침"에 따라 비교 구간 결과를 언급하세요.
+- 첫 번째 문단: 플레이어님과 에이전트의 행동을 대비하고, "이후 경로 활용 지침"에 따라 비교 구간 결과를 언급하세요. 첨부 이미지 3장이 있다면 [직전]→[결정순간]→[직후] 흐름에서 보이는 외계인 위치·에그 분포·펄사 상태를 배경으로 자연스럽게 녹이세요.
 - 중간 문단: 에이전트가 그 행동을 선택한 이유를 외계인 위치, 에그 분포, 펄사 상태 관점에서 설명하세요.
 - 마지막 문단: "다음에 이런 상황이라면" 뉘앙스로 시작해 즉시 실천 가능한 조언으로 마무리하세요.
 - "했습니다", "좋았습니다" 같은 단정한 존댓말 사용. 인삿말, 이모티콘, 과한 감탄사 금지.

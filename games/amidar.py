@@ -168,7 +168,7 @@ class AmidarGame(AtariGame):
     frame_skip  = 4
     prefix     = 'am_'
     theme_color = '#ff6b35'
-    model_path_parts = ('data', 'checkpoints', 'amidar', 'best_model.pth')
+    model_path_parts = ('data', 'checkpoints', 'amidar', 'best_model_amidar.pth')
 
     action_names = {
         0: 'NOOP',  1: 'FIRE',      2: 'UP',       3: 'RIGHT',

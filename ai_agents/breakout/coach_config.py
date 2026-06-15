@@ -221,6 +221,14 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 
     # 추가 지침 제거 — LLM이 자유롭게 판단
 
+    frames    = summary.get('rgb_frames_b64') or []
+    has_image = len(frames) > 0
+    image_note = (
+        "\n- 첨부 이미지 3장([직전] → [결정순간] → [직후]): 행동 전후 실제 게임 화면입니다. "
+        "공의 위치·이동 방향, 패들 위치, 남은 벽돌 분포의 변화를 직접 확인해 상황을 묘사하세요."
+        if has_image else ""
+    )
+
     return f"""다음은 Breakout 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
 
 상황 정보:
@@ -233,7 +241,7 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 - 비교 구간 플레이어님 점수: {h_score:.1f} / 에이전트 점수: {a_score:.1f}
 - 플레이어님 득점 패턴: {h_pattern} | 프레임: {h_steps or '없음'}
 - 에이전트 득점 패턴: {a_pattern} | 프레임: {a_steps or '없음'}
-{gs_note}
+{gs_note}{image_note}
 이후 경로 활용 지침: {outcome_guid}
 
 작성 원칙:
@@ -243,6 +251,7 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
   • 공의 현재 이동 방향 ("오른쪽 아래 방향으로 내려오고")
   • 패들의 현재 위치 ("패들은 오른쪽 끝에 위치")
   • 남은 벽돌 구역 분포 ("파랑, 초록, 노랑 구역뿐 아니라 주황, 빨강 구역까지 넓게 남아")
+  • 첨부 이미지 3장이 있다면 [직전]→[결정순간]→[직후] 흐름에서 보이는 공 궤도·패들 위치·벽돌 분포 변화를 자연스럽게 녹이세요.
 - 에이전트와 플레이어를 자연스럽게 대비하세요:
   • "에이전트는 ~했지만, 플레이어님은 ~하셨습니다" 형태로
   • "플레이어님이 ~하신 반면, 에이전트는 ~했습니다" 형태로

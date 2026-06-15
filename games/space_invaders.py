@@ -332,6 +332,18 @@ class SpaceInvadersGame(AtariGame):
             return {}
         return {'game_state': extract_si_game_state(pre_ram, pre_rgb)}
 
+    def _extra_replay_summary(self, h_frame, a_frame) -> dict:
+        """replay 종료 시점의 방패 상태를 인간/에이전트 경로별로 추출."""
+        try:
+            h_gs = extract_si_game_state(None, h_frame)
+            a_gs = extract_si_game_state(None, a_frame)
+            return {
+                'h_shield_end': h_gs.get('shield_integrity', []),
+                'a_shield_end': a_gs.get('shield_integrity', []),
+            }
+        except Exception:
+            return {}
+
     def _compute_achievements(self) -> list:
         data = [d for d in self.episode_data if d.get('action') is not None]
         if not data:

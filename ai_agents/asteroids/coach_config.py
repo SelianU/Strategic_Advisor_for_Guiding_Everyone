@@ -114,8 +114,16 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
     a_score      = summary.get('agent_score_delta', 0)
     outcome_guid = build_outcome_guidance(summary)
 
+    frames    = summary.get('rgb_frames_b64') or []
+    has_image = len(frames) > 0
+    image_note = (
+        "\n- 첨부 이미지 3장([직전] → [결정순간] → [직후]): 행동 전후 실제 게임 화면입니다. "
+        "소행성 크기·위치·밀집도, 우주선 방향·관성, 파편 경로의 변화를 직접 확인해 상황을 묘사하세요."
+        if has_image else ""
+    )
+
     return f"""다음은 Asteroids 코칭 사례입니다. 아래 정보를 바탕으로 플레이어님에게 자연스러운 한국어 피드백을 작성해주세요.
- 
+
 상황 정보:
 - 스텝: {summary['step']}
 - 플레이어님 행동: {action_name_ko(summary['human_action_name'])}
@@ -129,12 +137,12 @@ def build_user_prompt(summary: dict[str, Any]) -> str:
 - 에이전트 쪽 첫 격파 시점: {summary.get('agent_first_reward_step', '격파 없음')}
 - 플레이어님 쪽 격파 프레임들: {summary.get('human_reward_steps') or '없음'}
 - 에이전트 쪽 격파 프레임들: {summary.get('agent_reward_steps') or '없음'}
-이후 경로 활용 지침: {outcome_guid}
- 
+{image_note}이후 경로 활용 지침: {outcome_guid}
+
 작성 방식:
 - 문단 수는 2~3개로 자유롭게 구성하세요. 각 문단은 빈 줄 하나로 구분하세요.
 - 문단 제목, 레이블, 번호(예: "분석", "1." 등)는 절대 쓰지 마세요. 바로 본문으로 시작하세요.
-- 첫 번째 문단: 플레이어님 행동과 에이전트 행동을 명확히 대비하고, "이후 경로 활용 지침"에 따라 이후 전개를 설명하세요.
+- 첫 번째 문단: 플레이어님 행동과 에이전트 행동을 명확히 대비하고, "이후 경로 활용 지침"에 따라 이후 전개를 설명하세요. 첨부 이미지 3장이 있다면 [직전]→[결정순간]→[직후] 흐름에서 보이는 소행성 배치·우주선 관성 변화를 배경으로 자연스럽게 녹이세요.
 - 중간 문단(선택): 에이전트의 행동이 왜 더 나은 판단이었는지 설명하세요. 관성 물리로 인해 조작 하나하나가 이후 궤도에 미치는 영향, 소행성 크기와 분열 파편 경로, 연속 발사 타이밍 등을 자연스럽게 활용하세요.
 - 마지막 문단: "다음에 이런 상황이라면" 또는 그와 비슷한 뉘앙스로 시작해 플레이어님이 바로 실천할 수 있는 구체적인 조언을 주세요.
 - 점수와 격파 프레임은 이 순간 이후 약 30초 비교 구간의 수치입니다. 점수를 언급할 때는 "이 구간에서" 또는 "비교 구간에서"라고 명시하세요.

@@ -195,6 +195,54 @@
                   </div>
                 </div>
               </div>
+
+              <!-- 선택 착수 비교 요약 카드 (종합 분석 탭 내, scoreSection 아래) -->
+              <div class="compare-summary" id="gomokuCompareSummary">
+                <div class="panel-title" style="margin-bottom:10px;">선택 착수 분석</div>
+                <div class="cf-meta-row">
+                  <div class="cf-meta-chip">
+                    <div class="cf-meta-label">MOVE</div>
+                    <div class="cf-meta-val" id="gomokuMoveVal">—</div>
+                  </div>
+                  <div class="cf-meta-chip loss">
+                    <div class="cf-meta-label">이 착수 LOSS</div>
+                    <div class="cf-meta-val" id="gomokuLossVal">—</div>
+                  </div>
+                  <div class="cf-meta-chip">
+                    <div class="cf-meta-label">해당 착수까지 평균</div>
+                    <div class="cf-meta-val" id="gomokuAvgLossVal">—</div>
+                  </div>
+                </div>
+                <div class="cf-vs-header">
+                  <div class="cf-vs-h human">HUMAN</div>
+                  <div class="cf-vs-badge">VS</div>
+                  <div class="cf-vs-h agent">AGENT</div>
+                </div>
+                <div class="cf-vs-rows">
+                  <div class="cf-vs-row">
+                    <div class="cf-vs-cell human">
+                      <div class="cf-vs-mini">착수 위치</div>
+                      <div class="cf-vs-val" id="gomokuHumanMoveVal">—</div>
+                    </div>
+                    <div class="cf-vs-sep"></div>
+                    <div class="cf-vs-cell agent">
+                      <div class="cf-vs-mini">착수 위치</div>
+                      <div class="cf-vs-val" id="gomokuAgentMoveVal">—</div>
+                    </div>
+                  </div>
+                  <div class="cf-vs-row">
+                    <div class="cf-vs-cell human">
+                      <div class="cf-vs-mini">Q 가치</div>
+                      <div class="cf-vs-val" id="gomokuHumanQVal">—</div>
+                    </div>
+                    <div class="cf-vs-sep"></div>
+                    <div class="cf-vs-cell agent">
+                      <div class="cf-vs-mini">Q 가치</div>
+                      <div class="cf-vs-val" id="gomokuAgentQVal">—</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="analysis-section" id="tableSection">
                 <div class="qvalue-card full">
                   <div class="panel-title">착수별 Q-VALUE</div>
@@ -268,26 +316,14 @@
           <div class="candidate-bar" id="gomokuCandidateBar"></div>
         </div>
 
-        <!-- LLM 코치 피드백 -->
+        <!-- LLM 코치 피드백 (피드백 텍스트만) -->
         <div class="center-feedback" id="gomokuCenterFeedback">
           <div id="gomokuFeedbackSourceCenter" class="center-feedback-source"></div>
-          <div class="feedback-tabs">
-            <button type="button" class="feedback-tab active" data-gomoku-feedback-tab="feedback">🎓 코칭 피드백</button>
-            <button type="button" class="feedback-tab" data-gomoku-feedback-tab="summary">📊 비교 요약</button>
-          </div>
           <div class="feedback-loading" id="gomokuFeedbackLoading">
             <div class="feedback-loading-label">SAGE가 분석 중입니다...</div>
             <div class="feedback-loading-track"><div class="feedback-loading-bar"></div></div>
           </div>
           <div id="gomokuFeedbackTextCenter" class="center-feedback-box">착수를 고르면 코칭 피드백이 여기에 표시됩니다.</div>
-          <div id="gomokuFeedbackSummaryBox" class="feedback-summary-box">
-            <div class="summary-grid">
-              <div class="summary-item"><div class="summary-k">MOVE</div><div class="summary-v" id="gomokuMoveVal">—</div></div>
-              <div class="summary-item"><div class="summary-k">LOSS</div><div class="summary-v" id="gomokuLossVal">—</div></div>
-              <div class="summary-item"><div class="summary-k">HUMAN MOVE</div><div class="summary-v" id="gomokuHumanMoveVal">—</div></div>
-              <div class="summary-item"><div class="summary-k">AGENT MOVE</div><div class="summary-v" id="gomokuAgentMoveVal">—</div></div>
-            </div>
-          </div>
         </div>
 
       </div>

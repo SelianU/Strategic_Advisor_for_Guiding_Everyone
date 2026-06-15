@@ -37,6 +37,16 @@ except Exception:
 
 OPENROUTER_URL  = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL   = "meta-llama/llama-3.3-70b-instruct:free"
+
+# 이미지(vision) 입력을 지원하는 모델 목록
+VISION_MODELS: set[str] = {
+    "google/gemma-4-31b-it:free",
+    "google/gemini-3.1-flash-lite-preview",
+    "google/gemini-3-flash-preview",
+    "google/gemini-3.5-flash",
+    "google/gemini-2.5-flash",
+}
+
 FALLBACK_MODELS = [
     "nousresearch/hermes-3-llama-3.1-405b:free",
     "google/gemma-4-31b-it:free",
@@ -168,13 +178,35 @@ def _build_atari_messages(game_id: str, summary: dict[str, Any]) -> list[dict[st
     ]
 
 
+def _inject_image(messages: list, frames_b64: list[str]) -> list:
+    """user 메시지에 게임 프레임 이미지(1~3장)를 추가해 multimodal 형식으로 변환.
+    frames_b64: [직전, 결정순간, 직후] 순서의 base64 JPEG 리스트."""
+    labels = ["[직전]", "[결정순간]", "[직후]"]
+    result = []
+    for msg in messages:
+        if msg["role"] == "user":
+            content: list[dict] = []
+            for i, b64 in enumerate(frames_b64):
+                label = labels[i] if i < len(labels) else f"[프레임{i+1}]"
+                content.append({"type": "text", "text": label})
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                })
+            content.append({"type": "text", "text": msg["content"]})
+            result.append({"role": "user", "content": content})
+        else:
+            result.append(msg)
+    return result
+
+
 def _build_atari_fallback(game_id: str, summary: dict[str, Any]) -> str:
     return _load_coach_config(game_id).build_fallback_feedback(summary)
 
 
 # ── LLM 호출 공통 로직 ───────────────────────────────────────────────────────
 
-def _call_llm(messages: list[dict[str, str]]) -> tuple[str | None, str | None, str]:
+def _call_llm(messages: list[dict[str, str]], frames_b64: list[str] | None = None) -> tuple[str | None, str | None, str]:
     """
     LLM을 호출합니다.
 
@@ -197,8 +229,14 @@ def _call_llm(messages: list[dict[str, str]]) -> tuple[str | None, str | None, s
 
     for candidate in [primary] + [m for m in FALLBACK_MODELS if m != primary]:
         is_reasoning = any(x in candidate for x in ("r1", "r2", "qwq", "thinking"))
+        # 비전 지원 모델이면 이미지(3장) 포함, 아니면 텍스트만
+        active_messages = (
+            _inject_image(messages, frames_b64)
+            if frames_b64 and candidate in VISION_MODELS
+            else messages
+        )
         body: dict[str, Any] = {
-            "model": candidate, "messages": messages,
+            "model": candidate, "messages": active_messages,
             "temperature": 0.2, "max_tokens": 1100,
         }
         if is_reasoning:
@@ -290,8 +328,9 @@ def generate_feedback(
         fb = parse_structured_feedback(fallback_text)
         return fb['full'], fb, "local", None, "로컬"
 
-    print(f'[LLM] API 키 확인됨, LLM 호출 시작 (game_id={game_id})')
-    raw, model, route = _call_llm(messages)
+    frames_b64 = summary.get('rgb_frames_b64') or None
+    print(f'[LLM] API 키 확인됨, LLM 호출 시작 (game_id={game_id}, vision={bool(frames_b64)}, frames={len(frames_b64) if frames_b64 else 0})')
+    raw, model, route = _call_llm(messages, frames_b64=frames_b64)
     if raw:
         fb = parse_structured_feedback(raw)
         return fb['full'], fb, "llm", model, route
