@@ -445,6 +445,9 @@ socket.on(P + 'session_loaded', data => {
   if (!data.ok) { document.getElementById('sessionStatus').textContent = data.message || '불러오기 실패'; return; }
   document.body.classList.remove('game-playing');
   document.body.classList.add('coach-visible');
+  // 룰북 패널 숨기기
+  const introPanel = document.getElementById('gameIntroPanel');
+  if (introPanel) introPanel.classList.add('hidden');
   sessionId = data.session_id;
   cfCache.clear(); candidateStatus.clear();
   (data.cached_counterfactuals || []).forEach(item => cfCache.set(parseInt(item.entry_index), item));
