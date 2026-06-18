@@ -324,4 +324,4 @@ python training/space_invaders/feedback_analyzer.py --data ./human_data/play_001
 ---
 
 ## 라이선스
-- Team A1
+- MIT License
